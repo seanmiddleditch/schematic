@@ -1,0 +1,65 @@
+FormatStyle: "file"
+# -cppcoreguidelines-avoid-c-arrays: is a little idealistic
+# -cppcoreguidelines-avoid-const-or-ref-data-members: nope, these are useful in plenty of cases
+# -cppcoreguidelines-explicit-virtual-functions: dupe of modernize-use-override
+# -cppcoreguidelines-macro-usage: flags almost every macro, many of which _must_ be macros
+# -cppcoreguidelines-pro-bounds-array-to-pointer-decay: likewise, we use char buffers for a reason
+# -cppcoreguidelines-pro-bounds-constant-array-index: is just crazy, we use [] on purpose
+# -cppcoreguidelines-pro-bounds-pointer-arithmetic: doesn't acknowledge pointers as iterators
+# -cppcoreguidelines-pro-type-reinterpret-cast: is idealistic, we have to use it often
+# -cppcoreguidelines-pro-type-static-cast-downcast: recommends unnecessarily using dynamic_cast
+# -cppcoreguidelines-pro-type-union-access: GLM runs afoul of this
+# -cppcoreguidelines-owning-memory: [[TODO]] we actually want this, but need to plumb the GSL hints
+# -modernize-avoid-c-arrays: nope we use C arrays
+# -modernize-raw-string-literal: style choice, don't like it in many cases
+# -modernize-use-trailing-return-type: not stylistically desired
+# -readability-braces-around-statements: not as necessary with clang-format indentation; bloats simple statements
+# -readability-qualified-auto: is often "wrong" because we use raw pointers as iterators
+# -readability-convert-member-functions-to-static: has side effects (e.g. calling conventions)
+# -readability-function-cognitive-complexity: having trouble getting this to not trigger on assert macros (IgnoreMacros not working?)
+# -readability-identifier-length: sometimes short identifiers are better than long ones
+# -readability-named-parmater: useful for unused parameters
+# -readability-upper-literal-suffix: is just stylistically objectionable, e.g. 1.2f vs 1.2F
+# -readability-use-anyofallof: no heavy library use to replace simple language features, thank you
+Checks: >-
+    -*,
+    bugprone-*,
+    cppcoreguidelines-*,
+    modernize-*,
+    performance-*,
+    portability-*,
+    readability-*,
+    -cppcoreguidelines-avoid-c-arrays,
+    -cppcoreguidelines-avoid-const-or-ref-data-members,
+    -cppcoreguidelines-avoid-magic-numbers,
+    -cppcoreguidelines-explicit-virtual-functions,
+    -cppcoreguidelines-macro-usage,
+    -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+    -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+    -cppcoreguidelines-pro-bounds-constant-array-index,
+    -cppcoreguidelines-pro-type-reinterpret-cast,
+    -cppcoreguidelines-pro-type-static-cast-downcast,
+    -cppcoreguidelines-pro-type-union-access,
+    -cppcoreguidelines-owning-memory,
+    -modernize-avoid-c-arrays,
+    -modernize-raw-string-literal,
+    -modernize-use-trailing-return-type,
+    -readability-braces-around-statements,
+    -readability-convert-member-functions-to-static,
+    -readability-function-cognitive-complexity,
+    -readability-identifier-length,
+    -readability-named-parameter,
+    -readability-qualified-auto,
+    -readability-uppercase-literal-suffix,
+    -readability-use-anyofallof,
+CheckOptions:
+    - key:      modernize-use-override.IgnoreDestructors
+      value:    true
+    - key:      cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted
+      value:    true
+    - key:      modernize-use-override.IgnoreDestructors
+      value:    true
+    - key:      readability-magic-numbers.IgnorePowersOf2IntegerValues
+      value:    true
+HeaderFilterRegex: "(source/.*|include/potato/.*)"
+WarningsAsErrors: "*"

@@ -1,0 +1,34 @@
+namespace potato.schematic.fbs;
+
+enum TypeKind: byte
+{
+    Bool,
+    Int,
+    Float,
+    String,
+    Aggregate,
+    Attribute,
+    Enum,
+    Array,
+    Polymorphic,
+    Type,
+}
+
+table Type
+{
+    name: string;
+}
+
+table File
+{
+    path: string;
+}
+
+table Root
+{
+    files: [File];
+    types: [Type];
+}
+
+file_identifier "SCHM";
+root_type Root;

@@ -1,0 +1,18 @@
+{
+  "version": "0.2.1",
+  "defaults": {},
+  "configurations": [
+    {
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "schematic_schemac.exe (@SCHEMATIC_OUT_DIR_WIN32@\\schematic_schemac.exe)",
+      "name": "schematic_schemac.exe (@SCHEMATIC_OUT_DIR_WIN32@\\schematic_schemac.exe)",
+      "args": [
+        "-I@CMAKE_CURRENT_SOURCE_DIR@\\test\\schemas",
+        "-MF@CMAKE_CURRENT_BINARY_DIR@\\test\\test01.d",
+        "-o", "@CMAKE_CURRENT_BINARY_DIR@\\test\\test01.out",
+        "--", "@CMAKE_CURRENT_SOURCE_DIR@\\test\\schemas\\test01.sat"
+      ]
+    }
+  ]
+}
