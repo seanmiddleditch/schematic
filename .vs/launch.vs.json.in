@@ -10,7 +10,7 @@
       "args": [
         "-I@CMAKE_CURRENT_SOURCE_DIR@\\test\\schemas",
         "-MF@CMAKE_CURRENT_BINARY_DIR@\\test\\test01.d",
-        "-o", "@CMAKE_CURRENT_BINARY_DIR@\\test\\test01.out",
+        "-Ojson",
         "--", "@CMAKE_CURRENT_SOURCE_DIR@\\test\\schemas\\test01.sat"
       ]
     }

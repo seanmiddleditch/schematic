@@ -1,0 +1,84 @@
+syntax = "proto3";
+package potato.schematic.proto;
+
+message Field
+{
+    string name = 1;
+    uint32 type = 2;
+}
+
+message EnumItem
+{
+    string name = 1;
+    uint32 type = 2;
+    int64 value = 3;
+}
+
+message Type
+{
+    message Aggregate
+    {
+        string name = 1;
+        optional uint32 base_type = 2;
+        repeated Field fields = 3;
+    }
+
+    message Bool
+    {
+        string name = 1;
+    }
+
+    message Int
+    {
+        string name = 1;
+        uint32 width = 2;
+        bool signed = 3;
+    }
+
+    message Float
+    {
+        string name = 1;
+        uint32 width = 2;
+    }
+
+    message String
+    {
+        string name = 1;
+    }
+
+    message Enum
+    {
+        string name = 1;
+        optional uint32 base_type = 2;
+        repeated EnumItem items = 3;
+    }
+
+    message Array
+    {
+        string name = 1;
+        uint32 element_type = 2;
+        optional uint32 size = 3;
+    }
+
+    oneof Types
+    {
+        Aggregate aggregate = 1;
+        Bool bool = 2;
+        Int int = 3;
+        Float float = 4;
+        Array array = 5;
+        String string = 6;
+        Enum enum = 7;
+    }
+}
+
+message File
+{
+    string path = 1;
+}
+
+message Root
+{
+    repeated File files = 1;
+    repeated Type types = 2;
+}

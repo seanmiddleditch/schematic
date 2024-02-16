@@ -64,10 +64,10 @@ namespace
         const Type* Resolve(const AstNodeType* type);
 
         template <typename... Args>
-        void Error(unsigned tokenIndex, fmt::format_string<Args...> format, const Args&... args);
+        void Error(std::uint32_t tokenIndex, fmt::format_string<Args...> format, const Args&... args);
 
         template <typename T>
-        T* AddType(unsigned tokenIndex, String name)
+        T* AddType(std::uint32_t tokenIndex, String name)
         {
             if (const Type* const previous = FindType(stack.Back()->mod, name); previous != nullptr)
             {
@@ -267,7 +267,7 @@ void Compiler::BuildEnum(const AstNodeEnumDecl& ast)
     BuildAttributes(type->attributes, ast.attributes);
 
     type->items = alloc.NewArray<EnumItem>(ast.items.Size());
-    signed long long next = 0;
+    std::int64_t next = 0;
 
     for (const AstNodeEnumItem* ast_item : ast.items)
     {
@@ -603,7 +603,7 @@ const Type* Compiler::Resolve(const AstNodeType* type)
 }
 
 template <typename... Args>
-void Compiler::Error(unsigned tokenIndex, fmt::format_string<Args...> format, const Args&... args)
+void Compiler::Error(std::uint32_t tokenIndex, fmt::format_string<Args...> format, const Args&... args)
 {
     const Token& token = stack.Back()->tokens[tokenIndex];
 

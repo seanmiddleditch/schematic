@@ -5,6 +5,7 @@
 #include "schematic/arena.h"
 
 #include <string_view>
+#include <cstdint>
 
 namespace potato::schematic
 {
@@ -172,14 +173,14 @@ namespace potato::schematic
         SCHEMATIC_TYPE(Int);
 
         bool isSigned = true;
-        unsigned bits = 32;
+        std::uint32_t bits = 32;
     };
 
     struct TypeFloat : Type
     {
         SCHEMATIC_TYPE(Float);
 
-        unsigned bits = 32;
+        std::uint32_t bits = 32;
     };
 
     struct TypeAggregate : Type
@@ -211,7 +212,7 @@ namespace potato::schematic
 
         const Type* type = nullptr;
         bool isFixed = false;
-        unsigned size = 0; // only non-zero if isFixed is true
+        std::uint32_t size = 0; // only non-zero if isFixed is true
     };
 
     struct TypePolymorphic : Type
@@ -249,7 +250,7 @@ namespace potato::schematic
     {
         SCHEMATIC_VALUE(Int);
 
-        signed long long value = 0;
+        std::int64_t value = 0;
     };
 
     struct ValueReal : Value

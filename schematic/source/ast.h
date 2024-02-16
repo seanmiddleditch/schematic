@@ -7,6 +7,7 @@
 #include <fmt/core.h>
 
 #include <cassert>
+#include <cstdint>
 
 namespace potato::schematic::compiler
 {
@@ -65,12 +66,12 @@ namespace potato::schematic::compiler
     struct AstNodeQualifiedId;
 
 #define AST_NODE(SELF, PARENT, KIND) \
-    explicit SELF(unsigned tokenIndex) : PARENT((KIND), tokenIndex) { } \
+    explicit SELF(std::uint32_t tokenIndex) : PARENT((KIND), tokenIndex) { } \
     static constexpr AstNodeKind Kind = (KIND);
 
     struct AstNode
     {
-        explicit AstNode(AstNodeKind kind, unsigned tokenIndex) noexcept
+        explicit AstNode(AstNodeKind kind, std::uint32_t tokenIndex) noexcept
             : kind(kind)
             , tokenIndex(tokenIndex)
         {
@@ -86,13 +87,13 @@ namespace potato::schematic::compiler
         }
 
         AstNodeKind kind = AstNodeKind::None;
-        unsigned tokenIndex = 0;
+        std::uint32_t tokenIndex = 0;
     };
 
     struct AstIdentifier
     {
         String name;
-        unsigned tokenIndex = 0;
+        std::uint32_t tokenIndex = 0;
     };
 
     struct AstQualifiedName
@@ -237,7 +238,7 @@ namespace potato::schematic::compiler
         AST_NODE(AstNodeLiteralInt, AstNodeExpression, AstNodeKind::LiteralInt);
 
         int base = 10;
-        long long value = 0;
+        std::int64_t value = 0;
     };
 
     struct AstNodeLiteralReal : AstNodeExpression

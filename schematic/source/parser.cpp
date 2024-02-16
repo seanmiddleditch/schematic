@@ -11,6 +11,7 @@
 #include <fmt/core.h>
 
 #include <charconv>
+#include <cstdint>
 
 using namespace potato::schematic;
 using namespace potato::schematic::compiler;
@@ -78,9 +79,9 @@ namespace
 
         bool ConsumeKey(std::string_view keyword);
 
-        void Unwind(unsigned count = 1) noexcept;
+        void Unwind(std::uint32_t count = 1) noexcept;
 
-        unsigned Pos(const Token* token = nullptr) const;
+        std::uint32_t Pos(const Token* token = nullptr) const;
     };
 
     struct PrintToken
@@ -526,7 +527,7 @@ const AstNodeExpression* Parser::ParseExpression()
 
 const AstNodeExpression* Parser::ParseInitializer(const AstQualifiedName& name)
 {
-    const unsigned tokenIndex = name.parts ? name.parts.Front().tokenIndex : next;
+    const std::uint32_t tokenIndex = name.parts ? name.parts.Front().tokenIndex : next;
 
     AstNodeInitializerList* const list = alloc.Create<AstNodeInitializerList>(tokenIndex);
     list->type = name;
@@ -858,16 +859,16 @@ bool Parser::ConsumeKey(std::string_view keyword)
     return true;
 }
 
-void Parser::Unwind(unsigned count) noexcept
+void Parser::Unwind(std::uint32_t count) noexcept
 {
     assert(next >= count);
     next -= count;
 }
 
-unsigned Parser::Pos(const Token* token) const
+std::uint32_t Parser::Pos(const Token* token) const
 {
     if (token == nullptr)
         token = &tokens[next];
 
-    return static_cast<unsigned>(token - tokens.data());
+    return static_cast<std::uint32_t>(token - tokens.data());
 }

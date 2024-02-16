@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 namespace potato::schematic::compiler
 {
     class Source;
@@ -36,8 +38,8 @@ namespace potato::schematic::compiler
     struct Token
     {
         TokenType type = TokenType::Unknown;
-        unsigned offset = 0;
-        unsigned length = 0;
+        std::uint32_t offset = 0;
+        std::uint32_t length = 0;
     };
 
     const char* ToCStr(TokenType type) noexcept;

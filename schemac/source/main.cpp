@@ -13,6 +13,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <memory>
 #include <span>
 #include <string>
@@ -26,8 +27,6 @@ using namespace potato::schematic::compiler;
 //
 //  - Abstract types? With validation
 //
-//  - Serialization of schema
-//
 
 namespace
 {
@@ -35,12 +34,6 @@ namespace
     {
         Compile,
         Help
-    };
-
-    enum class OutputType
-    {
-        Binary,
-        Json
     };
 
     struct File final : Source
@@ -63,7 +56,7 @@ namespace
         std::filesystem::path deps;
         std::vector<std::filesystem::path> search;
         Command command = Command::Compile;
-        OutputType outputType = OutputType::Json;
+        bool writeJson = false;
 
         std::vector<std::unique_ptr<File>> files;
     };
@@ -102,9 +95,6 @@ int main(int argc, char** argv)
     if (!ParseArguments(state, std::span{ &argv[1], &argv[argc] }))
         return 1;
 
-    fmt::println("Input={}", state.input);
-    fmt::println("Output={}", state.output);
-
     state.search = std::move(state.search);
 
     MainLogger logger(state);
@@ -123,36 +113,38 @@ int main(int argc, char** argv)
     if (mod == nullptr)
         return 1;
 
-    switch (state.outputType)
     {
-        case OutputType::Binary:
-        {
-            const std::vector<std::byte> serialized = SerializeBinary(*mod);
+        auto ios_flags = std::ios_base::out;
+        if (!state.writeJson)
+            ios_flags |= std::ios_base::binary;
 
-            std::ofstream out(state.output, std::ios_base::out | std::ios_base::binary);
+        std::ofstream out;
+        if (!state.output.empty())
+        {
+            out.open(state.output, ios_flags);
             if (!out)
             {
                 fmt::println(stderr, "Cannot open output file: {}", state.output);
                 return 1;
             }
-
-            out.write(reinterpret_cast<const char*>(serialized.data()), serialized.size());
-            break;
         }
-        case OutputType::Json:
+        else
+        {
+            out.set_rdbuf(std::cout.rdbuf());
+        }
+
+        if (state.writeJson)
         {
             const std::string serialized = SerializeJson(*mod);
-
-            std::ofstream out(state.output, std::ios_base::out);
-            if (!out)
-            {
-                fmt::println(stderr, "Cannot open output file: {}", state.output);
-                return 1;
-            }
-
             out.write(serialized.data(), serialized.size());
-            break;
         }
+        else
+        {
+            const std::vector<char> serialized = SerializeBinary(*mod);
+            out.write(serialized.data(), serialized.size());
+        }
+
+        out.close();
     }
 
     if (!state.deps.empty())
@@ -164,14 +156,15 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        deps << state.output.relative_path() << ": ";
+        const std::filesystem::path cwd = std::filesystem::current_path();
+        deps << state.output.lexically_proximate(cwd) << ": ";
 
         for (size_t index = 0; index != state.files.size(); ++index)
         {
             if (index != 0)
                 deps << "  ";
 
-            deps << state.files[index]->filename.relative_path();
+            deps << state.files[index]->filename.lexically_proximate(cwd);
 
             if (index != state.files.size() - 1)
                 deps << " \\";
@@ -264,12 +257,12 @@ bool ParseArguments(State& state, std::span<char*> args)
 
             if (arg == "-Ojson")
             {
-                state.outputType = OutputType::Json;
+                state.writeJson = true;
                 continue;
             }
             if (arg == "-Obin")
             {
-                state.outputType = OutputType::Binary;
+                state.writeJson = false;
                 continue;
             }
 
@@ -304,12 +297,6 @@ bool ParseArguments(State& state, std::span<char*> args)
     if (state.input.empty())
     {
         fmt::println(stderr, "No input file provided");
-        return false;
-    }
-
-    if (state.output.empty())
-    {
-        fmt::println(stderr, "No output file provided");
         return false;
     }
 

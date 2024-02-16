@@ -51,6 +51,6 @@ execute_process(COMMAND
 if(NOT OUTPUT_COMPARE EQUAL 0)
     file(READ "${ACCEPT}/${TEST}.json" EXPECTED)
     file(READ "${OUTPUT_FILE}" ACTUAL) 
-    message("Expected:\n${EXPECTED}\nGot:\n${ACTUAL}")
+    message("Expected:\n'''${EXPECTED}'''\nGot:\n'''${ACTUAL}'''")
     message(FATAL_ERROR "Output file does not match acceptance test")
 endif()

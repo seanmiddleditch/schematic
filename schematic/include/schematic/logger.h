@@ -3,6 +3,7 @@
 #pragma once
 
 #include <string_view>
+#include <cstdint>
 
 namespace potato::schematic::compiler
 {
@@ -11,8 +12,8 @@ namespace potato::schematic::compiler
     struct LogLocation
     {
         const Source* source = nullptr;
-        unsigned offset = 0;
-        unsigned length = 1;
+        std::uint32_t offset = 0;
+        std::uint32_t length = 1;
     };
 
     class Logger

@@ -4,7 +4,7 @@
 
 using namespace potato::schematic::compiler;
 
-SourceLocation potato::schematic::compiler::Source::OffsetToLocation(unsigned offset) const noexcept
+SourceLocation potato::schematic::compiler::Source::OffsetToLocation(std::uint32_t offset) const noexcept
 {
     const std::string_view data = Data();
 
@@ -23,12 +23,12 @@ SourceLocation potato::schematic::compiler::Source::OffsetToLocation(unsigned of
         }
     }
 
-    location.column = static_cast<unsigned>(pos - lineStart) + 1;
+    location.column = static_cast<std::uint32_t>(pos - lineStart) + 1;
 
     return location;
 }
 
-std::string_view potato::schematic::compiler::Source::Line(unsigned line) const noexcept
+std::string_view potato::schematic::compiler::Source::Line(std::uint32_t line) const noexcept
 {
     const std::string_view data = Data();
 

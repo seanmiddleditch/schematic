@@ -8,6 +8,8 @@
 
 #include <fmt/core.h>
 
+#include <cstdint>
+
 static bool Match(const char* c, std::string_view match) noexcept;
 
 static bool IsWhitespace(char c) noexcept;
@@ -33,7 +35,7 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
 
     auto Pos = [&c, text]() noexcept
     {
-        return static_cast<unsigned>(c - text);
+        return static_cast<std::uint32_t>(c - text);
     };
 
     auto Error = [&logger, source, &Pos, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
@@ -140,7 +142,7 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
         if (IsDigit(*c) || isDot)
         {
             TokenType type = isDot ? TokenType::Real : TokenType::Integer;
-            const unsigned start = Pos();
+            const std::uint32_t start = Pos();
 
             const bool isZero = *c == '0';
             ++c;
@@ -217,7 +219,7 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
         // identifiers
         if (IsIdentHead(*c))
         {
-            const unsigned start = Pos();
+            const std::uint32_t start = Pos();
             ++c;
             while (IsIdentBody(*c))
                 ++c;

@@ -1,0 +1,12 @@
+struct Vec3
+{
+    float x;
+    float y;
+    float z;
+}
+
+
+enum Color
+{
+    Red, Blue = 2, Green = 1,
+}

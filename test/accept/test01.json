@@ -1,1 +1,33 @@
-{  }
+{
+ "files": [],
+ "types": [
+  {
+   "aggregate": {
+    "name": "Test"
+   }
+  },
+  {
+   "aggregate": {
+    "name": "Vec3"
+   }
+  },
+  {
+   "float": {
+    "name": "float",
+    "width": 32
+   }
+  },
+  {
+   "array": {
+    "name": "int32[]"
+   }
+  },
+  {
+   "int": {
+    "name": "int32",
+    "width": 32,
+    "signed": true
+   }
+  }
+ ]
+}

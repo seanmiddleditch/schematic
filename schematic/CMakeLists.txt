@@ -1,10 +1,10 @@
 find_package(fmt CONFIG REQUIRED)
-find_package(flatbuffers CONFIG REQUIRED)
+find_package(Protobuf CONFIG REQUIRED)
 
 add_library(schematic_libschematic)
 add_library(schematic::libschematic ALIAS schematic_libschematic)
 target_compile_features(schematic_libschematic PUBLIC cxx_std_23)
-target_link_libraries(schematic_libschematic PRIVATE fmt::fmt)
+target_link_libraries(schematic_libschematic PRIVATE fmt::fmt protobuf::libprotobuf)
 target_include_directories(schematic_libschematic PUBLIC include)
 target_sources(schematic_libschematic PRIVATE FILE_SET HEADERS FILES
     "include/schematic/arena.h"
@@ -31,10 +31,17 @@ target_sources(schematic_libschematic PRIVATE
     "source/token.h"
 )
 
-flatbuffers_generate_headers(
-    TARGET schematic_flatbuffers
-    SCHEMAS schematic.fbs
-    FLAGS --reflect-names
+add_custom_command(
+    OUTPUT
+        "${CMAKE_CURRENT_BINARY_DIR}/schematic.pb.h"
+        "${CMAKE_CURRENT_BINARY_DIR}/schematic.pb.cc"
+    COMMAND
+        protobuf::protoc "--cpp_out=${CMAKE_CURRENT_BINARY_DIR}"  "--proto_path=${CMAKE_CURRENT_SOURCE_DIR}" schematic.proto
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    MAIN_DEPENDENCY schematic.proto
 )
-add_dependencies(schematic_libschematic schematic_flatbuffers)
-target_include_directories(schematic_libschematic PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/schematic_flatbuffers")
+target_sources(schematic_libschematic PRIVATE
+    "${CMAKE_CURRENT_BINARY_DIR}/schematic.pb.h"
+    "${CMAKE_CURRENT_BINARY_DIR}/schematic.pb.cc"
+)
+target_include_directories(schematic_libschematic PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
