@@ -110,6 +110,19 @@ const Type* potato::schematic::FindType(const Module* mod, std::string_view name
     return nullptr;
 }
 
+const Type* potato::schematic::FindType(const Schema* schema, std::string_view name) noexcept
+{
+    if (schema == nullptr)
+        return nullptr;
+
+    for (const Type* type : schema->types)
+    {
+        if (type->name == name)
+            return type;
+    }
+    return nullptr;
+}
+
 static const Value* FindArgument(const Array<Argument>& arguments, const Field* field) noexcept
 {
     if (field == nullptr)

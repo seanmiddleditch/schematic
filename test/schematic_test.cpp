@@ -20,13 +20,14 @@ TEST_CASE("Compiler", "[potato][schematic]")
     TestResolver resolver;
     TestLogger logger;
 
-    auto CompileTest = [&alloc, &logger, &resolver](std::string_view name) -> const Module&
+    auto CompileTest = [&alloc, &logger, &resolver](std::string_view name) -> const Schema&
     {
         const Source* const source = resolver.ResolveModule(name, nullptr);
         REQUIRE(source != nullptr);
-        const Module* const mod = Compile(logger, resolver, alloc, source, CompileOptions{});
-        REQUIRE(mod != nullptr);
-        return *mod;
+        const Schema* const schema = Compile(logger, resolver, alloc, source, CompileOptions{});
+        REQUIRE(schema != nullptr);
+        REQUIRE(schema->root != nullptr);
+        return *schema;
     };
 
     SECTION("Lexer")
@@ -72,9 +73,9 @@ TEST_CASE("Compiler", "[potato][schematic]")
             color c = color.green;
         }
 )--");
-        const Module& mod = CompileTest("enum");
+        const Schema& schema = CompileTest("enum");
 
-        const TypeEnum* const color = CastTo<TypeEnum>(FindType(&mod, "color"));
+        const TypeEnum* const color = CastTo<TypeEnum>(FindType(&schema, "color"));
         REQUIRE(color != nullptr);
         CHECK(color->kind == TypeKind::Enum);
         CHECK(color->items.Size() == 3);
@@ -98,7 +99,7 @@ TEST_CASE("Compiler", "[potato][schematic]")
         }
 
         {
-            const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&mod, "test"));
+            const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&schema, "test"));
             REQUIRE(color != nullptr);
             const Field* const c = FindField(test, "c");
             REQUIRE(c != nullptr);
@@ -125,14 +126,14 @@ TEST_CASE("Compiler", "[potato][schematic]")
         struct base {}
         keyword virtual;
 )--");
-        const Module& mod = CompileTest("main");
+        const Schema& schema = CompileTest("main");
 
-        CHECK(FindType(&mod, "unused") == nullptr);
+        CHECK(FindType(&schema, "unused") == nullptr);
 
-        const Type* const base = FindType(&mod, "base");
+        const Type* const base = FindType(&schema, "base");
         REQUIRE(base != nullptr);
 
-        const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&mod, "test"));
+        const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&schema, "test"));
         REQUIRE(test != nullptr);
         CHECK(test->kind == TypeKind::Aggregate);
         CHECK(test->base == base);
@@ -173,7 +174,7 @@ TEST_CASE("Compiler", "[potato][schematic]")
             string* required;// = "abc";
         }
 )--");
-        const Module& mod = CompileTest("type_modifiers");
+        const Schema& schema = CompileTest("type_modifiers");
     }
 
     SECTION("Initializers")
@@ -192,12 +193,12 @@ TEST_CASE("Compiler", "[potato][schematic]")
             embed second = { 4, 5, 6 };
         }
 )--");
-        const Module& mod = CompileTest("initializer");
+        const Schema& schema = CompileTest("initializer");
 
-        const TypeAggregate* const embed = CastTo<TypeAggregate>(FindType(&mod, "embed"));
+        const TypeAggregate* const embed = CastTo<TypeAggregate>(FindType(&schema, "embed"));
         REQUIRE(embed != nullptr);
 
-        const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&mod, "test"));
+        const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&schema, "test"));
         REQUIRE(test != nullptr);
 
         {
@@ -254,14 +255,14 @@ TEST_CASE("Compiler", "[potato][schematic]")
             [Hidden] item
         }
 )--");
-        const Module& mod = CompileTest("attributes");
+        const Schema& schema = CompileTest("attributes");
 
-        CHECK(CastTo<TypeAttribute>(FindType(&mod, "Ignore")) != nullptr);
-        CHECK(CastTo<TypeAttribute>(FindType(&mod, "Name")) != nullptr);
-        CHECK(CastTo<TypeAttribute>(FindType(&mod, "More")) != nullptr);
-        CHECK(CastTo<TypeAttribute>(FindType(&mod, "Reference")) != nullptr);
+        CHECK(CastTo<TypeAttribute>(FindType(&schema, "Ignore")) != nullptr);
+        CHECK(CastTo<TypeAttribute>(FindType(&schema, "Name")) != nullptr);
+        CHECK(CastTo<TypeAttribute>(FindType(&schema, "More")) != nullptr);
+        CHECK(CastTo<TypeAttribute>(FindType(&schema, "Reference")) != nullptr);
 
-        const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&mod, "test"));
+        const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&schema, "test"));
         CHECK(HasAttribute(test, "Ignore"));
 
         const Attribute* const name = FindAttribute(test, "Name");

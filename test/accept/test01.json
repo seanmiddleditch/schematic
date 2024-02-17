@@ -1,16 +1,16 @@
 {
- "files": [],
+ "modules": [
+  {
+   "filename": "$builtins"
+  },
+  {
+   "filename": "C:/Projects/schematic/test/schemas/test01.sat"
+  },
+  {
+   "filename": "C:/Projects/schematic/test/schemas/import01.sat"
+  }
+ ],
  "types": [
-  {
-   "aggregate": {
-    "name": "Test"
-   }
-  },
-  {
-   "aggregate": {
-    "name": "Vec3"
-   }
-  },
   {
    "float": {
     "name": "float",
@@ -18,8 +18,20 @@
    }
   },
   {
-   "array": {
-    "name": "int32[]"
+   "aggregate": {
+    "name": "Vec3",
+    "module": 2,
+    "fields": [
+     {
+      "name": "x"
+     },
+     {
+      "name": "y"
+     },
+     {
+      "name": "z"
+     }
+    ]
    }
   },
   {
@@ -28,6 +40,57 @@
     "width": 32,
     "signed": true
    }
+  },
+  {
+   "array": {
+    "name": "int32[]",
+    "module": 1,
+    "element_type": 2
+   }
+  },
+  {
+   "enum": {
+    "name": "Color",
+    "module": 2,
+    "items": [
+     {
+      "name": "Red"
+     },
+     {
+      "name": "Blue",
+      "value": "2"
+     },
+     {
+      "name": "Green",
+      "value": "1"
+     }
+    ]
+   }
+  },
+  {
+   "aggregate": {
+    "name": "Test",
+    "module": 1,
+    "fields": [
+     {
+      "name": "vec",
+      "type": 1
+     },
+     {
+      "name": "array",
+      "type": 3
+     },
+     {
+      "name": "integer",
+      "type": 2
+     },
+     {
+      "name": "color",
+      "type": 4
+     }
+    ]
+   }
   }
- ]
+ ],
+ "root_module": 1
 }

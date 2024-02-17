@@ -10,11 +10,8 @@
 
 namespace potato::schematic
 {
-    struct Module;
+    struct Schema;
 
-    std::vector<char> SerializeBinary(const Module& mod);
-    int DeserializeBinary(Module& mod, std::span<const char> input);
-
-    std::string SerializeJson(const Module& mod);
-    int DeserializeJson(Module& mod, std::string_view input);
+    std::vector<char> SerializeBinary(const Schema& schema);
+    std::string SerializeJson(const Schema& schema);
 } // namespace potato::schematic

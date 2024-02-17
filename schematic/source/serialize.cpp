@@ -15,15 +15,16 @@ namespace
     class Serializer
     {
     public:
-        explicit Serializer(const Module& mod)
-            : mod_(mod)
+        explicit Serializer(const Schema& schema)
+            : schema_(schema)
         {
         }
 
-        void Serialize(proto::Root& root);
+        void Serialize(proto::Schema& out);
 
     private:
         std::uint32_t IndexOfType(const Type* type) const noexcept;
+        std::uint32_t IndexOfModule(const Module* mod) const noexcept;
 
         void Serialize(proto::Type& out, const Type& in);
         void Serialize(proto::Type::Aggregate& out, const TypeAggregate& in);
@@ -33,55 +34,76 @@ namespace
         void Serialize(proto::Type::Array& out, const TypeArray& in);
         void Serialize(proto::Type::String& out, const TypeString& in);
         void Serialize(proto::Type::Enum& out, const TypeEnum& in);
+        void Serialize(proto::Type::TypeRef& out, const TypeType& in);
+        void Serialize(proto::Type::Polymorphic& out, const TypePolymorphic& in);
 
-        const Module& mod_;
+        const Schema& schema_;
     };
 } // namespace
 
-std::vector<char> potato::schematic::SerializeBinary(const Module& mod)
+std::vector<char> potato::schematic::SerializeBinary(const Schema& schema)
 {
-    proto::Root root;
-    Serializer serializer(mod);
-    serializer.Serialize(root);
+    proto::Schema out;
+    Serializer serializer(schema);
+    serializer.Serialize(out);
 
     std::vector<char> result;
-    result.resize(root.ByteSizeLong());
-    root.SerializeToArray(result.data(), result.size());
+    result.resize(out.ByteSizeLong());
+    out.SerializeToArray(result.data(), result.size());
 
     return result;
 }
-
-int potato::schematic::DeserializeBinary(Module& mod, std::span<const char> input)
+std::string potato::schematic::SerializeJson(const Schema& schema)
 {
-    return 1;
-}
-
-std::string potato::schematic::SerializeJson(const Module& mod)
-{
-    proto::Root root;
-    Serializer serializer(mod);
-    serializer.Serialize(root);
+    proto::Schema out;
+    Serializer serializer(schema);
+    serializer.Serialize(out);
 
     std::string result;
     google::protobuf::util::JsonPrintOptions options;
     options.add_whitespace = true;
     options.preserve_proto_field_names = true;
-    google::protobuf::util::MessageToJsonString(root, &result, options);
+    google::protobuf::util::MessageToJsonString(out, &result, options);
 
     return result;
 }
-
-int potato::schematic::DeserializeJson(Module& mod, std::string_view input)
+void Serializer::Serialize(proto::Schema& out)
 {
-    return 1;
+    for (const Module* const mod : schema_.modules)
+    {
+        proto::Module* const pmod = out.add_modules();
+        pmod->set_filename(mod->filename.CStr());
+    }
+
+    for (const Type* const type : schema_.types)
+        Serialize(*out.add_types(), *type);
+
+    if (schema_.root != nullptr)
+        out.set_root_module(IndexOfModule(schema_.root));
 }
 
-void Serializer::Serialize(proto::Root& root)
+std::uint32_t Serializer::IndexOfType(const Type* type) const noexcept
 {
-    for (const Type* const type : mod_.types)
+    std::uint32_t index = 0;
+    for (const Type* const candidate : schema_.types)
     {
-        Serialize(*root.add_types(), *type);
+        if (candidate == type)
+            break;
+        ++index;
     }
+    return index;
+}
+
+std::uint32_t Serializer::IndexOfModule(const Module* mod) const noexcept
+{
+    std::uint32_t index = 0;
+    for (const Module* const candidate : schema_.modules)
+    {
+        if (candidate == mod)
+            break;
+        ++index;
+    }
+    return index;
 }
 
 void Serializer::Serialize(proto::Type& out, const Type& in)
@@ -110,35 +132,24 @@ void Serializer::Serialize(proto::Type& out, const Type& in)
         case Enum:
             Serialize(*out.mutable_enum_(), static_cast<const TypeEnum&>(in));
             break;
-        case Attribute:
         case Polymorphic:
+            Serialize(*out.mutable_polymorphic(), static_cast<const TypePolymorphic&>(in));
+            break;
         case Type:
+            Serialize(*out.mutable_type(), static_cast<const TypeType&>(in));
+            break;
+        case Attribute:
             break;
     }
-}
-
-std::uint32_t Serializer::IndexOfType(const Type* type) const noexcept
-{
-    std::uint32_t index = 0;
-    for (const Type* const candidate : mod_.types)
-    {
-        if (type == candidate)
-        {
-            return index;
-        }
-        ++index;
-    }
-    return 0;
 }
 
 void Serializer::Serialize(proto::Type::Aggregate& out, const TypeAggregate& in)
 {
     out.set_name(in.name.CStr());
+    out.set_module(IndexOfModule(in.owner));
 
     if (in.base != nullptr)
-    {
         out.set_base_type(IndexOfType(in.base));
-    }
 
     for (const Field& field : in.fields)
     {
@@ -151,11 +162,13 @@ void Serializer::Serialize(proto::Type::Aggregate& out, const TypeAggregate& in)
 void Serializer::Serialize(proto::Type::Bool& out, const TypeBool& in)
 {
     out.set_name(in.name.CStr());
+    out.set_module(IndexOfModule(in.owner));
 }
 
 void Serializer::Serialize(proto::Type::Int& out, const TypeInt& in)
 {
     out.set_name(in.name.CStr());
+    out.set_module(IndexOfModule(in.owner));
     out.set_width(in.bits);
     out.set_signed_(in.isSigned);
 }
@@ -163,28 +176,30 @@ void Serializer::Serialize(proto::Type::Int& out, const TypeInt& in)
 void Serializer::Serialize(proto::Type::Float& out, const TypeFloat& in)
 {
     out.set_name(in.name.CStr());
+    out.set_module(IndexOfModule(in.owner));
     out.set_width(in.bits);
 }
 
 void Serializer::Serialize(proto::Type::Array& out, const TypeArray& in)
 {
     out.set_name(in.name.CStr());
+    out.set_module(IndexOfModule(in.owner));
 
     out.set_element_type(IndexOfType(in.type));
     if (in.isFixed)
-    {
         out.set_size(in.size);
-    }
 }
 
 void Serializer::Serialize(proto::Type::String& out, const TypeString& in)
 {
     out.set_name(in.name.CStr());
+    out.set_module(IndexOfModule(in.owner));
 }
 
 void Serializer::Serialize(proto::Type::Enum& out, const TypeEnum& in)
 {
     out.set_name(in.name.CStr());
+    out.set_module(IndexOfModule(in.owner));
 
     if (in.base != nullptr)
         out.set_base_type(IndexOfType(in.base));
@@ -196,4 +211,21 @@ void Serializer::Serialize(proto::Type::Enum& out, const TypeEnum& in)
         if (item.value != nullptr)
             out_item.set_value(item.value->value);
     }
+}
+
+void Serializer::Serialize(proto::Type::TypeRef& out, const TypeType& in)
+{
+    out.set_name(in.name.CStr());
+    out.set_module(IndexOfModule(in.owner));
+}
+
+void Serializer::Serialize(proto::Type::Polymorphic& out, const TypePolymorphic& in)
+{
+    out.set_name(in.name.CStr());
+    out.set_module(IndexOfModule(in.owner));
+
+    if (in.type != nullptr)
+        out.set_type(IndexOfType(in.type));
+
+    out.set_nullable(in.isNullable);
 }

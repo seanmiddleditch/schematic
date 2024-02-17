@@ -17,6 +17,7 @@ namespace potato::schematic
     struct EnumItem;
     struct Field;
     struct Module;
+    struct Schema;
     struct Type;
     struct Value;
 
@@ -52,6 +53,7 @@ namespace potato::schematic
     bool HasAttribute(const Type* type, std::string_view name) noexcept;
 
     const Type* FindType(const Module* mod, std::string_view name) noexcept;
+    const Type* FindType(const Schema* schema, std::string_view name) noexcept;
 
     const Value* FindArgument(const ValueObject* object, const Field* field) noexcept;
     const Value* FindArgument(const ValueObject* object, std::string_view name) noexcept;
@@ -123,7 +125,7 @@ namespace potato::schematic
     struct EnumItem
     {
         String name;
-        const TypeEnum* parent = nullptr;
+        const TypeEnum* owner = nullptr;
         const ValueInt* value = nullptr;
         Array<const Attribute*> attributes;
     };
@@ -131,7 +133,7 @@ namespace potato::schematic
     struct Field
     {
         String name;
-        const Type* parent = nullptr;
+        const Type* owner = nullptr;
         const Type* type = nullptr;
         const Value* value = nullptr;
         Array<const Attribute*> attributes;
@@ -139,6 +141,15 @@ namespace potato::schematic
 
     struct Module
     {
+        String filename;
+        Array<const Module*> imports;
+        Array<const Type*> types;
+    };
+
+    struct Schema
+    {
+        const Module* root = nullptr;
+        Array<const Module*> modules;
         Array<const Type*> types;
     };
 
@@ -146,6 +157,7 @@ namespace potato::schematic
     {
         TypeKind kind = TypeKind::Aggregate;
         String name;
+        const Module* owner = nullptr;
         Array<const Attribute*> attributes;
     };
 

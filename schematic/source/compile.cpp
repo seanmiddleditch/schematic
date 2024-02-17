@@ -3,7 +3,6 @@
 #include "schematic/compile.h"
 
 #include "ast.h"
-#include "builtins.h"
 #include "lexer.h"
 #include "parser.h"
 #include "token.h"
@@ -27,7 +26,6 @@ namespace
         const AstNodeModule* ast = nullptr;
         Module* mod = nullptr;
         Array<Token> tokens;
-        Array<const Module*> imports;
     };
 
     struct Compiler
@@ -35,7 +33,11 @@ namespace
         const Module* Compile();
         const AstNodeModule* HandleImport(const AstNodeImport& imp);
 
+        const Module* CreateBuiltins();
+
+        static void VisitTypes(ArenaAllocator& alloc, const Module* mod, Array<const Type*>& visited);
         static void VisitTypes(ArenaAllocator& alloc, const Type* type, Array<const Type*>& visited);
+        static void VisitModules(ArenaAllocator& alloc, const Module* mod, Array<const Module*>& visited);
 
         Logger& logger;
         Resolver& resolver;
@@ -78,6 +80,8 @@ namespace
             T* const type = alloc.Create<T>();
             stack.Back()->mod->types.PushBack(alloc, type);
             type->name = name;
+            type->owner = stack.Back()->mod;
+
             return type;
         }
     };
@@ -99,17 +103,19 @@ namespace
 
 } // namespace
 
-const Module* potato::schematic::compiler::Compile(Logger& logger, Resolver& resolver, ArenaAllocator& alloc, const Source* source, const CompileOptions& options)
+const Schema* potato::schematic::compiler::Compile(Logger& logger, Resolver& resolver, ArenaAllocator& alloc, const Source* source, const CompileOptions& options)
 {
-    const Module* const builtins = options.builtins ? CreateBuiltins(alloc) : nullptr;
+    Compiler compiler{ .logger = logger, .resolver = resolver, .alloc = alloc };
 
-    Compiler compiler{ .logger = logger, .resolver = resolver, .alloc = alloc, .builtins = builtins };
+    if (options.builtins)
+        compiler.CreateBuiltins();
 
     State* const state = alloc.Create<State>();
     compiler.stack.PushBack(alloc, state);
 
     state->source = source;
     state->mod = alloc.Create<Module>();
+    state->mod->filename = alloc.NewString(source->Name());
 
     if (!compiler.Compile())
         return nullptr;
@@ -117,12 +123,15 @@ const Module* potato::schematic::compiler::Compile(Logger& logger, Resolver& res
     compiler.stack.PopBack();
     assert(compiler.stack.IsEmpty());
 
-    Array<const Type*> visited = alloc.NewArray<const Type*>(state->mod->types.Size());
-    for (const Type* const type : state->mod->types)
-        compiler.VisitTypes(alloc, type, visited);
-    state->mod->types = visited;
+    Schema* const schema = alloc.Create<Schema>();
+    schema->root = state->mod;
 
-    return state->mod;
+    compiler.VisitTypes(alloc, schema->root, schema->types);
+    if (compiler.builtins != nullptr)
+        schema->modules.PushBack(alloc, compiler.builtins);
+    compiler.VisitModules(alloc, schema->root, schema->modules);
+
+    return schema;
 }
 
 const Module* Compiler::Compile()
@@ -182,21 +191,66 @@ const AstNodeModule* Compiler::HandleImport(const AstNodeImport& imp)
     }
 
     State* const state = alloc.Create<State>();
-
     state->source = source;
     state->mod = alloc.Create<Module>();
+    state->mod->filename = alloc.NewString(source->Name());
 
     stack.PushBack(alloc, state);
     const bool success = Compile();
     stack.PopBack();
 
     if (success)
-        stack.Back()->imports.PushBack(alloc, state->mod);
+        stack.Back()->mod->imports.PushBack(alloc, state->mod);
 
     if (!success)
         return nullptr;
 
     return state->ast;
+}
+
+const Module* Compiler::CreateBuiltins()
+{
+    if (builtins != nullptr)
+        return builtins;
+
+    Module* const mod = alloc.Create<Module>();
+    builtins = mod;
+
+    mod->filename = alloc.NewString("$builtins");
+
+    State state{ .mod = mod };
+    stack.PushBack(alloc, &state);
+
+    auto AddInt = [this]<typename T>(const char* name, T)
+    {
+        TypeInt* const type = AddType<TypeInt>(0, alloc.NewString(name));
+        type->isSigned = std::is_signed_v<T>;
+        type->bits = CHAR_BIT * sizeof(T);
+    };
+    auto AddFloat = [this]<typename T>(const char* name, T)
+    {
+        TypeFloat* const type = AddType<TypeFloat>(0, alloc.NewString(name));
+        type->bits = CHAR_BIT * sizeof(T);
+    };
+
+    AddType<TypeType>(0, alloc.NewString("$type"));
+    AddType<TypeBool>(0, alloc.NewString("bool"));
+    AddType<TypeString>(0, alloc.NewString("string"));
+
+    AddInt("int8", std::int8_t{});
+    AddInt("uint8", std::uint8_t{});
+    AddInt("int16", std::int16_t{});
+    AddInt("uint16", std::uint16_t{});
+    AddInt("int32", std::int32_t{});
+    AddInt("uint32", std::uint32_t{});
+    AddInt("int64", std::int64_t{});
+    AddInt("uint64", std::uint64_t{});
+
+    AddFloat("float", float{});
+    AddFloat("double", double{});
+
+    stack.PopBack();
+    return builtins;
 }
 
 void Compiler::BuildAggregate(const AstNodeAggregateDecl& ast)
@@ -220,7 +274,7 @@ void Compiler::BuildAggregate(const AstNodeAggregateDecl& ast)
     for (const AstNodeField* ast_field : ast.fields)
     {
         Field& field = type->fields.EmplaceBack(alloc);
-        field.parent = type;
+        field.owner = type;
         if (ast_field->name.name)
             field.name = ast_field->name.name;
         field.type = Resolve(ast_field->type);
@@ -243,7 +297,7 @@ void Compiler::BuildAttribute(const AstNodeAttributeDecl& ast)
     for (const AstNodeField* ast_field : ast.fields)
     {
         Field& field = type->fields.EmplaceBack(alloc);
-        field.parent = type;
+        field.owner = type;
         if (ast_field->name.name)
             field.name = ast_field->name.name;
         field.type = Resolve(ast_field->type);
@@ -272,7 +326,7 @@ void Compiler::BuildEnum(const AstNodeEnumDecl& ast)
     for (const AstNodeEnumItem* ast_item : ast.items)
     {
         EnumItem& item = type->items.EmplaceBack(alloc);
-        item.parent = type;
+        item.owner = type;
         item.name = ast_item->name.name;
         if (ast_item->value != nullptr)
         {
@@ -537,7 +591,7 @@ const Type* Compiler::Resolve(const AstQualifiedName& name)
         if (const Type* const type = FindType(builtins, ident); type != nullptr)
             return type;
 
-    for (const Module* imp : state.imports)
+    for (const Module* imp : state.mod->imports)
         if (const Type* const type = FindType(imp, ident); type != nullptr)
             return type;
 
@@ -558,14 +612,14 @@ const Type* Compiler::Resolve(const AstNodeType* type)
         if (inner == nullptr)
             return nullptr;
 
-        TypeArray* type = alloc.Create<TypeArray>();
         if (array->size != nullptr)
         {
             Error(array->tokenIndex, "Sized arrays not implemented yet");
             return nullptr;
         }
 
-        type->name = alloc.NewString(fmt::format("{}[]", inner->name.CStr()));
+        const String name = alloc.NewString(fmt::format("{}[]", inner->name.CStr()));
+        TypeArray* const type = AddType<TypeArray>(array->tokenIndex, name);
         type->type = inner;
 
         return type;
@@ -577,8 +631,8 @@ const Type* Compiler::Resolve(const AstNodeType* type)
         if (inner == nullptr)
             return nullptr;
 
-        TypePolymorphic* type = alloc.Create<TypePolymorphic>();
-        type->name = alloc.NewString(fmt::format("{}*", inner->name.CStr()));
+        const String name = alloc.NewString(fmt::format("{}*", inner->name.CStr()));
+        TypePolymorphic* const type = AddType<TypePolymorphic>(poly->tokenIndex, name);
         type->type = inner;
         type->isNullable = false;
 
@@ -591,8 +645,8 @@ const Type* Compiler::Resolve(const AstNodeType* type)
         if (inner == nullptr)
             return nullptr;
 
-        TypePolymorphic* type = alloc.Create<TypePolymorphic>();
-        type->name = alloc.NewString(fmt::format("{}?", inner->name.CStr()));
+        const String name = alloc.NewString(fmt::format("{}?", inner->name.CStr()));
+        TypePolymorphic* const type = AddType<TypePolymorphic>(nullable->tokenIndex, name);
         type->type = inner;
         type->isNullable = true;
 
@@ -605,11 +659,27 @@ const Type* Compiler::Resolve(const AstNodeType* type)
 template <typename... Args>
 void Compiler::Error(std::uint32_t tokenIndex, fmt::format_string<Args...> format, const Args&... args)
 {
-    const Token& token = stack.Back()->tokens[tokenIndex];
-
-    logger.Error({ .source = stack.Back()->source, .offset = token.offset, .length = token.length },
-        fmt::vformat(format, fmt::make_format_args(args...)));
     result = false;
+    if (tokenIndex < stack.Back()->tokens.Size())
+    {
+        const Token& token = stack.Back()->tokens[tokenIndex];
+
+        logger.Error({ .source = stack.Back()->source, .offset = token.offset, .length = token.length },
+            fmt::vformat(format, fmt::make_format_args(args...)));
+    }
+    else
+    {
+        logger.Error({ .source = stack.Back()->source }, fmt::vformat(format, fmt::make_format_args(args...)));
+    }
+}
+
+void Compiler::VisitTypes(ArenaAllocator& alloc, const Module* mod, Array<const Type*>& visited)
+{
+    if (mod == nullptr)
+        return;
+
+    for (const Type* const type : mod->types)
+        VisitTypes(alloc, type, visited);
 }
 
 void Compiler::VisitTypes(ArenaAllocator& alloc, const Type* type, Array<const Type*>& visited)
@@ -621,8 +691,6 @@ void Compiler::VisitTypes(ArenaAllocator& alloc, const Type* type, Array<const T
         if (exists == type)
             return;
 
-    visited.PushBack(alloc, type);
-
     if (const TypeAggregate* agg = CastTo<TypeAggregate>(type); agg != nullptr)
     {
         VisitTypes(alloc, agg->base, visited);
@@ -633,5 +701,24 @@ void Compiler::VisitTypes(ArenaAllocator& alloc, const Type* type, Array<const T
     else if (const TypeEnum* enum_ = CastTo<TypeEnum>(type); enum_ != nullptr)
     {
         VisitTypes(alloc, enum_->base, visited);
+    }
+    else if (const TypeArray* array = CastTo<TypeArray>(type); array != nullptr)
+    {
+        VisitTypes(alloc, array->type, visited);
+    }
+
+    visited.PushBack(alloc, type);
+}
+
+void Compiler::VisitModules(ArenaAllocator& alloc, const Module* mod, Array<const Module*>& visited)
+{
+    if (mod == nullptr)
+        return;
+
+    visited.PushBack(alloc, mod);
+
+    for (const Module* const imp : mod->imports)
+    {
+        VisitModules(alloc, imp, visited);
     }
 }

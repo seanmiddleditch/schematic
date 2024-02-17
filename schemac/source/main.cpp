@@ -109,8 +109,8 @@ int main(int argc, char** argv)
 
     ArenaAllocator alloc;
     CompileOptions options;
-    const Module* const mod = Compile(logger, resolver, alloc, source, options);
-    if (mod == nullptr)
+    const Schema* const schema = Compile(logger, resolver, alloc, source, options);
+    if (schema == nullptr)
         return 1;
 
     {
@@ -135,12 +135,12 @@ int main(int argc, char** argv)
 
         if (state.writeJson)
         {
-            const std::string serialized = SerializeJson(*mod);
+            const std::string serialized = SerializeJson(*schema);
             out.write(serialized.data(), serialized.size());
         }
         else
         {
-            const std::vector<char> serialized = SerializeBinary(*mod);
+            const std::vector<char> serialized = SerializeBinary(*schema);
             out.write(serialized.data(), serialized.size());
         }
 

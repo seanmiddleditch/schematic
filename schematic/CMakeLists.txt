@@ -17,8 +17,6 @@ target_sources(schematic_libschematic PRIVATE FILE_SET HEADERS FILES
 target_sources(schematic_libschematic PRIVATE
     "schematic.natvis"
     "source/ast.h"
-    "source/builtins.cpp"
-    "source/builtins.h"
     "source/compile.cpp"
     "source/lexer.cpp"
     "source/lexer.h"

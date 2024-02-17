@@ -16,5 +16,5 @@ namespace potato::schematic::compiler
         bool builtins = true;
     };
 
-    const Module* Compile(Logger& logger, Resolver& resolver, ArenaAllocator& alloc, const Source* source, const CompileOptions& options);
+    const Schema* Compile(Logger& logger, Resolver& resolver, ArenaAllocator& alloc, const Source* source, const CompileOptions& options);
 } // namespace potato::schematic

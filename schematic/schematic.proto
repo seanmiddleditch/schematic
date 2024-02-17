@@ -19,45 +19,66 @@ message Type
     message Aggregate
     {
         string name = 1;
-        optional uint32 base_type = 2;
-        repeated Field fields = 3;
+        uint32 module = 2;
+        optional uint32 base_type = 3;
+        repeated Field fields = 4;
     }
 
     message Bool
     {
         string name = 1;
+        uint32 module = 2;
     }
 
     message Int
     {
         string name = 1;
-        uint32 width = 2;
-        bool signed = 3;
+        uint32 module = 2;
+        uint32 width = 3;
+        bool signed = 4;
     }
 
     message Float
     {
         string name = 1;
-        uint32 width = 2;
+        uint32 module = 2;
+        uint32 width = 3;
     }
 
     message String
     {
         string name = 1;
+        uint32 module = 2;
     }
 
     message Enum
     {
         string name = 1;
-        optional uint32 base_type = 2;
-        repeated EnumItem items = 3;
+        uint32 module = 2;
+        optional uint32 base_type = 3;
+        repeated EnumItem items = 4;
     }
 
     message Array
     {
         string name = 1;
-        uint32 element_type = 2;
-        optional uint32 size = 3;
+        uint32 module = 2;
+        uint32 element_type = 3;
+        optional uint32 size = 4;
+    }
+
+    message TypeRef
+    {
+        string name = 1;
+        uint32 module = 2;
+    }
+
+    message Polymorphic
+    {
+        string name = 1;
+        uint32 module = 2;
+        uint32 type = 3;
+        bool nullable = 4;
     }
 
     oneof Types
@@ -69,16 +90,20 @@ message Type
         Array array = 5;
         String string = 6;
         Enum enum = 7;
+        TypeRef type = 8;
+        Polymorphic polymorphic = 9;
     }
 }
 
-message File
+message Module
 {
-    string path = 1;
+    string filename = 1;
+    repeated uint32 imports = 2;
 }
 
-message Root
+message Schema
 {
-    repeated File files = 1;
+    repeated Module modules = 1;
     repeated Type types = 2;
+    uint32 root_module = 3;
 }
