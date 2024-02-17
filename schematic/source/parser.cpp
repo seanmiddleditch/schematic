@@ -35,7 +35,7 @@ namespace
         AstNodeModule* mod = nullptr;
         size_t next = 0;
         bool result = true;
-        Array<const AstNodeAttribute*> attributes;
+        Array<const AstNodeAnnotation*> annotations;
         Array<const AstNodeKeywordDecl*> keywordDecls;
         Array<const AstNodeKeyword*> keywords;
 
@@ -44,7 +44,7 @@ namespace
         void Error(std::string_view message);
         void ErrorExpect(std::string_view expected);
 
-        bool ParseAttributes();
+        bool ParseAnnotations();
         bool ParseKeywords();
 
         bool ParseImport(const AstNodeImport*& imp);
@@ -151,7 +151,7 @@ bool Parser::Parse()
             continue;
         }
 
-        if (!ParseAttributes())
+        if (!ParseAnnotations())
             continue;
 
         if (ConsumeKey("keyword"))
@@ -192,9 +192,9 @@ bool Parser::Parse()
     return result;
 }
 
-bool Parser::ParseAttributes()
+bool Parser::ParseAnnotations()
 {
-    attributes = {};
+    annotations = {};
 
     while (Consume(TokenType::LBracket))
     {
@@ -203,12 +203,12 @@ bool Parser::ParseAttributes()
             if (Consume(TokenType::End))
                 break;
 
-            AstNodeAttribute* const attr = alloc.Create<AstNodeAttribute>(Pos());
+            AstNodeAnnotation* const attr = alloc.Create<AstNodeAnnotation>(Pos());
 
             if (!ExpectQualifiedName(attr->name))
                 return false;
 
-            attributes.PushBack(alloc, attr);
+            annotations.PushBack(alloc, attr);
 
             if (Consume(TokenType::LParen) && !Consume(TokenType::RParen))
             {
@@ -292,7 +292,7 @@ bool Parser::ParseImport(const AstNodeImport*& imp)
 bool Parser::ParseKeywordDecl()
 {
     AstNodeKeywordDecl* const kw = alloc.Create<AstNodeKeywordDecl>(Pos());
-    kw->attributes = attributes;
+    kw->annotations = annotations;
 
     mod->nodes.EmplaceBack(alloc, kw);
 
@@ -310,7 +310,7 @@ bool Parser::ParseKeywordDecl()
 bool Parser::ParseAggregateDecl()
 {
     AstNodeAggregateDecl* const agg = alloc.Create<AstNodeAggregateDecl>(Pos());
-    agg->attributes = attributes;
+    agg->annotations = annotations;
     agg->keywords = keywords;
 
     mod->nodes.EmplaceBack(alloc, agg);
@@ -335,7 +335,7 @@ bool Parser::ParseAggregateDecl()
             if (Consume(TokenType::End))
                 break;
 
-            if (!ParseAttributes())
+            if (!ParseAnnotations())
                 return false;
 
             if (!ParseKeywords())
@@ -361,7 +361,7 @@ bool Parser::ParseAggregateDecl()
 bool Parser::ParseAttributeDecl()
 {
     AstNodeAttributeDecl* const attr = alloc.Create<AstNodeAttributeDecl>(Pos());
-    attr->attributes = attributes;
+    attr->annotations = annotations;
     attr->keywords = keywords;
 
     mod->nodes.EmplaceBack(alloc, attr);
@@ -400,7 +400,7 @@ bool Parser::ParseAttributeDecl()
 const bool Parser::ParseField(Array<const AstNodeField*>& fields)
 {
     AstNodeField* const field = alloc.Create<AstNodeField>(Pos());
-    field->attributes = attributes;
+    field->annotations = annotations;
     field->keywords = keywords;
     fields.PushBack(alloc, field);
 
@@ -423,7 +423,7 @@ const bool Parser::ParseField(Array<const AstNodeField*>& fields)
 bool Parser::ParseEnumDecl()
 {
     AstNodeEnumDecl* const enum_ = alloc.Create<AstNodeEnumDecl>(Pos());
-    enum_->attributes = attributes;
+    enum_->annotations = annotations;
     enum_->keywords = keywords;
 
     mod->nodes.EmplaceBack(alloc, enum_);
@@ -448,14 +448,14 @@ bool Parser::ParseEnumDecl()
             if (Consume(TokenType::End))
                 break;
 
-            if (!ParseAttributes())
+            if (!ParseAnnotations())
                 return false;
 
             if (!ParseKeywords())
                 return false;
 
             AstNodeEnumItem* const item = alloc.Create<AstNodeEnumItem>(Pos());
-            item->attributes = attributes;
+            item->annotations = annotations;
             item->keywords = keywords;
 
             enum_->items.EmplaceBack(alloc, item);

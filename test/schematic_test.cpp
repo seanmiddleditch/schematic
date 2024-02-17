@@ -236,7 +236,7 @@ TEST_CASE("Compiler", "[potato][schematic]")
 
     SECTION("Attributes")
     {
-        resolver.AddFile("attributes", R"--(
+        resolver.AddFile("annotations", R"--(
         attribute Ignore;
         attribute Name { int32 first; int32 second; int32 third = 7; }
         attribute More {}
@@ -255,7 +255,7 @@ TEST_CASE("Compiler", "[potato][schematic]")
             [Hidden] item
         }
 )--");
-        const Schema& schema = CompileTest("attributes");
+        const Schema& schema = CompileTest("annotations");
 
         CHECK(CastTo<TypeAttribute>(FindType(&schema, "Ignore")) != nullptr);
         CHECK(CastTo<TypeAttribute>(FindType(&schema, "Name")) != nullptr);
@@ -265,7 +265,7 @@ TEST_CASE("Compiler", "[potato][schematic]")
         const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&schema, "test"));
         CHECK(HasAttribute(test, "Ignore"));
 
-        const Attribute* const name = FindAttribute(test, "Name");
+        const Annotation* const name = FindAnnotation(test, "Name");
         CHECK(name != nullptr);
 
         const Value* const first = FindArgument(name, "first");

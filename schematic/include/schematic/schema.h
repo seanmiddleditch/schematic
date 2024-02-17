@@ -13,7 +13,7 @@ namespace potato::schematic
     enum class ValueKind;
 
     struct Argument;
-    struct Attribute;
+    struct Annotation;
     struct EnumItem;
     struct Field;
     struct Module;
@@ -46,8 +46,8 @@ namespace potato::schematic
 
     const EnumItem* FindItem(const TypeEnum* enumeration, std::string_view name) noexcept;
 
-    const Attribute* FindAttribute(const Type* type, const TypeAttribute* attribute) noexcept;
-    const Attribute* FindAttribute(const Type* type, std::string_view name) noexcept;
+    const Annotation* FindAnnotation(const Type* type, const TypeAttribute* attribute) noexcept;
+    const Annotation* FindAnnotation(const Type* type, std::string_view name) noexcept;
 
     bool HasAttribute(const Type* type, const TypeAttribute* attribute) noexcept;
     bool HasAttribute(const Type* type, std::string_view name) noexcept;
@@ -58,8 +58,8 @@ namespace potato::schematic
     const Value* FindArgument(const ValueObject* object, const Field* field) noexcept;
     const Value* FindArgument(const ValueObject* object, std::string_view name) noexcept;
 
-    const Value* FindArgument(const Attribute* attribute, const Field* field) noexcept;
-    const Value* FindArgument(const Attribute* attribute, std::string_view name) noexcept;
+    const Value* FindArgument(const Annotation* annotation, const Field* field) noexcept;
+    const Value* FindArgument(const Annotation* annotation, std::string_view name) noexcept;
 
     bool IsA(const Type* type, const Type* parent) noexcept;
 
@@ -116,7 +116,7 @@ namespace potato::schematic
         const Value* value = nullptr;
     };
 
-    struct Attribute
+    struct Annotation
     {
         const TypeAttribute* attribute = nullptr;
         Array<Argument> arguments;
@@ -127,7 +127,7 @@ namespace potato::schematic
         String name;
         const TypeEnum* owner = nullptr;
         const ValueInt* value = nullptr;
-        Array<const Attribute*> attributes;
+        Array<const Annotation*> annotations;
     };
 
     struct Field
@@ -136,7 +136,7 @@ namespace potato::schematic
         const Type* owner = nullptr;
         const Type* type = nullptr;
         const Value* value = nullptr;
-        Array<const Attribute*> attributes;
+        Array<const Annotation*> annotations;
     };
 
     struct Module
@@ -158,7 +158,7 @@ namespace potato::schematic
         TypeKind kind = TypeKind::Aggregate;
         String name;
         const Module* owner = nullptr;
-        Array<const Attribute*> attributes;
+        Array<const Annotation*> annotations;
     };
 
     struct Value

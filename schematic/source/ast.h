@@ -27,7 +27,7 @@ namespace potato::schematic::compiler
         TypeArray,
         TypePolymorphic,
         TypeNullable,
-        Attribute,
+        Annotation,
         LiteralBool,
         LiteralNull,
         LiteralInt,
@@ -54,7 +54,7 @@ namespace potato::schematic::compiler
     struct AstNodeTypeArray;
     struct AstNodeTypePolymorphic;
     struct AstNodeTypeNullable;
-    struct AstNodeAttribute;
+    struct AstNodeAnnotation;
     struct AstNodeExpression;
     struct AstNodeLiteralBool;
     struct AstNodeLiteralNull;
@@ -120,7 +120,7 @@ namespace potato::schematic::compiler
         using AstNode::AstNode;
 
         AstIdentifier name;
-        Array<const AstNodeAttribute*> attributes;
+        Array<const AstNodeAnnotation*> annotations;
         Array<const AstNodeKeyword*> keywords;
     };
 
@@ -146,7 +146,7 @@ namespace potato::schematic::compiler
 
     struct AstNodeAttributeDecl : AstNodeDecl
     {
-        AST_NODE(AstNodeAttributeDecl, AstNodeDecl, AstNodeKind::Attribute);
+        AST_NODE(AstNodeAttributeDecl, AstNodeDecl, AstNodeKind::Annotation);
 
         Array<const AstNodeField*> fields;
     };
@@ -208,9 +208,9 @@ namespace potato::schematic::compiler
         const AstNodeType* type = nullptr;
     };
 
-    struct AstNodeAttribute : AstNode
+    struct AstNodeAnnotation : AstNode
     {
-        AST_NODE(AstNodeAttribute, AstNode, AstNodeKind::Attribute);
+        AST_NODE(AstNodeAnnotation, AstNode, AstNodeKind::Annotation);
 
         AstQualifiedName name;
         Array<const AstNode*> arguments;

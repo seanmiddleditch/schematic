@@ -51,7 +51,7 @@ namespace
         void BuildAttribute(const AstNodeAttributeDecl& ast);
         void BuildEnum(const AstNodeEnumDecl& ast);
 
-        void BuildAttributes(Array<const Attribute*>& out, Array<const AstNodeAttribute*> ast);
+        void BuildAnnotations(Array<const Annotation*>& out, Array<const AstNodeAnnotation*> ast);
         void BuildArguments(const Type* type, const Array<Field>& fields, const TypeAggregate* baseType, Array<Argument>& out, Array<const AstNode*> ast);
 
         const ValueBool* BuildBool(const AstNodeLiteralBool& lit);
@@ -268,7 +268,7 @@ void Compiler::BuildAggregate(const AstNodeAggregateDecl& ast)
             Error(ast.base.parts.Front().tokenIndex, "Base type is not an aggregate: {}", baseType->name.CStr());
     }
 
-    BuildAttributes(type->attributes, ast.attributes);
+    BuildAnnotations(type->annotations, ast.annotations);
 
     type->fields = alloc.NewArray<Field>(ast.fields.Size());
     for (const AstNodeField* ast_field : ast.fields)
@@ -291,7 +291,7 @@ void Compiler::BuildAttribute(const AstNodeAttributeDecl& ast)
 
     type->name = ast.name.name;
 
-    BuildAttributes(type->attributes, ast.attributes);
+    BuildAnnotations(type->annotations, ast.annotations);
 
     type->fields = alloc.NewArray<Field>(ast.fields.Size());
     for (const AstNodeField* ast_field : ast.fields)
@@ -318,7 +318,7 @@ void Compiler::BuildEnum(const AstNodeEnumDecl& ast)
     if (type->base != nullptr && type->kind != TypeKind::Int)
         Error(ast.base.parts.Front().tokenIndex, "Base type is not an integer: {}", type->base->name.CStr());
 
-    BuildAttributes(type->attributes, ast.attributes);
+    BuildAnnotations(type->annotations, ast.annotations);
 
     type->items = alloc.NewArray<EnumItem>(ast.items.Size());
     std::int64_t next = 0;
@@ -342,11 +342,11 @@ void Compiler::BuildEnum(const AstNodeEnumDecl& ast)
     }
 }
 
-void Compiler::BuildAttributes(Array<const Attribute*>& out, Array<const AstNodeAttribute*> ast)
+void Compiler::BuildAnnotations(Array<const Annotation*>& out, Array<const AstNodeAnnotation*> ast)
 {
-    out = alloc.NewArray<const Attribute*>(ast.Size());
+    out = alloc.NewArray<const Annotation*>(ast.Size());
 
-    for (const AstNodeAttribute* const astAttr : ast)
+    for (const AstNodeAnnotation* const astAttr : ast)
     {
         const Type* const type = Resolve(astAttr->name);
         if (type == nullptr)
@@ -359,7 +359,7 @@ void Compiler::BuildAttributes(Array<const Attribute*>& out, Array<const AstNode
             continue;
         }
 
-        Attribute* const attr = alloc.Create<Attribute>();
+        Annotation* const attr = alloc.Create<Annotation>();
         out.PushBack(alloc, attr);
 
         attr->attribute = attrType;
