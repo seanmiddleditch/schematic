@@ -20,6 +20,10 @@ static bool IsAlpha(char c) noexcept;
 static bool IsIdentHead(char c) noexcept;
 static bool IsIdentBody(char c) noexcept;
 
+// FIXME: this assumes that input text is NUL-terminated, but the interface relies on std::string_view which
+//  provides no such guarantee. Either the interface needs to change, or the code here needs to be updated
+//  and deeply audited.
+
 bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc, const Source* source, Array<Token>& tokens)
 {
     if (source == nullptr)

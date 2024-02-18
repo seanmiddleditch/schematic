@@ -27,6 +27,8 @@ using namespace potato::schematic::compiler;
 //
 //  - Abstract types? With validation
 //
+//  - Lexer FIXME
+//
 
 namespace
 {
