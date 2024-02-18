@@ -160,20 +160,20 @@ namespace potato::schematic
         ArenaAllocator(const ArenaAllocator&) = delete;
         ArenaAllocator& operator=(const ArenaAllocator&) = delete;
 
-        inline [[nodiscard]] void* Allocate(size_t size, size_t align);
+        [[nodiscard]] inline void* Allocate(size_t size, size_t align);
 
-        inline [[nodiscard]] String NewString(std::string_view string);
+        [[nodiscard]] inline String NewString(std::string_view string);
 
         template <Trivial T>
-        inline [[nodiscard]] Array<T> NewArray(size_t capacity)
+        [[nodiscard]] inline Array<T> NewArray(size_t capacity)
             requires std::is_trivially_destructible_v<T>;
 
         template <Trivial T, typename... Args>
-        inline [[nodiscard]] T* Create(Args&&... args)
+        [[nodiscard]] inline T* Create(Args&&... args)
             requires std::is_constructible_v<T, Args...>;
 
     private:
-        inline static constexpr [[nodiscard]] size_t AlignTo(size_t value, size_t align) noexcept;
+        [[nodiscard]] inline static constexpr size_t AlignTo(size_t value, size_t align) noexcept;
 
         inline void EnsureBlock(size_t minimum);
 

@@ -116,37 +116,37 @@ int main(int argc, char** argv)
         return 1;
 
     {
-        auto ios_flags = std::ios_base::out;
-        if (!state.writeJson)
-            ios_flags |= std::ios_base::binary;
+        std::ostream* out = &std::cout;
 
-        std::ofstream out;
+        std::ofstream out_file;
         if (!state.output.empty())
         {
-            out.open(state.output, ios_flags);
-            if (!out)
+            auto ios_flags = std::ios_base::out;
+            if (!state.writeJson)
+                ios_flags |= std::ios_base::binary;
+
+            out_file.open(state.output, ios_flags);
+            if (!out_file)
             {
                 fmt::println(stderr, "Cannot open output file: {}", state.output);
                 return 1;
             }
-        }
-        else
-        {
-            out.set_rdbuf(std::cout.rdbuf());
+
+            out = &out_file;
         }
 
         if (state.writeJson)
         {
             const std::string serialized = SerializeJson(*schema);
-            out.write(serialized.data(), serialized.size());
+            out->write(serialized.data(), serialized.size());
         }
         else
         {
             const std::vector<char> serialized = SerializeBinary(*schema);
-            out.write(serialized.data(), serialized.size());
+            out->write(serialized.data(), serialized.size());
         }
 
-        out.close();
+        out_file.close();
     }
 
     if (!state.deps.empty())

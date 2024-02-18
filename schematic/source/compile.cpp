@@ -13,6 +13,7 @@
 #include <fmt/core.h>
 
 #include <charconv>
+#include <climits>
 #include <cstdint>
 
 using namespace potato::schematic;
