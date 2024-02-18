@@ -49,6 +49,28 @@ const EnumItem* potato::schematic::FindItem(const TypeEnum* enumeration, std::st
     return nullptr;
 }
 
+static const Annotation* FindAnnotation(Array<const Annotation*> annotations, const TypeAttribute* attribute) noexcept
+{
+    for (const Annotation* const annotation : annotations)
+    {
+        if (annotation->attribute == attribute)
+            return annotation;
+    }
+
+    return nullptr;
+}
+
+static const Annotation* FindAnnotation(Array<const Annotation*> annotations, std::string_view name) noexcept
+{
+    for (const Annotation* const annotation : annotations)
+    {
+        if (annotation->attribute->name == name)
+            return annotation;
+    }
+
+    return nullptr;
+}
+
 const Annotation* potato::schematic::FindAnnotation(const Type* type, const TypeAttribute* attribute) noexcept
 {
     if (type == nullptr)
@@ -56,11 +78,8 @@ const Annotation* potato::schematic::FindAnnotation(const Type* type, const Type
     if (attribute == nullptr)
         return nullptr;
 
-    for (const Annotation* const annotation : type->annotations)
-    {
-        if (annotation->attribute == attribute)
-            return annotation;
-    }
+    if (const Annotation* const annotation = ::FindAnnotation(type->annotations, attribute); annotation != nullptr)
+        return annotation;
 
     if (const TypeAggregate* const agg = CastTo<TypeAggregate>(type); agg != nullptr)
         return FindAnnotation(agg->base, attribute);
@@ -75,16 +94,53 @@ const Annotation* potato::schematic::FindAnnotation(const Type* type, std::strin
     if (name.empty())
         return nullptr;
 
-    for (const Annotation* const annotation : type->annotations)
-    {
-        if (annotation->attribute->name == name)
-            return annotation;
-    }
+    if (const Annotation* const annotation = ::FindAnnotation(type->annotations, name); annotation != nullptr)
+        return annotation;
 
     if (const TypeAggregate* const agg = CastTo<TypeAggregate>(type); agg != nullptr)
         return FindAnnotation(agg->base, name);
 
     return nullptr;
+}
+
+const Annotation* potato::schematic::FindAnnotation(const Field* field, const TypeAttribute* attribute) noexcept
+{
+    if (field == nullptr)
+        return nullptr;
+    if (attribute == nullptr)
+        return nullptr;
+
+    return ::FindAnnotation(field->annotations, attribute);
+}
+
+const Annotation* potato::schematic::FindAnnotation(const Field* field, std::string_view name) noexcept
+{
+    if (field == nullptr)
+        return nullptr;
+    if (name.empty())
+        return nullptr;
+
+    return ::FindAnnotation(field->annotations, name);
+}
+
+const Annotation* potato::schematic::FindAnnotation(const EnumItem* item, const TypeAttribute* attribute) noexcept
+{
+    if (item == nullptr)
+        return nullptr;
+    if (attribute == nullptr)
+        return nullptr;
+
+    return ::FindAnnotation(item->annotations, attribute);
+}
+
+const Annotation* potato::schematic::FindAnnotation(const EnumItem* item, std::string_view name) noexcept
+{
+    if (item == nullptr)
+        return nullptr;
+    if (name.empty())
+        return nullptr;
+
+    return ::FindAnnotation(item->annotations, name);
 }
 
 bool potato::schematic::HasAttribute(const Type* type, const TypeAttribute* attribute) noexcept
@@ -95,6 +151,26 @@ bool potato::schematic::HasAttribute(const Type* type, const TypeAttribute* attr
 bool potato::schematic::HasAttribute(const Type* type, std::string_view name) noexcept
 {
     return FindAnnotation(type, name) != nullptr;
+}
+
+bool potato::schematic::HasAttribute(const Field* field, const TypeAttribute* attribute) noexcept
+{
+    return FindAnnotation(field, attribute) != nullptr;
+}
+
+bool potato::schematic::HasAttribute(const Field* field, std::string_view name) noexcept
+{
+    return FindAnnotation(field, name) != nullptr;
+}
+
+bool potato::schematic::HasAttribute(const EnumItem* item, const TypeAttribute* attribute) noexcept
+{
+    return FindAnnotation(item, attribute) != nullptr;
+}
+
+bool potato::schematic::HasAttribute(const EnumItem* item, std::string_view name) noexcept
+{
+    return FindAnnotation(item, name) != nullptr;
 }
 
 const Type* potato::schematic::FindType(const Module* mod, std::string_view name) noexcept

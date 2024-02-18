@@ -37,6 +37,8 @@ namespace
 
         static void VisitTypes(ArenaAllocator& alloc, const Module* mod, Array<const Type*>& visited);
         static void VisitTypes(ArenaAllocator& alloc, const Type* type, Array<const Type*>& visited);
+        static void VisitTypes(ArenaAllocator& alloc, const Annotation* annotation, Array<const Type*>& visited);
+        static void VisitTypes(ArenaAllocator& alloc, const Value* value, Array<const Type*>& visited);
         static void VisitModules(ArenaAllocator& alloc, const Module* mod, Array<const Module*>& visited);
 
         Logger& logger;
@@ -280,6 +282,7 @@ void Compiler::BuildAggregate(const AstNodeAggregateDecl& ast)
         field.type = Resolve(ast_field->type);
         if (ast_field->value != nullptr)
             field.value = BuildExpression(field.type, *ast_field->value);
+        BuildAnnotations(field.annotations, ast_field->annotations);
     }
 }
 
@@ -303,6 +306,7 @@ void Compiler::BuildAttribute(const AstNodeAttributeDecl& ast)
         field.type = Resolve(ast_field->type);
         if (ast_field->value != nullptr)
             field.value = BuildExpression(field.type, *ast_field->value);
+        BuildAnnotations(field.annotations, ast_field->annotations);
     }
 }
 
@@ -339,6 +343,7 @@ void Compiler::BuildEnum(const AstNodeEnumDecl& ast)
             value->value = next++;
             item.value = value;
         }
+        BuildAnnotations(item.annotations, ast_item->annotations);
     }
 }
 
@@ -691,23 +696,73 @@ void Compiler::VisitTypes(ArenaAllocator& alloc, const Type* type, Array<const T
         if (exists == type)
             return;
 
-    if (const TypeAggregate* agg = CastTo<TypeAggregate>(type); agg != nullptr)
+    for (const Annotation* const annotation : type->annotations)
+        VisitTypes(alloc, annotation, visited);
+
+    if (const TypeAggregate* const agg = CastTo<TypeAggregate>(type); agg != nullptr)
     {
         VisitTypes(alloc, agg->base, visited);
 
         for (const Field& field : agg->fields)
+        {
             VisitTypes(alloc, field.type, visited);
+            VisitTypes(alloc, field.value, visited);
+
+            for (const Annotation* const annotation : field.annotations)
+                VisitTypes(alloc, annotation, visited);
+        }
     }
-    else if (const TypeEnum* enum_ = CastTo<TypeEnum>(type); enum_ != nullptr)
+    else if (const TypeAttribute* const attr = CastTo<TypeAttribute>(type); attr != nullptr)
+    {
+        for (const Field& field : attr->fields)
+        {
+            VisitTypes(alloc, field.type, visited);
+            VisitTypes(alloc, field.value, visited);
+
+            for (const Annotation* const annotation : field.annotations)
+                VisitTypes(alloc, annotation, visited);
+        }
+    }
+    else if (const TypeEnum* const enum_ = CastTo<TypeEnum>(type); enum_ != nullptr)
     {
         VisitTypes(alloc, enum_->base, visited);
+
+        for (const EnumItem& item : enum_->items)
+        {
+            for (const Annotation* const annotation : item.annotations)
+                VisitTypes(alloc, annotation, visited);
+        }
     }
-    else if (const TypeArray* array = CastTo<TypeArray>(type); array != nullptr)
+    else if (const TypePolymorphic* const poly = CastTo<TypePolymorphic>(type); poly != nullptr)
+    {
+        VisitTypes(alloc, poly->type, visited);
+    }
+    else if (const TypeArray* const array = CastTo<TypeArray>(type); array != nullptr)
     {
         VisitTypes(alloc, array->type, visited);
     }
 
     visited.PushBack(alloc, type);
+}
+
+void Compiler::VisitTypes(ArenaAllocator& alloc, const Annotation* annotation, Array<const Type*>& visited)
+{
+    if (annotation == nullptr)
+        return;
+
+    VisitTypes(alloc, annotation->attribute, visited);
+
+    for (const Argument& arg : annotation->arguments)
+        VisitTypes(alloc, arg.value, visited);
+}
+
+void Compiler::VisitTypes(ArenaAllocator& alloc, const Value* value, Array<const Type*>& visited)
+{
+    if (value == nullptr)
+        return;
+
+    if (const ValueType* const type = CastTo<ValueType>(value); type != nullptr)
+        VisitTypes(alloc, type->type, visited);
 }
 
 void Compiler::VisitModules(ArenaAllocator& alloc, const Module* mod, Array<const Module*>& visited)

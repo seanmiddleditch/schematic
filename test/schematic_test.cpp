@@ -246,13 +246,13 @@ TEST_CASE("Compiler", "[potato][schematic]")
         [More()]
         struct test
         {
-            [Hidden] int32 field;
+            [Ignore] int32 field;
         }
 
         [Reference(test)]
         enum enum
         {
-            [Hidden] item
+            [Ignore] item
         }
 )--");
         const Schema& schema = CompileTest("annotations");
@@ -263,7 +263,12 @@ TEST_CASE("Compiler", "[potato][schematic]")
         CHECK(CastTo<TypeAttribute>(FindType(&schema, "Reference")) != nullptr);
 
         const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&schema, "test"));
-        CHECK(HasAttribute(test, "Ignore"));
+        REQUIRE(test != nullptr);
+        CHECK(HasAttribute(test, "More"));
+
+        const Field* const field = FindField(test, "field");
+        REQUIRE(field != nullptr);
+        CHECK(HasAttribute(field, "Ignore"));
 
         const Annotation* const name = FindAnnotation(test, "Name");
         CHECK(name != nullptr);

@@ -5,13 +5,21 @@ message Field
 {
     string name = 1;
     uint32 type = 2;
+    repeated Annotation annotations = 3;
 }
 
 message EnumItem
 {
     string name = 1;
     uint32 type = 2;
-    int64 value = 3;
+    repeated Annotation annotations = 3;
+
+    int64 value = 10;
+}
+
+message Annotation
+{
+    uint32 attribute_type = 1;
 }
 
 message Type
@@ -20,65 +28,89 @@ message Type
     {
         string name = 1;
         uint32 module = 2;
-        optional uint32 base_type = 3;
-        repeated Field fields = 4;
+        repeated Annotation annotations = 3;
+
+        optional uint32 base_type = 10;
+        repeated Field fields = 11;
     }
 
     message Bool
     {
         string name = 1;
         uint32 module = 2;
+        repeated Annotation annotations = 3;
     }
 
     message Int
     {
         string name = 1;
         uint32 module = 2;
-        uint32 width = 3;
-        bool signed = 4;
+        repeated Annotation annotations = 3;
+
+        uint32 width = 10;
+        bool signed = 11;
     }
 
     message Float
     {
         string name = 1;
         uint32 module = 2;
-        uint32 width = 3;
+        repeated Annotation annotations = 3;
+
+        uint32 width = 10;
     }
 
     message String
     {
         string name = 1;
         uint32 module = 2;
+        repeated Annotation annotations = 3;
     }
 
     message Enum
     {
         string name = 1;
         uint32 module = 2;
-        optional uint32 base_type = 3;
-        repeated EnumItem items = 4;
+        repeated Annotation annotations = 3;
+
+        optional uint32 base_type = 10;
+        repeated EnumItem items = 11;
     }
 
     message Array
     {
         string name = 1;
         uint32 module = 2;
-        uint32 element_type = 3;
-        optional uint32 size = 4;
+        repeated Annotation annotations = 3;
+
+        uint32 element_type = 10;
+        optional uint32 size = 11;
     }
 
     message TypeRef
     {
         string name = 1;
         uint32 module = 2;
+        repeated Annotation annotations = 3;
     }
 
     message Polymorphic
     {
         string name = 1;
         uint32 module = 2;
-        uint32 type = 3;
-        bool nullable = 4;
+        repeated Annotation annotations = 3;
+
+        uint32 type = 10;
+        bool nullable = 11;
+    }
+
+    message Attribute
+    {
+        string name = 1;
+        uint32 module = 2;
+        repeated Annotation annotations = 3;
+
+        repeated Field fields = 10;
     }
 
     oneof Types
@@ -92,6 +124,7 @@ message Type
         Enum enum = 7;
         TypeRef type = 8;
         Polymorphic polymorphic = 9;
+        Attribute attribute = 10;
     }
 }
 

@@ -3,6 +3,7 @@ import import01;
 struct Test
 {
     Vec3 vec;
+    [Priority(7)]
     int32[] array;
     int32 integer;
     Color color;

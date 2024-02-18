@@ -1,10 +1,14 @@
+attribute Priority
+{
+    int32 level = 1;
+}
+
 struct Vec3
 {
     float x;
     float y;
     float z;
 }
-
 
 enum Color
 {

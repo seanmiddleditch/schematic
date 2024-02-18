@@ -36,6 +36,12 @@ namespace
         void Serialize(proto::Type::Enum& out, const TypeEnum& in);
         void Serialize(proto::Type::TypeRef& out, const TypeType& in);
         void Serialize(proto::Type::Polymorphic& out, const TypePolymorphic& in);
+        void Serialize(proto::Type::Attribute& out, const TypeAttribute& in);
+
+        template <typename T>
+        void SerializeTypeCommon(T& out, const Type& in);
+
+        void Serialize(proto::Annotation& out, const Annotation& in);
 
         const Schema& schema_;
     };
@@ -139,14 +145,14 @@ void Serializer::Serialize(proto::Type& out, const Type& in)
             Serialize(*out.mutable_type(), static_cast<const TypeType&>(in));
             break;
         case Attribute:
+            Serialize(*out.mutable_attribute(), static_cast<const TypeAttribute&>(in));
             break;
     }
 }
 
 void Serializer::Serialize(proto::Type::Aggregate& out, const TypeAggregate& in)
 {
-    out.set_name(in.name.CStr());
-    out.set_module(IndexOfModule(in.owner));
+    SerializeTypeCommon(out, in);
 
     if (in.base != nullptr)
         out.set_base_type(IndexOfType(in.base));
@@ -156,34 +162,35 @@ void Serializer::Serialize(proto::Type::Aggregate& out, const TypeAggregate& in)
         proto::Field& out_field = *out.add_fields();
         out_field.set_name(field.name.CStr());
         out_field.set_type(IndexOfType(field.type));
+
+        for (const Annotation* const annotation : field.annotations)
+            Serialize(*out_field.add_annotations(), *annotation);
     }
 }
 
 void Serializer::Serialize(proto::Type::Bool& out, const TypeBool& in)
 {
-    out.set_name(in.name.CStr());
-    out.set_module(IndexOfModule(in.owner));
+    SerializeTypeCommon(out, in);
 }
 
 void Serializer::Serialize(proto::Type::Int& out, const TypeInt& in)
 {
-    out.set_name(in.name.CStr());
-    out.set_module(IndexOfModule(in.owner));
+    SerializeTypeCommon(out, in);
+
     out.set_width(in.bits);
     out.set_signed_(in.isSigned);
 }
 
 void Serializer::Serialize(proto::Type::Float& out, const TypeFloat& in)
 {
-    out.set_name(in.name.CStr());
-    out.set_module(IndexOfModule(in.owner));
+    SerializeTypeCommon(out, in);
+
     out.set_width(in.bits);
 }
 
 void Serializer::Serialize(proto::Type::Array& out, const TypeArray& in)
 {
-    out.set_name(in.name.CStr());
-    out.set_module(IndexOfModule(in.owner));
+    SerializeTypeCommon(out, in);
 
     out.set_element_type(IndexOfType(in.type));
     if (in.isFixed)
@@ -192,14 +199,12 @@ void Serializer::Serialize(proto::Type::Array& out, const TypeArray& in)
 
 void Serializer::Serialize(proto::Type::String& out, const TypeString& in)
 {
-    out.set_name(in.name.CStr());
-    out.set_module(IndexOfModule(in.owner));
+    SerializeTypeCommon(out, in);
 }
 
 void Serializer::Serialize(proto::Type::Enum& out, const TypeEnum& in)
 {
-    out.set_name(in.name.CStr());
-    out.set_module(IndexOfModule(in.owner));
+    SerializeTypeCommon(out, in);
 
     if (in.base != nullptr)
         out.set_base_type(IndexOfType(in.base));
@@ -210,22 +215,53 @@ void Serializer::Serialize(proto::Type::Enum& out, const TypeEnum& in)
         out_item.set_name(item.name.CStr());
         if (item.value != nullptr)
             out_item.set_value(item.value->value);
+
+        for (const Annotation* const annotation : item.annotations)
+            Serialize(*out_item.add_annotations(), *annotation);
     }
 }
 
 void Serializer::Serialize(proto::Type::TypeRef& out, const TypeType& in)
 {
-    out.set_name(in.name.CStr());
-    out.set_module(IndexOfModule(in.owner));
+    SerializeTypeCommon(out, in);
 }
 
 void Serializer::Serialize(proto::Type::Polymorphic& out, const TypePolymorphic& in)
 {
-    out.set_name(in.name.CStr());
-    out.set_module(IndexOfModule(in.owner));
+    SerializeTypeCommon(out, in);
 
     if (in.type != nullptr)
         out.set_type(IndexOfType(in.type));
 
     out.set_nullable(in.isNullable);
+}
+
+void Serializer::Serialize(proto::Type::Attribute& out, const TypeAttribute& in)
+{
+    SerializeTypeCommon(out, in);
+
+    for (const Field& field : in.fields)
+    {
+        proto::Field& out_field = *out.add_fields();
+        out_field.set_name(field.name.CStr());
+        out_field.set_type(IndexOfType(field.type));
+
+        for (const Annotation* const annotation : field.annotations)
+            Serialize(*out_field.add_annotations(), *annotation);
+    }
+}
+
+template <typename T>
+void Serializer::SerializeTypeCommon(T& out, const Type& in)
+{
+    out.set_name(in.name.CStr());
+    out.set_module(IndexOfModule(in.owner));
+
+    for (const Annotation* const annotation : in.annotations)
+        Serialize(*out.add_annotations(), *annotation);
+}
+
+void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
+{
+    out.set_attribute_type(IndexOfType(in.attribute));
 }

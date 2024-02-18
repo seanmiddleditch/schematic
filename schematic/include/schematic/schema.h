@@ -49,8 +49,20 @@ namespace potato::schematic
     const Annotation* FindAnnotation(const Type* type, const TypeAttribute* attribute) noexcept;
     const Annotation* FindAnnotation(const Type* type, std::string_view name) noexcept;
 
+    const Annotation* FindAnnotation(const Field* field, const TypeAttribute* attribute) noexcept;
+    const Annotation* FindAnnotation(const Field* field, std::string_view name) noexcept;
+
+    const Annotation* FindAnnotation(const EnumItem* item, const TypeAttribute* attribute) noexcept;
+    const Annotation* FindAnnotation(const EnumItem* item, std::string_view name) noexcept;
+
     bool HasAttribute(const Type* type, const TypeAttribute* attribute) noexcept;
     bool HasAttribute(const Type* type, std::string_view name) noexcept;
+
+    bool HasAttribute(const Field* field, const TypeAttribute* attribute) noexcept;
+    bool HasAttribute(const Field* field, std::string_view name) noexcept;
+
+    bool HasAttribute(const EnumItem* item, const TypeAttribute* attribute) noexcept;
+    bool HasAttribute(const EnumItem* item, std::string_view name) noexcept;
 
     const Type* FindType(const Module* mod, std::string_view name) noexcept;
     const Type* FindType(const Schema* schema, std::string_view name) noexcept;
