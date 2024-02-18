@@ -41,6 +41,16 @@ namespace
         template <typename T>
         void SerializeTypeCommon(T& out, const Type& in);
 
+        void Serialize(proto::Value& out, const Value& in);
+        void Serialize(proto::Value::Object& out, const ValueObject& in);
+        void Serialize(proto::Value::Bool& out, const ValueBool& in);
+        void Serialize(proto::Value::Int& out, const ValueInt& in);
+        void Serialize(proto::Value::Real& out, const ValueReal& in);
+        void Serialize(proto::Value::Array& out, const ValueArray& in);
+        void Serialize(proto::Value::Enum& out, const ValueEnum& in);
+        void Serialize(proto::Value::Type& out, const ValueType& in);
+        void Serialize(proto::Value::Null& out, const ValueNull& in);
+
         void Serialize(proto::Annotation& out, const Annotation& in);
 
         const Schema& schema_;
@@ -163,6 +173,9 @@ void Serializer::Serialize(proto::Type::Aggregate& out, const TypeAggregate& in)
         out_field.set_name(field.name.CStr());
         out_field.set_type(IndexOfType(field.type));
 
+        if (field.value != nullptr)
+            Serialize(*out_field.mutable_value(), *field.value);
+
         for (const Annotation* const annotation : field.annotations)
             Serialize(*out_field.add_annotations(), *annotation);
     }
@@ -245,6 +258,8 @@ void Serializer::Serialize(proto::Type::Attribute& out, const TypeAttribute& in)
         proto::Field& out_field = *out.add_fields();
         out_field.set_name(field.name.CStr());
         out_field.set_type(IndexOfType(field.type));
+        if (field.value != nullptr)
+            Serialize(*out_field.mutable_value(), *field.value);
 
         for (const Annotation* const annotation : field.annotations)
             Serialize(*out_field.add_annotations(), *annotation);
@@ -261,7 +276,113 @@ void Serializer::SerializeTypeCommon(T& out, const Type& in)
         Serialize(*out.add_annotations(), *annotation);
 }
 
+void Serializer::Serialize(proto::Value& out, const Value& in)
+{
+    switch (in.kind)
+    {
+        using enum ValueKind;
+        case Object:
+            Serialize(*out.mutable_object(), static_cast<const ValueObject&>(in));
+            break;
+        case Int:
+            Serialize(*out.mutable_int_(), static_cast<const ValueInt&>(in));
+            break;
+        case Bool:
+            Serialize(*out.mutable_bool_(), static_cast<const ValueBool&>(in));
+            break;
+        case Real:
+            Serialize(*out.mutable_float_(), static_cast<const ValueReal&>(in));
+            break;
+        case Array:
+            Serialize(*out.mutable_array(), static_cast<const ValueArray&>(in));
+            break;
+        case Enum:
+            Serialize(*out.mutable_enum_(), static_cast<const ValueEnum&>(in));
+            break;
+        case Null:
+            Serialize(*out.mutable_null(), static_cast<const ValueNull&>(in));
+            break;
+        case Type:
+            Serialize(*out.mutable_type(), static_cast<const ValueType&>(in));
+            break;
+    }
+}
+
+void Serializer::Serialize(proto::Value::Object& out, const ValueObject& in)
+{
+    out.set_type(IndexOfType(in.type));
+
+    for (const Argument& arg : in.fields)
+    {
+        proto::Argument& out_arg = *out.add_arguments();
+        out_arg.set_field_name(arg.field->name.CStr());
+
+        if (arg.value != nullptr)
+            Serialize(*out_arg.mutable_value(), *arg.value);
+    }
+}
+
+void Serializer::Serialize(proto::Value::Bool& out, const ValueBool& in)
+{
+    out.set_value(in.value);
+}
+
+void Serializer::Serialize(proto::Value::Int& out, const ValueInt& in)
+{
+    out.set_value(in.value);
+}
+
+void Serializer::Serialize(proto::Value::Real& out, const ValueReal& in)
+{
+    out.set_value(in.value);
+}
+
+void Serializer::Serialize(proto::Value::Array& out, const ValueArray& in)
+{
+    out.set_type(IndexOfType(in.type));
+
+    for (const Value* const value : in.elements)
+        Serialize(*out.add_elements(), *value);
+}
+
+void Serializer::Serialize(proto::Value::Enum& out, const ValueEnum& in)
+{
+    if (in.item != nullptr)
+    {
+        out.set_type(IndexOfType(in.item->owner));
+
+        std::uint32_t index = 0;
+        for (const EnumItem& item : in.item->owner->items)
+        {
+            if (&item == in.item)
+            {
+                out.set_item(index);
+                break;
+            }
+            ++index;
+        }
+    }
+}
+
+void Serializer::Serialize(proto::Value::Type& out, const ValueType& in)
+{
+    out.set_type(IndexOfType(in.type));
+}
+
+void Serializer::Serialize(proto::Value::Null& out, const ValueNull& in)
+{
+}
+
 void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
 {
     out.set_attribute_type(IndexOfType(in.attribute));
+
+    for (const Argument& arg : in.arguments)
+    {
+        proto::Argument& out_arg = *out.add_arguments();
+        out_arg.set_field_name(arg.field->name.CStr());
+
+        if (arg.value != nullptr)
+            Serialize(*out_arg.mutable_value(), *arg.value);
+    }
 }

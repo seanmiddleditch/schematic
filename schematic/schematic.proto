@@ -1,11 +1,31 @@
 syntax = "proto3";
 package potato.schematic.proto;
 
+message Schema
+{
+    repeated Module modules = 1;
+    repeated Type types = 2;
+    uint32 root_module = 3;
+}
+
+message Module
+{
+    string filename = 1;
+    repeated uint32 imports = 2;
+}
+
 message Field
 {
     string name = 1;
     uint32 type = 2;
     repeated Annotation annotations = 3;
+    Value value = 4;
+}
+
+message Argument
+{
+    string field_name = 1;
+    Value value = 2;
 }
 
 message EnumItem
@@ -20,6 +40,7 @@ message EnumItem
 message Annotation
 {
     uint32 attribute_type = 1;
+    repeated Argument arguments = 2;
 }
 
 message Type
@@ -128,15 +149,60 @@ message Type
     }
 }
 
-message Module
-{
-    string filename = 1;
-    repeated uint32 imports = 2;
-}
 
-message Schema
+message Value
 {
-    repeated Module modules = 1;
-    repeated Type types = 2;
-    uint32 root_module = 3;
+    message Array
+    {
+        uint32 type = 1;
+        repeated Value elements = 2;
+    }
+
+    message Bool
+    {
+        bool value = 1;
+    }
+
+    message Enum
+    {
+        uint32 type = 1;
+        uint32 item = 2;
+    }
+
+    message Int
+    {
+        int64 value = 1;
+    }
+
+    message Null
+    {
+    }
+
+    message Object
+    {
+        uint32 type = 1;
+        repeated Argument arguments = 2;
+    }
+
+    message Real
+    {
+        double value = 1;
+    }
+
+    message Type
+    {
+        uint32 type = 1;
+    }
+
+    oneof Values
+    {
+        Array array = 1;
+        Bool bool = 2;
+        Int int = 3;
+        Real float = 4;
+        Null null = 5;
+        Enum enum = 6;
+        Type type = 7;
+        Object object = 8;
+    }
 }
