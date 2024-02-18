@@ -43,11 +43,11 @@ TEST_CASE("Compiler", "[potato][schematic]")
 
         CHECK_THAT("123", IsTokenType(TokenType::Integer));
 
-        CHECK_THAT("0.", IsTokenType(TokenType::Real));
-        CHECK_THAT(".0", IsTokenType(TokenType::Real));
-        CHECK_THAT("0.0", IsTokenType(TokenType::Real));
-        CHECK_THAT("0.0e1", IsTokenType(TokenType::Real));
-        CHECK_THAT("0.0e-1", IsTokenType(TokenType::Real));
+        CHECK_THAT("0.", IsTokenType(TokenType::Float));
+        CHECK_THAT(".0", IsTokenType(TokenType::Float));
+        CHECK_THAT("0.0", IsTokenType(TokenType::Float));
+        CHECK_THAT("0.0e1", IsTokenType(TokenType::Float));
+        CHECK_THAT("0.0e-1", IsTokenType(TokenType::Float));
 
         CHECK_THAT("00", IsLexError());
         CHECK_THAT("01234", IsLexError());
@@ -154,13 +154,13 @@ TEST_CASE("Compiler", "[potato][schematic]")
         {
             const Field* const other = FindField(test, "zero");
             REQUIRE(other != nullptr);
-            CHECK_THAT(other->value, IsValue<ValueReal>(0.));
+            CHECK_THAT(other->value, IsValue<ValueFloat>(0.));
         }
 
         {
             const Field* const other = FindField(test, "thousand");
             REQUIRE(other != nullptr);
-            CHECK_THAT(other->value, IsValue<ValueReal>(1'000.0));
+            CHECK_THAT(other->value, IsValue<ValueFloat>(1'000.0));
         }
     }
 

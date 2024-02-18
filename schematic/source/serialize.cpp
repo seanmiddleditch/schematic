@@ -45,7 +45,7 @@ namespace
         void Serialize(proto::Value::Object& out, const ValueObject& in);
         void Serialize(proto::Value::Bool& out, const ValueBool& in);
         void Serialize(proto::Value::Int& out, const ValueInt& in);
-        void Serialize(proto::Value::Real& out, const ValueReal& in);
+        void Serialize(proto::Value::Float& out, const ValueFloat& in);
         void Serialize(proto::Value::Array& out, const ValueArray& in);
         void Serialize(proto::Value::Enum& out, const ValueEnum& in);
         void Serialize(proto::Value::Type& out, const ValueType& in);
@@ -290,8 +290,8 @@ void Serializer::Serialize(proto::Value& out, const Value& in)
         case Bool:
             Serialize(*out.mutable_bool_(), static_cast<const ValueBool&>(in));
             break;
-        case Real:
-            Serialize(*out.mutable_float_(), static_cast<const ValueReal&>(in));
+        case Float:
+            Serialize(*out.mutable_float_(), static_cast<const ValueFloat&>(in));
             break;
         case Array:
             Serialize(*out.mutable_array(), static_cast<const ValueArray&>(in));
@@ -332,7 +332,7 @@ void Serializer::Serialize(proto::Value::Int& out, const ValueInt& in)
     out.set_value(in.value);
 }
 
-void Serializer::Serialize(proto::Value::Real& out, const ValueReal& in)
+void Serializer::Serialize(proto::Value::Float& out, const ValueFloat& in)
 {
     out.set_value(in.value);
 }

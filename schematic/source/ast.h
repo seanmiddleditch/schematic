@@ -31,7 +31,7 @@ namespace potato::schematic::compiler
         LiteralBool,
         LiteralNull,
         LiteralInt,
-        LiteralReal,
+        LiteralFloat,
         LiteralString,
         NamedArgument,
         InitializerList,
@@ -59,7 +59,7 @@ namespace potato::schematic::compiler
     struct AstNodeLiteralBool;
     struct AstNodeLiteralNull;
     struct AstNodeLiteralInt;
-    struct AstNodeLiteralReal;
+    struct AstNodeLiteralFloat;
     struct AstNodeLiteralString;
     struct AstNodeNamedArgument;
     struct AstNodeInitializerList;
@@ -241,9 +241,9 @@ namespace potato::schematic::compiler
         std::int64_t value = 0;
     };
 
-    struct AstNodeLiteralReal : AstNodeExpression
+    struct AstNodeLiteralFloat : AstNodeExpression
     {
-        AST_NODE(AstNodeLiteralReal, AstNodeExpression, AstNodeKind::LiteralReal);
+        AST_NODE(AstNodeLiteralFloat, AstNodeExpression, AstNodeKind::LiteralFloat);
 
         double value = 0.0;
     };

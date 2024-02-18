@@ -38,7 +38,7 @@ namespace potato::schematic
     struct ValueInt;
     struct ValueNull;
     struct ValueObject;
-    struct ValueReal;
+    struct ValueFloat;
     struct ValueType;
 
     const Field* FindField(const TypeAggregate* aggregate, std::string_view name) noexcept;
@@ -115,7 +115,7 @@ namespace potato::schematic
         Bool,
         Null,
         Int,
-        Real,
+        Float,
         Enum,
         Object,
         Array,
@@ -277,9 +277,9 @@ namespace potato::schematic
         std::int64_t value = 0;
     };
 
-    struct ValueReal : Value
+    struct ValueFloat : Value
     {
-        SCHEMATIC_VALUE(Real);
+        SCHEMATIC_VALUE(Float);
 
         double value = 0;
     };

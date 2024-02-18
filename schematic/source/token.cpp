@@ -13,7 +13,7 @@ const char* potato::schematic::compiler::ToCStr(TokenType type) noexcept
         using enum TokenType;
         case Unknown: return "???";
         case Integer: return "integer";
-        case Real: return "real";
+        case Float: return "float";
         case Identifier: return "identifier";
         case LBrace: return "{";
         case RBrace: return "}";

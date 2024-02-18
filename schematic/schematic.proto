@@ -184,7 +184,7 @@ message Value
         repeated Argument arguments = 2;
     }
 
-    message Real
+    message Float
     {
         double value = 1;
     }
@@ -199,7 +199,7 @@ message Value
         Array array = 1;
         Bool bool = 2;
         Int int = 3;
-        Real float = 4;
+        Float float = 4;
         Null null = 5;
         Enum enum = 6;
         Type type = 7;

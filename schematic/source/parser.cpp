@@ -64,7 +64,7 @@ namespace
         bool ConsumeInt(const AstNodeLiteralInt*& lit);
         bool ExpectInt(const AstNodeLiteralInt*& lit);
 
-        bool ConsumeReal(const AstNodeLiteralReal*& lit);
+        bool ConsumeFloat(const AstNodeLiteralFloat*& lit);
 
         bool Match(TokenType type, const Token** out = nullptr);
 
@@ -109,7 +109,7 @@ struct fmt::formatter<PrintToken> : fmt::formatter<const char*>
         {
             using enum TokenType;
             case Integer: return fmt::format_to(ctx.out(), " {}", repr);
-            case Real: return fmt::format_to(ctx.out(), " {}", repr);
+            case Float: return fmt::format_to(ctx.out(), " {}", repr);
             case Identifier: return fmt::format_to(ctx.out(), " `{}`", repr);
             default: return ctx.out();
         }
@@ -507,7 +507,7 @@ const AstNodeExpression* Parser::ParseExpression()
     if (const AstNodeLiteralInt* literal = nullptr; ConsumeInt(literal))
         return literal;
 
-    if (const AstNodeLiteralReal* literal = nullptr; ConsumeReal(literal))
+    if (const AstNodeLiteralFloat* literal = nullptr; ConsumeFloat(literal))
         return literal;
 
     AstQualifiedName qual;
@@ -719,20 +719,20 @@ bool Parser::ExpectInt(const AstNodeLiteralInt*& lit)
     return false;
 }
 
-bool Parser::ConsumeReal(const AstNodeLiteralReal*& lit)
+bool Parser::ConsumeFloat(const AstNodeLiteralFloat*& lit)
 {
     const bool neg = Consume(TokenType::Minus);
 
     auto pos = Pos();
 
-    if (!Consume(TokenType::Real))
+    if (!Consume(TokenType::Float))
     {
         if (neg)
             Unwind();
         return false;
     }
 
-    AstNodeLiteralReal* const result = alloc.Create<AstNodeLiteralReal>(pos);
+    AstNodeLiteralFloat* const result = alloc.Create<AstNodeLiteralFloat>(pos);
     lit = result;
 
     const Token& token = tokens[pos];

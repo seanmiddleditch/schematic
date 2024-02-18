@@ -141,7 +141,7 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
         // parse numbers, or just a plain dot
         if (IsDigit(*c) || isDot)
         {
-            TokenType type = isDot ? TokenType::Real : TokenType::Integer;
+            TokenType type = isDot ? TokenType::Float : TokenType::Integer;
             const std::uint32_t start = Pos();
 
             const bool isZero = *c == '0';
@@ -190,7 +190,7 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
             // decimal
             if (!isDot && *c == '.')
             {
-                type = TokenType::Real;
+                type = TokenType::Float;
                 ++c;
                 while (IsDigit(*c))
                     ++c;
@@ -199,7 +199,7 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
             // exponent
             if (*c == 'e' || *c == 'E')
             {
-                type = TokenType::Real;
+                type = TokenType::Float;
                 ++c;
 
                 if (*c == '-' || *c == '+')

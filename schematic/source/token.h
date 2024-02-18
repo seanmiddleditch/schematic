@@ -14,7 +14,7 @@ namespace potato::schematic::compiler
         Integer,
         HexInteger,
         BinaryInteger,
-        Real,
+        Float,
         Identifier,
         LBrace,
         RBrace,
