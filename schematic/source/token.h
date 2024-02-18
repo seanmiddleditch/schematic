@@ -16,6 +16,8 @@ namespace potato::schematic::compiler
         BinaryInteger,
         Float,
         Identifier,
+        String,
+        MultilineString,
         LBrace,
         RBrace,
         LBracket,

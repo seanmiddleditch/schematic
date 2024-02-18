@@ -4,8 +4,8 @@
 
 #include "schematic/arena.h"
 
-#include <string_view>
 #include <cstdint>
+#include <string_view>
 
 namespace potato::schematic
 {
@@ -37,6 +37,7 @@ namespace potato::schematic
     struct ValueEnum;
     struct ValueInt;
     struct ValueNull;
+    struct ValueString;
     struct ValueObject;
     struct ValueFloat;
     struct ValueType;
@@ -117,6 +118,7 @@ namespace potato::schematic
         Int,
         Float,
         Enum,
+        String,
         Object,
         Array,
         Type,
@@ -289,6 +291,13 @@ namespace potato::schematic
         SCHEMATIC_VALUE(Enum);
 
         const EnumItem* item = nullptr;
+    };
+
+    struct ValueString : Value
+    {
+        SCHEMATIC_VALUE(String);
+
+        String value;
     };
 
     struct ValueObject : Value

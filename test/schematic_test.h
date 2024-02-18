@@ -83,14 +83,14 @@ namespace potato::schematic::test
 {
     struct TestSource final : potato::schematic::compiler::Source
     {
-        TestSource(std::string_view name, std::string_view data) noexcept
-            : name(name)
-            , data(data)
+        TestSource(std::string name, std::string data) noexcept
+            : name(std::move(name))
+            , data(std::move(data))
         {
         }
 
-        std::string_view name;
-        std::string_view data;
+        std::string name;
+        std::string data;
 
         std::string_view Name() const noexcept override { return name; }
         std::string_view Data() const noexcept override { return data; }
@@ -100,7 +100,7 @@ namespace potato::schematic::test
     {
         inline const potato::schematic::compiler::Source* ResolveModule(std::string_view name, const potato::schematic::compiler::Source* referrer) override;
 
-        inline void AddFile(std::string_view name, std::string_view source);
+        inline void AddFile(std::string name, std::string source);
 
         std::vector<TestSource> files;
     };
@@ -194,6 +194,40 @@ namespace potato::schematic::test
         const EnumItem* item_ = nullptr;
     };
 
+    struct IsStringValue : Catch::Matchers::MatcherGenericBase
+    {
+        IsStringValue(std::string_view value)
+            : value_(value)
+        {
+        }
+
+        bool match(const Value* value) const
+        {
+            if (value == nullptr)
+            {
+                UNSCOPED_INFO("Null value");
+                return false;
+            }
+
+            const ValueString* const casted = CastTo<ValueString>(value);
+            if (value == nullptr)
+            {
+                UNSCOPED_INFO("Incorrect type");
+                return false;
+            }
+
+            return casted->value == value_;
+        }
+
+        std::string describe() const override
+        {
+            return fmt::format("== {}", value_);
+        }
+
+    private:
+        std::string_view value_;
+    };
+
     struct IsLexError : Catch::Matchers::MatcherGenericBase
     {
         bool match(const char* text) const
@@ -277,9 +311,9 @@ namespace potato::schematic::test
         return nullptr;
     }
 
-    void TestResolver::AddFile(std::string_view name, std::string_view source)
+    void TestResolver::AddFile(std::string name, std::string source)
     {
-        files.emplace_back(name, source);
+        files.emplace_back(std::move(name), std::move(source));
     }
 } // namespace potato::schematic::test
 

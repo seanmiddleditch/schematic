@@ -29,7 +29,6 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
 
     const std::string_view data = source->Data();
     const char* const text = data.data();
-    const char* const end = text + data.size();
     const char* c = text;
     bool result = true;
 
@@ -50,7 +49,7 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
         tokens.PushBack(alloc, Token{ .type = type, .offset = Pos(), .length = 1 });
     };
 
-    while (c != end)
+    while (*c != '\0')
     {
         // skip whitespace
         if (IsWhitespace(*c))
@@ -64,7 +63,7 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
         if (Match(c, "//"))
         {
             c += 2;
-            while (c != end && *c != '\n')
+            while (*c != '\0' && *c != '\n')
                 ++c;
             continue;
         }
@@ -226,6 +225,67 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
 
             tokens.PushBack(alloc, Token{ .type = TokenType::Identifier, .offset = start, .length = Pos() - start });
             continue;
+        }
+
+        // strings
+        if (*c == '"')
+        {
+            const std::uint32_t start = Pos();
+
+            // multi-line strings
+            if (c[1] == '"' && c[2] == '"')
+            {
+                c += 3;
+                while (*c != '\0')
+                {
+                    if (c[0] == '"' && c[1] == '"' && c[2] == '"')
+                        break;
+
+                    ++c;
+                }
+
+                if (*c == '\0')
+                {
+                    Error("Unterminated long string");
+                    break;
+                }
+
+                c += 3; // eat final delim
+                tokens.PushBack(alloc, Token{ .type = TokenType::MultilineString, .offset = start, .length = Pos() - start });
+                continue;
+            }
+            else
+            {
+                const char delim = *c;
+                ++c;
+                while (*c != '\0' && *c != delim)
+                {
+                    if (*c == '\\')
+                    {
+                        ++c;
+
+                        if (*c == '\0')
+                            break; // will trigger the unterminated string error
+
+                        if (*c == '\n')
+                            break; // will trigger the unterminated string error
+
+                        if (*c != '\\' && *c != '\n')
+                            Error("Unexpected string escape \\%c", *c);
+                    }
+                    ++c;
+                }
+
+                if (*c != delim)
+                {
+                    Error("Unterminated string");
+                    break;
+                }
+
+                ++c; // eat final delim
+                tokens.PushBack(alloc, Token{ .type = TokenType::String, .offset = start, .length = Pos() - start });
+                continue;
+            }
         }
 
         // unknown token

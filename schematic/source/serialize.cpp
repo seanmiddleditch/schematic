@@ -46,6 +46,7 @@ namespace
         void Serialize(proto::Value::Bool& out, const ValueBool& in);
         void Serialize(proto::Value::Int& out, const ValueInt& in);
         void Serialize(proto::Value::Float& out, const ValueFloat& in);
+        void Serialize(proto::Value::String& out, const ValueString& in);
         void Serialize(proto::Value::Array& out, const ValueArray& in);
         void Serialize(proto::Value::Enum& out, const ValueEnum& in);
         void Serialize(proto::Value::Type& out, const ValueType& in);
@@ -305,6 +306,9 @@ void Serializer::Serialize(proto::Value& out, const Value& in)
         case Type:
             Serialize(*out.mutable_type(), static_cast<const ValueType&>(in));
             break;
+        case String:
+            Serialize(*out.mutable_string(), static_cast<const ValueString&>(in));
+            break;
     }
 }
 
@@ -335,6 +339,11 @@ void Serializer::Serialize(proto::Value::Int& out, const ValueInt& in)
 void Serializer::Serialize(proto::Value::Float& out, const ValueFloat& in)
 {
     out.set_value(in.value);
+}
+
+void Serializer::Serialize(proto::Value::String& out, const ValueString& in)
+{
+    out.set_value(in.value.CStr());
 }
 
 void Serializer::Serialize(proto::Value::Array& out, const ValueArray& in)

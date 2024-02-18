@@ -66,6 +66,8 @@ namespace
 
         bool ConsumeFloat(const AstNodeLiteralFloat*& lit);
 
+        bool ConsumeString(const AstNodeLiteralString*& lit);
+
         bool Match(TokenType type, const Token** out = nullptr);
 
         bool Consume(TokenType type, const Token** out = nullptr);
@@ -510,6 +512,9 @@ const AstNodeExpression* Parser::ParseExpression()
     if (const AstNodeLiteralFloat* literal = nullptr; ConsumeFloat(literal))
         return literal;
 
+    if (const AstNodeLiteralString* literal = nullptr; ConsumeString(literal))
+        return literal;
+
     AstQualifiedName qual;
     if (!ConsumeQualifiedName(qual) && !Match(TokenType::LBrace))
     {
@@ -746,6 +751,65 @@ bool Parser::ConsumeFloat(const AstNodeLiteralFloat*& lit)
         result->value = -result->value;
 
     return true;
+}
+
+bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
+{
+    auto pos = Pos();
+    const Token* token = nullptr;
+
+    if (Consume(TokenType::String, &token))
+    {
+        AstNodeLiteralString* const result = alloc.Create<AstNodeLiteralString>(pos);
+        lit = result;
+
+        const std::string_view content = source->Data().substr(token->offset + 1 /*"*/, token->length - 2 /*double "*/);
+
+        std::size_t length = 0;
+        for (const char c : content)
+        {
+            if (c != '\\')
+                ++length;
+        }
+
+        char* out = static_cast<char*>(alloc.Allocate(length + 1 /*NUL*/, 1));
+        const char* const string = out;
+
+        for (const char* c = content.data(); c != content.data() + content.size(); ++c)
+        {
+            if (*c != '\\')
+            {
+                *out++ = *c;
+                continue;
+            }
+
+            switch (*++c)
+            {
+                case '\\':
+                    *out++ = '\\';
+                    break;
+                case 'n':
+                    *out++ = '\n';
+                    break;
+            }
+        }
+
+        *out = '\0';
+        result->value = String(string, length);
+
+        return true;
+    }
+
+    if (Consume(TokenType::MultilineString, &token))
+    {
+        AstNodeLiteralString* const result = alloc.Create<AstNodeLiteralString>(pos);
+        lit = result;
+
+        result->value = alloc.NewString(source->Data().substr(token->offset + 3 /*"""*/, token->length - 6 /*double """*/));
+        return true;
+    }
+
+    return false;
 }
 
 void Parser::Error(std::string_view message)

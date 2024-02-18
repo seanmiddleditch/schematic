@@ -15,6 +15,8 @@ const char* potato::schematic::compiler::ToCStr(TokenType type) noexcept
         case Integer: return "integer";
         case Float: return "float";
         case Identifier: return "identifier";
+        case String: return "string";
+        case MultilineString: return "multiline string";
         case LBrace: return "{";
         case RBrace: return "}";
         case LBracket: return "[";

@@ -59,6 +59,7 @@ namespace
         const ValueBool* BuildBool(const AstNodeLiteralBool& lit);
         const ValueInt* BuildInteger(const AstNodeLiteralInt& lit);
         const ValueFloat* BuildFloat(const AstNodeLiteralFloat& lit);
+        const ValueString* BuildString(const AstNodeLiteralString& lit);
         const Value* BuildExpression(const Type* type, const AstNode& expr);
         const Value* BuildQualifiedId(const AstNodeQualifiedId& id);
         const ValueArray* BuildArray(const Type* type, const AstNodeInitializerList& expr);
@@ -467,6 +468,13 @@ const ValueFloat* Compiler::BuildFloat(const AstNodeLiteralFloat& lit)
     return value;
 }
 
+const ValueString* Compiler::BuildString(const AstNodeLiteralString& lit)
+{
+    ValueString* const value = alloc.Create<ValueString>();
+    value->value = lit.value;
+    return value;
+}
+
 const Value* Compiler::BuildExpression(const Type* type, const AstNode& expr)
 {
     switch (expr.kind)
@@ -477,6 +485,8 @@ const Value* Compiler::BuildExpression(const Type* type, const AstNode& expr)
             return BuildInteger(*expr.CastTo<AstNodeLiteralInt>());
         case AstNodeKind::LiteralFloat:
             return BuildFloat(*expr.CastTo<AstNodeLiteralFloat>());
+        case AstNodeKind::LiteralString:
+            return BuildString(*expr.CastTo<AstNodeLiteralString>());
         case AstNodeKind::LiteralNull:
             return alloc.Create<ValueNull>();
         case AstNodeKind::QualifiedId:

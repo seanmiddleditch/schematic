@@ -1,7 +1,5 @@
-attribute Priority
-{
-    int32 level = 1;
-}
+attribute Priority { int32 level = 1; }
+attribute Name { string name; }
 
 struct Vec3
 {

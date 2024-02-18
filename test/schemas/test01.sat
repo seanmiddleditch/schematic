@@ -1,5 +1,6 @@
 import import01;
 
+[Name("Testing")]
 struct Test
 {
     Vec3 vec;

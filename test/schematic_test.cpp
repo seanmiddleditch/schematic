@@ -55,6 +55,15 @@ TEST_CASE("Compiler", "[potato][schematic]")
         CHECK_THAT(".", IsTokenType(TokenType::Dot));
         CHECK_THAT(";", IsTokenType(TokenType::SemiColon));
 
+        CHECK_THAT(R"("Hello World!")", IsTokenType(TokenType::String));
+        CHECK_THAT(R"("Hello World!)", IsLexError());
+        CHECK_THAT(R"("Hello World!\n")", IsLexError());
+        CHECK_THAT("\\L", IsLexError());
+
+        CHECK_THAT(R"("""Hello
+World!""")", IsTokenType(TokenType::MultilineString));
+        CHECK_THAT(R"("""Hello World!)", IsLexError());
+
         CHECK_THAT("/", IsLexError());
     }
 
@@ -171,7 +180,7 @@ TEST_CASE("Compiler", "[potato][schematic]")
         {
             int32[] num = { 1, 2, 3 };
             string? optional = null;
-            string* required;// = "abc";
+            string* required = "abc";
         }
 )--");
         const Schema& schema = CompileTest("type_modifiers");
@@ -238,11 +247,11 @@ TEST_CASE("Compiler", "[potato][schematic]")
     {
         resolver.AddFile("annotations", R"--(
         attribute Ignore;
-        attribute Name { int32 first; int32 second; int32 third = 7; }
+        attribute Name { string first; int32 second; int32 third = 7; }
         attribute More {}
         attribute Reference { $type type; }
 
-        [Ignore, Name(1, second = -2) ]
+        [Ignore, Name("Toby", second = -2) ]
         [More()]
         struct test
         {
@@ -275,7 +284,7 @@ TEST_CASE("Compiler", "[potato][schematic]")
 
         const Value* const first = FindArgument(name, "first");
         CHECK(first != nullptr);
-        CHECK_THAT(first, IsValue<ValueInt>(1));
+        CHECK_THAT(first, IsStringValue("Toby"));
 
         const Value* const second = FindArgument(name, "second");
         CHECK(second != nullptr);

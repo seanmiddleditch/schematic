@@ -251,6 +251,8 @@ namespace potato::schematic::compiler
     struct AstNodeLiteralString : AstNodeExpression
     {
         AST_NODE(AstNodeLiteralString, AstNodeExpression, AstNodeKind::LiteralString);
+
+        String value;
     };
 
     struct AstNodeNamedArgument : AstNode
