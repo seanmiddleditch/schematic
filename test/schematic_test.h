@@ -51,6 +51,28 @@ namespace potato::schematic::test::_detail
         {
         }
 
+        bool match(const Field* field) const
+        {
+            if (field == nullptr)
+            {
+                UNSCOPED_INFO("Null value");
+                return false;
+            }
+
+            return match(field->value);
+        }
+
+        bool match(const EnumItem* item) const
+        {
+            if (item == nullptr)
+            {
+                UNSCOPED_INFO("Null value");
+                return false;
+            }
+
+            return match(item->value);
+        }
+
         bool match(const Value* value) const
         {
             if (value == nullptr)
@@ -164,6 +186,28 @@ namespace potato::schematic::test
             : enum_(en)
             , item_(item)
         {
+        }
+
+        bool match(const Field* field) const
+        {
+            if (field == nullptr)
+            {
+                UNSCOPED_INFO("Null value");
+                return false;
+            }
+
+            return match(field->value);
+        }
+
+        bool match(const EnumItem* item) const
+        {
+            if (item == nullptr)
+            {
+                UNSCOPED_INFO("Null value");
+                return false;
+            }
+
+            return match(item->value);
         }
 
         bool match(const Value* value) const

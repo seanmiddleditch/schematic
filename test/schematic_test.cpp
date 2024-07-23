@@ -61,7 +61,8 @@ TEST_CASE("Compiler", "[potato][schematic]")
         CHECK_THAT("\\L", IsLexError());
 
         CHECK_THAT(R"("""Hello
-World!""")", IsTokenType(TokenType::MultilineString));
+World!""")",
+            IsTokenType(TokenType::MultilineString));
         CHECK_THAT(R"("""Hello World!)", IsLexError());
 
         CHECK_THAT("/", IsLexError());
@@ -89,32 +90,14 @@ World!""")", IsTokenType(TokenType::MultilineString));
         CHECK(color->kind == TypeKind::Enum);
         CHECK(color->items.Size() == 3);
 
-        {
-            const EnumItem* const red = FindItem(color, "red");
-            REQUIRE(red != nullptr);
-            CHECK_THAT(red->value, IsValue<ValueInt>(0));
-        }
-
         const EnumItem* const green = FindItem(color, "green");
-        {
-            REQUIRE(green != nullptr);
-            CHECK_THAT(green->value, IsValue<ValueInt>(255));
-        }
 
-        {
-            const EnumItem* const blue = FindItem(color, "blue");
-            REQUIRE(blue != nullptr);
-            CHECK_THAT(blue->value, IsValue<ValueInt>(256));
-        }
+        CHECK_THAT(FindItem(color, "red"), IsValue<ValueInt>(0));
+        CHECK_THAT(green, IsValue<ValueInt>(255));
+        CHECK_THAT(FindItem(color, "blue"), IsValue<ValueInt>(256));
 
-        {
-            const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&schema, "test"));
-            REQUIRE(color != nullptr);
-            const Field* const c = FindField(test, "c");
-            REQUIRE(c != nullptr);
-            REQUIRE(c->type == color);
-            CHECK_THAT(c->value, IsEnumValue(color, green));
-        }
+        const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&schema, "test"));
+        CHECK_THAT(FindField(test, "c"), IsEnumValue(color, green));
     }
 
     SECTION("Struct")
@@ -140,7 +123,7 @@ World!""")", IsTokenType(TokenType::MultilineString));
         CHECK(FindType(&schema, "unused") == nullptr);
 
         const Type* const base = FindType(&schema, "base");
-        REQUIRE(base != nullptr);
+        CHECK(base != nullptr);
 
         const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&schema, "test"));
         REQUIRE(test != nullptr);
@@ -148,29 +131,10 @@ World!""")", IsTokenType(TokenType::MultilineString));
         CHECK(test->base == base);
         CHECK(test->fields.Size() == 4);
 
-        {
-            const Field* const num = FindField(test, "num");
-            REQUIRE(num != nullptr);
-            CHECK_THAT(num->value, IsValue<ValueInt>(42));
-        }
-
-        {
-            const Field* const b = FindField(test, "b");
-            REQUIRE(b != nullptr);
-            CHECK_THAT(b->value, IsValue<ValueBool>(true));
-        }
-
-        {
-            const Field* const other = FindField(test, "zero");
-            REQUIRE(other != nullptr);
-            CHECK_THAT(other->value, IsValue<ValueFloat>(0.));
-        }
-
-        {
-            const Field* const other = FindField(test, "thousand");
-            REQUIRE(other != nullptr);
-            CHECK_THAT(other->value, IsValue<ValueFloat>(1'000.0));
-        }
+        CHECK_THAT(FindField(test, "num"), IsValue<ValueInt>(42));
+        CHECK_THAT(FindField(test, "b"), IsValue<ValueBool>(true));
+        CHECK_THAT(FindField(test, "zero"), IsValue<ValueFloat>(0.));
+        CHECK_THAT(FindField(test, "thousand"), IsValue<ValueFloat>(1'000.0));
     }
 
     SECTION("Type Modifiers")
@@ -208,7 +172,7 @@ World!""")", IsTokenType(TokenType::MultilineString));
         REQUIRE(embed != nullptr);
 
         const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&schema, "test"));
-        REQUIRE(test != nullptr);
+        CHECK(test != nullptr);
 
         {
             const Field* const field = FindField(test, "first");
@@ -219,11 +183,11 @@ World!""")", IsTokenType(TokenType::MultilineString));
             REQUIRE(value != nullptr);
             REQUIRE(value->fields.Size() == embed->fields.Size());
 
-            REQUIRE(value->fields[0].field == &embed->fields[0]);
-            REQUIRE_THAT(value->fields[0].value, IsValue<ValueInt>(1));
+            CHECK(value->fields[0].field == &embed->fields[0]);
+            CHECK_THAT(value->fields[0].value, IsValue<ValueInt>(1));
 
-            REQUIRE(value->fields[2].field == &embed->fields[2]);
-            REQUIRE_THAT(value->fields[2].value, IsValue<ValueInt>(-3));
+            CHECK(value->fields[2].field == &embed->fields[2]);
+            CHECK_THAT(value->fields[2].value, IsValue<ValueInt>(-3));
         }
 
         {
@@ -272,26 +236,21 @@ World!""")", IsTokenType(TokenType::MultilineString));
         CHECK(CastTo<TypeAttribute>(FindType(&schema, "Reference")) != nullptr);
 
         const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&schema, "test"));
-        REQUIRE(test != nullptr);
         CHECK(HasAttribute(test, "More"));
 
         const Field* const field = FindField(test, "field");
-        REQUIRE(field != nullptr);
         CHECK(HasAttribute(field, "Ignore"));
 
         const Annotation* const name = FindAnnotation(test, "Name");
         CHECK(name != nullptr);
 
         const Value* const first = FindArgument(name, "first");
-        CHECK(first != nullptr);
         CHECK_THAT(first, IsStringValue("Toby"));
 
         const Value* const second = FindArgument(name, "second");
-        CHECK(second != nullptr);
         CHECK_THAT(second, IsValue<ValueInt>(-2));
 
         const Value* const third = FindArgument(name, "third");
-        CHECK(third != nullptr);
         CHECK_THAT(third, IsValue<ValueInt>(7));
     }
 }
