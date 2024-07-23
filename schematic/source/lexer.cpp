@@ -10,8 +10,6 @@
 
 #include <cstdint>
 
-static bool Match(const char* c, std::string_view match) noexcept;
-
 static bool IsWhitespace(char c) noexcept;
 static bool IsDigit(char c) noexcept;
 static bool IsHexDigit(char c) noexcept;
@@ -19,6 +17,38 @@ static bool IsBinaryDigit(char c) noexcept;
 static bool IsAlpha(char c) noexcept;
 static bool IsIdentHead(char c) noexcept;
 static bool IsIdentBody(char c) noexcept;
+
+namespace
+{
+    struct Input
+    {
+        Input(const char* text, std::size_t size) noexcept
+            : cur(text)
+            , start(text)
+            , sentinel(text + size)
+        {
+        }
+
+        bool Match(char) noexcept;
+        bool Match(const char* text) noexcept;
+        bool Match(bool (*func)(char) noexcept) noexcept;
+
+        bool MatchAll(bool (*func)(char) noexcept) noexcept;
+
+        bool IsEof() const noexcept;
+
+        char Peek() const noexcept;
+
+        std::uint32_t Pos() const noexcept;
+
+        void Advance() noexcept;
+
+    private:
+        const char* cur = nullptr;
+        const char* start = nullptr;
+        const char* sentinel = nullptr;
+    };
+} // namespace
 
 // FIXME: this assumes that input text is NUL-terminated, but the interface relies on std::string_view which
 //  provides no such guarantee. Either the interface needs to change, or the code here needs to be updated
@@ -32,272 +62,247 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
     tokens = Array<Token>();
 
     const std::string_view data = source->Data();
-    const char* const text = data.data();
-    const char* c = text;
+    Input in(data.data(), data.size());
     bool result = true;
 
-    auto Pos = [&c, text]() noexcept
+    auto Error = [&logger, source, &in, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
     {
-        return static_cast<std::uint32_t>(c - text);
-    };
-
-    auto Error = [&logger, source, &Pos, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
-    {
-        logger.Error({ .source = source, .offset = Pos(), .length = 1 },
+        logger.Error({ .source = source, .offset = in.Pos(), .length = 1 },
             fmt::vformat(format, fmt::make_format_args(args...)));
         result = false;
     };
 
-    auto Push = [&alloc, &tokens, &Pos](TokenType type)
+    auto Push = [&alloc, &tokens, &in](TokenType type)
     {
-        tokens.PushBack(alloc, Token{ .type = type, .offset = Pos(), .length = 1 });
+        tokens.PushBack(alloc, Token{ .type = type, .offset = in.Pos(), .length = 1 });
     };
 
-    while (*c != '\0')
+    while (!in.IsEof())
     {
         // skip whitespace
-        if (IsWhitespace(*c))
+        if (in.Match(IsWhitespace))
         {
-            while (IsWhitespace(*c))
-                ++c;
+            while (!in.IsEof() && in.Match(IsWhitespace))
+                ;
             continue;
         }
 
         // skip comments
-        if (Match(c, "//"))
+        if (in.Match("//"))
         {
-            c += 2;
-            while (*c != '\0' && *c != '\n')
-                ++c;
+            while (!in.IsEof() && !in.Match('\n'))
+                in.Advance();
             continue;
         }
 
         // special characters
         // note: dot (.) is special, because it _could_ start a number
-        switch (*c)
+        switch (in.Peek())
         {
             case ',':
                 Push(TokenType::Comma);
-                ++c;
+                in.Advance();
                 continue;
             case '=':
                 Push(TokenType::Equals);
-                ++c;
+                in.Advance();
                 continue;
             case ';':
                 Push(TokenType::SemiColon);
-                ++c;
+                in.Advance();
                 continue;
             case ':':
                 Push(TokenType::Colon);
-                ++c;
+                in.Advance();
                 continue;
             case '-':
                 Push(TokenType::Minus);
-                ++c;
+                in.Advance();
                 continue;
             case '#':
                 Push(TokenType::Hash);
-                ++c;
+                in.Advance();
                 continue;
             case '@':
                 Push(TokenType::At);
-                ++c;
+                in.Advance();
                 continue;
             case '*':
                 Push(TokenType::Star);
-                ++c;
+                in.Advance();
                 continue;
             case '?':
                 Push(TokenType::Question);
-                ++c;
+                in.Advance();
                 continue;
             case '{':
                 Push(TokenType::LBrace);
-                ++c;
+                in.Advance();
                 continue;
             case '}':
                 Push(TokenType::RBrace);
-                ++c;
+                in.Advance();
                 continue;
             case '[':
                 Push(TokenType::LBracket);
-                ++c;
+                in.Advance();
                 continue;
             case ']':
                 Push(TokenType::RBracket);
-                ++c;
+                in.Advance();
                 continue;
             case '(':
                 Push(TokenType::LParen);
-                ++c;
+                in.Advance();
                 continue;
             case ')':
                 Push(TokenType::RParen);
-                ++c;
+                in.Advance();
                 continue;
             default: break;
         }
 
-        const bool isDot = *c == '.';
+        const std::uint32_t start = in.Pos();
+
+        const bool isZero = in.Peek() == '0';
+        const bool isDot = in.Match('.');
 
         // parse numbers, or just a plain dot
-        if (IsDigit(*c) || isDot)
+        if (isDot || in.Match(IsDigit))
         {
             TokenType type = isDot ? TokenType::Float : TokenType::Integer;
-            const std::uint32_t start = Pos();
-
-            const bool isZero = *c == '0';
-            ++c;
 
             if (isZero)
             {
                 // hexadecimal 0x123
-                if (*c == 'x')
+                if (in.Match('x'))
                 {
-                    ++c;
-                    if (!IsHexDigit(*c))
+                    if (!in.Match(IsHexDigit))
                         Error("Expected digits after 0x prefix");
-                    while (IsHexDigit(*c))
-                        ++c;
-                    tokens.PushBack(alloc, Token{ .type = TokenType::HexInteger, .offset = start, .length = Pos() - start });
+                    while (in.Match(IsHexDigit))
+                        ;
+                    tokens.PushBack(alloc, Token{ .type = TokenType::HexInteger, .offset = start, .length = in.Pos() - start });
                     continue;
                 }
 
                 // binary 0b010
-                if (*c == 'b')
+                if (in.Match('b'))
                 {
-                    ++c;
-                    if (!IsBinaryDigit(*c))
+                    if (!in.Match(IsBinaryDigit))
                         Error("Expected digits after 0b prefix");
-                    while (IsBinaryDigit(*c))
-                        ++c;
-                    tokens.PushBack(alloc, Token{ .type = TokenType::BinaryInteger, .offset = start, .length = Pos() - start });
+                    while (in.Match(IsBinaryDigit))
+                        ;
+                    tokens.PushBack(alloc, Token{ .type = TokenType::BinaryInteger, .offset = start, .length = in.Pos() - start });
                     continue;
                 }
 
                 // zero may not be followed by any other digits
-                if (IsDigit(*c))
+                if (in.Match(IsDigit))
                     Error("Leading zeroes are not permitted");
             }
 
-            if (isDot && !IsDigit(*c))
+            if (isDot && !in.Match(IsDigit))
             {
                 tokens.PushBack(alloc, Token{ .type = TokenType::Dot, .offset = start, .length = 1 });
                 continue;
             }
 
-            while (IsDigit(*c))
-                ++c;
+            while (in.Match(IsDigit))
+                ;
 
             // decimal
-            if (!isDot && *c == '.')
+            if (!isDot && in.Match('.'))
             {
                 type = TokenType::Float;
-                ++c;
-                while (IsDigit(*c))
-                    ++c;
+                while (in.Match(IsDigit))
+                    ;
             }
 
             // exponent
-            if (*c == 'e' || *c == 'E')
+            if (in.Match('e') || in.Match('E'))
             {
                 type = TokenType::Float;
-                ++c;
 
-                if (*c == '-' || *c == '+')
-                    ++c;
+                if (in.Match('-') || in.Match('+'))
+                    ;
 
-                if (!IsDigit(*c))
+                if (!in.Match(IsDigit))
                     Error("Digits expected after exponent");
 
-                while (IsDigit(*c))
-                    ++c;
+                while (in.Match(IsDigit))
+                    ;
             }
 
-            tokens.PushBack(alloc, Token{ .type = type, .offset = start, .length = Pos() - start });
+            tokens.PushBack(alloc, Token{ .type = type, .offset = start, .length = in.Pos() - start });
             continue;
         }
 
         // identifiers
-        if (IsIdentHead(*c))
+        if (in.Match(IsIdentHead))
         {
-            const std::uint32_t start = Pos();
-            ++c;
-            while (IsIdentBody(*c))
-                ++c;
+            while (in.Match(IsIdentBody))
+                ;
 
-            tokens.PushBack(alloc, Token{ .type = TokenType::Identifier, .offset = start, .length = Pos() - start });
+            tokens.PushBack(alloc, Token{ .type = TokenType::Identifier, .offset = start, .length = in.Pos() - start });
             continue;
         }
 
         // strings
-        if (*c == '"')
+        if (in.Match("\"\"\""))
         {
-            const std::uint32_t start = Pos();
-
-            // multi-line strings
-            if (c[1] == '"' && c[2] == '"')
+            while (!in.Match("\"\"\""))
             {
-                c += 3;
-                while (*c != '\0')
-                {
-                    if (c[0] == '"' && c[1] == '"' && c[2] == '"')
-                        break;
-
-                    ++c;
-                }
-
-                if (*c == '\0')
+                if (in.IsEof())
                 {
                     Error("Unterminated long string");
                     break;
                 }
 
-                c += 3; // eat final delim
-                tokens.PushBack(alloc, Token{ .type = TokenType::MultilineString, .offset = start, .length = Pos() - start });
-                continue;
+                in.Advance();
             }
-            else
+
+            tokens.PushBack(alloc, Token{ .type = TokenType::MultilineString, .offset = start, .length = in.Pos() - start });
+            continue;
+        }
+        else if (in.Match('"'))
+        {
+            while (!in.IsEof() && in.Peek() != '"')
             {
-                const char delim = *c;
-                ++c;
-                while (*c != '\0' && *c != delim)
+                if (in.Match('\\'))
                 {
-                    if (*c == '\\')
-                    {
-                        ++c;
+                    if (in.IsEof())
+                        break; // will trigger the unterminated string error
 
-                        if (*c == '\0')
-                            break; // will trigger the unterminated string error
+                    if (!in.Match('\\') && !in.Match('n'))
+                        Error("Unexpected string escape \\%c", in.Peek());
 
-                        if (*c == '\n')
-                            break; // will trigger the unterminated string error
-
-                        if (*c != '\\' && *c != '\n')
-                            Error("Unexpected string escape \\%c", *c);
-                    }
-                    ++c;
+                    continue;
                 }
 
-                if (*c != delim)
+                if (in.Peek() == '\n')
                 {
-                    Error("Unterminated string");
-                    break;
+                    break; // will trigger the unterminated string error
                 }
 
-                ++c; // eat final delim
-                tokens.PushBack(alloc, Token{ .type = TokenType::String, .offset = start, .length = Pos() - start });
-                continue;
+                in.Advance();
             }
+
+            if (!in.Match('"'))
+            {
+                Error("Unterminated string");
+                break;
+            }
+
+            tokens.PushBack(alloc, Token{ .type = TokenType::String, .offset = start, .length = in.Pos() - start });
+            continue;
         }
 
         // unknown token
-        Error("Unexpected input `{}`", *c);
-        ++c;
+        Error("Unexpected input `{}`", in.Peek());
+        in.Advance();
     }
 
-    tokens.PushBack(alloc, Token{ .type = TokenType::End, .offset = Pos() });
+    tokens.PushBack(alloc, Token{ .type = TokenType::End, .offset = in.Pos() });
     return result;
 }
 
@@ -342,4 +347,66 @@ bool IsIdentHead(char c) noexcept
 bool IsIdentBody(char c) noexcept
 {
     return c == '_' || IsAlpha(c) || IsDigit(c);
+}
+
+bool Input::Match(char c) noexcept
+{
+    if (cur == sentinel)
+        return false;
+    if (*cur != c)
+        return false;
+    ++cur;
+    return true;
+}
+
+bool Input::Match(const char* text) noexcept
+{
+    const std::size_t tlen = std::strlen(text);
+    if (tlen > (sentinel - cur))
+        return false;
+    if (std::memcmp(cur, text, tlen) != 0)
+        return false;
+    cur += tlen;
+    return true;
+}
+
+bool Input::Match(bool (*func)(char) noexcept) noexcept
+{
+    if (cur == sentinel)
+        return false;
+    if (!func(*cur))
+        return false;
+    ++cur;
+    return true;
+}
+
+bool Input::MatchAll(bool (*func)(char) noexcept) noexcept
+{
+    const char* const original = cur;
+    while (cur != sentinel && func(*cur))
+        ++cur;
+    return cur != original;
+}
+
+bool Input::IsEof() const noexcept
+{
+    return cur == sentinel;
+}
+
+char Input::Peek() const noexcept
+{
+    if (cur == sentinel)
+        return '\0';
+    return *cur;
+}
+
+std::uint32_t Input::Pos() const noexcept
+{
+    return cur - start;
+}
+
+void Input::Advance() noexcept
+{
+    if (cur != sentinel)
+        ++cur;
 }

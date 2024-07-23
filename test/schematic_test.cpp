@@ -57,7 +57,7 @@ TEST_CASE("Compiler", "[potato][schematic]")
 
         CHECK_THAT(R"("Hello World!")", IsTokenType(TokenType::String));
         CHECK_THAT(R"("Hello World!)", IsLexError());
-        CHECK_THAT(R"("Hello World!\n")", IsLexError());
+        CHECK_THAT("\"Hello World!\n\"", IsLexError());
         CHECK_THAT("\\L", IsLexError());
 
         CHECK_THAT(R"("""Hello
