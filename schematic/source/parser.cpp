@@ -795,7 +795,7 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
         }
 
         *out = '\0';
-        result->value = String(string, length);
+        result->value = CStringView(string, length);
 
         return true;
     }

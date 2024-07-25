@@ -8,6 +8,8 @@
 #include <string_view>
 #include <type_traits>
 
+#include "schematic/string.h"
+
 namespace potato::schematic
 {
     class ArenaAllocator;
@@ -21,49 +23,6 @@ namespace potato::schematic
         std::is_trivially_destructible_v<T> &&
         std::is_trivially_copy_constructible_v<T> &&
         std::is_trivially_copy_assignable_v<T>;
-
-    // String is a non-owning string reference that has both
-    // O(1) size calculation and guarantees NUL termination.
-    class String
-    {
-    public:
-        String() = default;
-        explicit String(const char* str, size_t length) noexcept
-            : str_(str)
-            , len_(length)
-        {
-            assert(str_[len_] == '\0');
-        }
-
-        [[nodiscard]] const char* CStr() const noexcept { return str_; }
-        [[nodiscard]] const char* Data() const noexcept { return str_; }
-        [[nodiscard]] size_t Size() const noexcept { return len_; }
-
-        [[nodiscard]] explicit operator bool() const noexcept { return len_ != 0; }
-
-        [[nodiscard]] operator std::string_view() const noexcept { return std::string_view(str_, len_); }
-
-        [[nodiscard]] bool operator==(const String& rhs) const noexcept
-        {
-            return len_ == rhs.len_ && std::strncmp(str_, rhs.str_, len_) == 0;
-        }
-        [[nodiscard]] bool operator==(std::string_view rhs) const noexcept
-        {
-            return len_ == rhs.size() && std::strncmp(str_, rhs.data(), len_) == 0;
-        }
-        [[nodiscard]] bool operator==(const char* rhs) const noexcept
-        {
-            size_t n = 0;
-            for (n = 0; n != len_ && rhs[n] != '\0'; ++n)
-                if (str_[n] != rhs[n])
-                    return false;
-            return true;
-        }
-
-    private:
-        const char* str_ = "";
-        size_t len_ = 0;
-    };
 
     // Array is a non-owning growable contiguous container of
     // Trivial elements.
@@ -162,7 +121,7 @@ namespace potato::schematic
 
         [[nodiscard]] inline void* Allocate(size_t size, size_t align);
 
-        [[nodiscard]] inline String NewString(std::string_view string);
+        [[nodiscard]] inline CStringView NewString(std::string_view string);
 
         template <Trivial T>
         [[nodiscard]] inline Array<T> NewArray(size_t capacity)
@@ -247,15 +206,15 @@ namespace potato::schematic
         return address;
     }
 
-    String ArenaAllocator::NewString(std::string_view string)
+    CStringView ArenaAllocator::NewString(std::string_view string)
     {
         if (string.empty())
-            return String();
+            return CStringView();
 
         char* const memory = static_cast<char*>(Allocate(string.size() + 1 /*NUL*/, 1));
         std::memcpy(memory, string.data(), string.size());
         memory[string.size()] = '\0';
-        return String(memory, string.size());
+        return CStringView(memory, string.size());
     }
 
     template <Trivial T>

@@ -92,7 +92,7 @@ namespace potato::schematic::compiler
 
     struct AstIdentifier
     {
-        String name;
+        CStringView name;
         std::uint32_t tokenIndex = 0;
     };
 
@@ -252,7 +252,7 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeLiteralString, AstNodeExpression, AstNodeKind::LiteralString);
 
-        String value;
+        CStringView value;
     };
 
     struct AstNodeNamedArgument : AstNode
