@@ -27,7 +27,7 @@ namespace potato::schematic
 
         [[nodiscard]] explicit operator bool() const noexcept { return len_ != 0; }
 
-        [[nodiscard]] operator std::string_view() const noexcept { return std::string_view(str_, len_); }
+        [[nodiscard]] operator std::string_view() const noexcept { return { str_, len_ }; }
 
         [[nodiscard]] bool operator==(const CStringView& rhs) const noexcept
         {

@@ -78,7 +78,7 @@ namespace potato::schematic::compiler
         }
 
         template <typename To>
-        const To* CastTo() const noexcept
+        [[nodiscard]] const To* CastTo() const noexcept
         {
             if (kind == To::Kind)
                 return static_cast<const To*>(this);
@@ -237,7 +237,7 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeLiteralInt, AstNodeExpression, AstNodeKind::LiteralInt);
 
-        int base = 10;
+        int base = 10; // NOLINT(readability-magic-numbers)
         std::int64_t value = 0;
     };
 

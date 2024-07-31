@@ -2,13 +2,13 @@
 
 #pragma once
 
+#include "schematic/string.h"
+
 #include <cassert>
 #include <cstring>
 #include <new>
 #include <string_view>
 #include <type_traits>
-
-#include "schematic/string.h"
 
 namespace potato::schematic
 {
@@ -194,6 +194,7 @@ namespace potato::schematic
         }
     }
 
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     void* ArenaAllocator::Allocate(size_t size, size_t align)
     {
         head_ = AlignTo(head_, align);
@@ -209,12 +210,12 @@ namespace potato::schematic
     CStringView ArenaAllocator::NewString(std::string_view string)
     {
         if (string.empty())
-            return CStringView();
+            return {};
 
         char* const memory = static_cast<char*>(Allocate(string.size() + 1 /*NUL*/, 1));
         std::memcpy(memory, string.data(), string.size());
         memory[string.size()] = '\0';
-        return CStringView(memory, string.size());
+        return CStringView{ memory, string.size() };
     }
 
     template <Trivial T>
@@ -245,7 +246,7 @@ namespace potato::schematic
 
     void ArenaAllocator::EnsureBlock(size_t minimum)
     {
-        constexpr size_t block_size = 16 * 1024;
+        constexpr size_t block_size = 16u * 1024u;
         constexpr size_t block_capacity = block_size - sizeof(BlockHeader);
 
         capacity_ = block_capacity >= minimum ? block_capacity : minimum;
