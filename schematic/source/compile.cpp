@@ -172,8 +172,6 @@ const Module* Compiler::Compile()
 
         if (adecl->kind == AstNodeKind::Import)
             continue;
-        if (adecl->kind == AstNodeKind::KeywordDecl)
-            continue;
 
         Error(adecl->tokenIndex, "Internal error: unexpected top-level node kind {}", std::to_underlying(adecl->kind));
         break;

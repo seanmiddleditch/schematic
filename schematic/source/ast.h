@@ -16,8 +16,6 @@ namespace potato::schematic::compiler
         None,
         Module,
         Import,
-        KeywordDecl,
-        Keyword,
         AggregateDecl,
         AttributeDecl,
         Field,
@@ -43,8 +41,6 @@ namespace potato::schematic::compiler
     struct AstNodeModule;
     struct AstNodeImport;
     struct AstNodeAggregateDecl;
-    struct AstNodeKeywordDecl;
-    struct AstNodeKeyword;
     struct AstNodeAttributeDecl;
     struct AstNodeField;
     struct AstNodeEnumDecl;
@@ -121,19 +117,6 @@ namespace potato::schematic::compiler
 
         AstIdentifier name;
         Array<const AstNodeAnnotation*> annotations;
-        Array<const AstNodeKeyword*> keywords;
-    };
-
-    struct AstNodeKeywordDecl : AstNodeDecl
-    {
-        AST_NODE(AstNodeKeywordDecl, AstNodeDecl, AstNodeKind::KeywordDecl);
-    };
-
-    struct AstNodeKeyword : AstNode
-    {
-        AST_NODE(AstNodeKeyword, AstNode, AstNodeKind::Keyword);
-
-        const AstNodeKeywordDecl* decl = nullptr;
     };
 
     struct AstNodeAggregateDecl : AstNodeDecl

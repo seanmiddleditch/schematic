@@ -107,7 +107,7 @@ World!""")",
 
         struct test : base
         {
-            virtual int32 num = 42;
+            int32 num = 42;
             bool b = true;
             float zero = .0;
             float thousand = 1.0e3;
@@ -116,7 +116,6 @@ World!""")",
         resolver.AddFile("imported", R"--(
         struct unused {}
         struct base {}
-        keyword virtual;
 )--");
         const Schema& schema = CompileTest("main");
 

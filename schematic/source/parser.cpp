@@ -36,8 +36,6 @@ namespace
         size_t next = 0;
         bool result = true;
         Array<const AstNodeAnnotation*> annotations;
-        Array<const AstNodeKeywordDecl*> keywordDecls;
-        Array<const AstNodeKeyword*> keywords;
 
         bool Parse();
 
@@ -45,10 +43,8 @@ namespace
         void ErrorExpect(std::string_view expected);
 
         bool ParseAnnotations();
-        bool ParseKeywords();
 
         bool ParseImport(const AstNodeImport*& imp);
-        bool ParseKeywordDecl();
         bool ParseAggregateDecl();
         bool ParseAttributeDecl();
         bool ParseEnumDecl();
@@ -143,27 +139,11 @@ bool Parser::Parse()
                 continue;
             }
 
-            const AstNodeModule* const imported = ctx.LoadImport(*imp);
-            if (imported == nullptr)
-                continue;
-
-            for (const AstNode* const decl : imported->nodes)
-                if (const AstNodeKeywordDecl* const kwDecl = decl->CastTo<AstNodeKeywordDecl>(); kwDecl != nullptr)
-                    keywordDecls.EmplaceBack(alloc, kwDecl);
+            ctx.LoadImport(*imp);
             continue;
         }
 
         if (!ParseAnnotations())
-            continue;
-
-        if (ConsumeKey("keyword"))
-        {
-            if (!ParseKeywordDecl())
-                Recover(RecoverType::Declaration);
-            continue;
-        }
-
-        if (!ParseKeywords())
             continue;
 
         if (ConsumeKey("struct"))
@@ -246,36 +226,6 @@ bool Parser::ParseAnnotations()
     return true;
 }
 
-bool Parser::ParseKeywords()
-{
-    keywords = {};
-
-    const auto FindKeyword = [this](std::string_view name) -> const AstNodeKeywordDecl*
-    {
-        for (const AstNodeKeywordDecl* decl : keywordDecls)
-            if (decl->name.name == name)
-                return decl;
-        return nullptr;
-    };
-
-    const Token* token = nullptr;
-    while (Match(TokenType::Identifier, &token))
-    {
-        const std::string_view name = source->Data().substr(token->offset, token->length);
-        const AstNodeKeywordDecl* const decl = FindKeyword(name);
-        if (decl == nullptr)
-            break;
-
-        AstNodeKeyword* const kw = alloc.Create<AstNodeKeyword>(Pos());
-        kw->decl = decl;
-        keywords.EmplaceBack(alloc, kw);
-
-        Expect(TokenType::Identifier);
-    }
-
-    return true;
-}
-
 bool Parser::ParseImport(const AstNodeImport*& imp)
 {
     AstNodeImport* const local = alloc.Create<AstNodeImport>(Pos());
@@ -291,29 +241,10 @@ bool Parser::ParseImport(const AstNodeImport*& imp)
     return true;
 }
 
-bool Parser::ParseKeywordDecl()
-{
-    AstNodeKeywordDecl* const kw = alloc.Create<AstNodeKeywordDecl>(Pos());
-    kw->annotations = annotations;
-
-    mod->nodes.EmplaceBack(alloc, kw);
-
-    if (!ExpectIdent(kw->name))
-        return false;
-
-    if (!Expect(TokenType::SemiColon))
-        return false;
-
-    keywordDecls.EmplaceBack(alloc, kw);
-
-    return true;
-}
-
 bool Parser::ParseAggregateDecl()
 {
     AstNodeAggregateDecl* const agg = alloc.Create<AstNodeAggregateDecl>(Pos());
     agg->annotations = annotations;
-    agg->keywords = keywords;
 
     mod->nodes.EmplaceBack(alloc, agg);
 
@@ -340,9 +271,6 @@ bool Parser::ParseAggregateDecl()
             if (!ParseAnnotations())
                 return false;
 
-            if (!ParseKeywords())
-                return false;
-
             if (!ParseField(agg->fields))
                 return false;
 
@@ -364,7 +292,6 @@ bool Parser::ParseAttributeDecl()
 {
     AstNodeAttributeDecl* const attr = alloc.Create<AstNodeAttributeDecl>(Pos());
     attr->annotations = annotations;
-    attr->keywords = keywords;
 
     mod->nodes.EmplaceBack(alloc, attr);
 
@@ -403,7 +330,6 @@ const bool Parser::ParseField(Array<const AstNodeField*>& fields)
 {
     AstNodeField* const field = alloc.Create<AstNodeField>(Pos());
     field->annotations = annotations;
-    field->keywords = keywords;
     fields.PushBack(alloc, field);
 
     field->type = ParseType();
@@ -426,7 +352,6 @@ bool Parser::ParseEnumDecl()
 {
     AstNodeEnumDecl* const enum_ = alloc.Create<AstNodeEnumDecl>(Pos());
     enum_->annotations = annotations;
-    enum_->keywords = keywords;
 
     mod->nodes.EmplaceBack(alloc, enum_);
 
@@ -453,12 +378,8 @@ bool Parser::ParseEnumDecl()
             if (!ParseAnnotations())
                 return false;
 
-            if (!ParseKeywords())
-                return false;
-
             AstNodeEnumItem* const item = alloc.Create<AstNodeEnumItem>(Pos());
             item->annotations = annotations;
-            item->keywords = keywords;
 
             enum_->items.EmplaceBack(alloc, item);
 
