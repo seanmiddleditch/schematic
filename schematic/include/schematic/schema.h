@@ -138,7 +138,7 @@ namespace potato::schematic
 
     struct EnumItem
     {
-        String name;
+        CStringView name;
         const TypeEnum* owner = nullptr;
         const ValueInt* value = nullptr;
         Array<const Annotation*> annotations;
@@ -146,7 +146,7 @@ namespace potato::schematic
 
     struct Field
     {
-        String name;
+        CStringView name;
         const Type* owner = nullptr;
         const Type* type = nullptr;
         const Value* value = nullptr;
@@ -155,7 +155,7 @@ namespace potato::schematic
 
     struct Module
     {
-        String filename;
+        CStringView filename;
         Array<const Module*> imports;
         Array<const Type*> types;
     };
@@ -170,7 +170,7 @@ namespace potato::schematic
     struct Type
     {
         TypeKind kind = TypeKind::Aggregate;
-        String name;
+        CStringView name;
         const Module* owner = nullptr;
         Array<const Annotation*> annotations;
     };
@@ -297,7 +297,7 @@ namespace potato::schematic
     {
         SCHEMATIC_VALUE(String);
 
-        String value;
+        CStringView value;
     };
 
     struct ValueObject : Value

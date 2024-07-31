@@ -73,7 +73,7 @@ namespace
         void Error(std::uint32_t tokenIndex, fmt::format_string<Args...> format, const Args&... args);
 
         template <typename T>
-        T* AddType(std::uint32_t tokenIndex, String name)
+        T* AddType(std::uint32_t tokenIndex, CStringView name)
         {
             if (const Type* const previous = FindType(stack.Back()->mod, name); previous != nullptr)
             {
@@ -389,7 +389,7 @@ void Compiler::BuildArguments(const Type* type, const Array<Field>& fields, cons
 
         if (named != nullptr)
         {
-            const String name = named->name.name;
+            const CStringView name = named->name.name;
 
             hasNamed = true;
 
@@ -598,7 +598,7 @@ const Type* Compiler::Resolve(const AstQualifiedName& name)
     }
 
     State& state = *stack.Back();
-    String ident = name.parts.Front().name;
+    CStringView ident = name.parts.Front().name;
 
     if (const Type* const type = FindType(state.mod, ident); type != nullptr)
         return type;
@@ -634,7 +634,7 @@ const Type* Compiler::Resolve(const AstNodeType* type)
             return nullptr;
         }
 
-        const String name = alloc.NewString(fmt::format("{}[]", inner->name.CStr()));
+        const CStringView name = alloc.NewString(fmt::format("{}[]", inner->name.CStr()));
         TypeArray* const type = AddType<TypeArray>(array->tokenIndex, name);
         type->type = inner;
 
@@ -647,7 +647,7 @@ const Type* Compiler::Resolve(const AstNodeType* type)
         if (inner == nullptr)
             return nullptr;
 
-        const String name = alloc.NewString(fmt::format("{}*", inner->name.CStr()));
+        const CStringView name = alloc.NewString(fmt::format("{}*", inner->name.CStr()));
         TypePolymorphic* const type = AddType<TypePolymorphic>(poly->tokenIndex, name);
         type->type = inner;
         type->isNullable = false;
@@ -661,7 +661,7 @@ const Type* Compiler::Resolve(const AstNodeType* type)
         if (inner == nullptr)
             return nullptr;
 
-        const String name = alloc.NewString(fmt::format("{}?", inner->name.CStr()));
+        const CStringView name = alloc.NewString(fmt::format("{}?", inner->name.CStr()));
         TypePolymorphic* const type = AddType<TypePolymorphic>(nullable->tokenIndex, name);
         type->type = inner;
         type->isNullable = true;
