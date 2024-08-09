@@ -146,7 +146,9 @@ const Module* Compiler::Compile()
         return nullptr;
 
     Context ctx(*this);
-    state.ast = Parse(ctx, logger, alloc, state.source, state.tokens);
+    Parser parser(ctx, logger, alloc, state.source, state.tokens);
+    state.ast = parser.Parse();
+
     if (state.ast == nullptr)
         return nullptr;
 

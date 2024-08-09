@@ -18,70 +18,6 @@ using namespace potato::schematic::compiler;
 
 namespace
 {
-    enum class RecoverType
-    {
-        Expression, // end at any ) ] } ;
-        Statement, // end at } ;
-        Declaration, // end at }
-    };
-
-    struct Parser
-    {
-        ParseContext& ctx;
-        Logger& logger;
-        ArenaAllocator& alloc;
-        const Source* source = nullptr;
-        std::span<const Token> tokens;
-        AstNodeModule* mod = nullptr;
-        size_t next = 0;
-        bool result = true;
-        Array<const AstNodeAnnotation*> annotations;
-
-        bool Parse();
-
-        void Error(std::string_view message);
-        void ErrorExpect(std::string_view expected);
-
-        bool ParseAnnotations();
-
-        bool ParseImport(const AstNodeImport*& imp);
-        bool ParseAggregateDecl();
-        bool ParseAttributeDecl();
-        bool ParseEnumDecl();
-
-        const bool ParseField(Array<const AstNodeField*>& fields);
-        const AstNodeExpression* ParseExpression();
-        const AstNodeExpression* ParseInitializer(const AstQualifiedName& name);
-        const AstNode* ParseArgument();
-        const AstNodeType* ParseType();
-
-        void Recover(RecoverType type);
-
-        bool ConsumeInt(const AstNodeLiteralInt*& lit);
-        bool ExpectInt(const AstNodeLiteralInt*& lit);
-
-        bool ConsumeFloat(const AstNodeLiteralFloat*& lit);
-
-        bool ConsumeString(const AstNodeLiteralString*& lit);
-
-        bool Match(TokenType type, const Token** out = nullptr);
-
-        bool Consume(TokenType type, const Token** out = nullptr);
-        bool Expect(TokenType type, const Token** out = nullptr);
-
-        bool ConsumeIdent(AstIdentifier& out);
-        bool ExpectIdent(AstIdentifier& out);
-
-        bool ConsumeQualifiedName(AstQualifiedName& out);
-        bool ExpectQualifiedName(AstQualifiedName& out);
-
-        bool ConsumeKey(std::string_view keyword);
-
-        void Unwind(std::uint32_t count = 1) noexcept;
-
-        std::uint32_t Pos(const Token* token = nullptr) const;
-    };
-
     struct PrintToken
     {
         const Token& token;
@@ -114,19 +50,7 @@ struct fmt::formatter<PrintToken> : fmt::formatter<const char*>
     }
 };
 
-const AstNodeModule* potato::schematic::compiler::Parse(ParseContext& ctx, Logger& logger, ArenaAllocator& alloc, const Source* source, std::span<const Token> tokens)
-{
-    if (tokens.empty())
-        return nullptr;
-
-    Parser parser{ .ctx = ctx, .logger = logger, .alloc = alloc, .source = source, .tokens = tokens, .mod = alloc.Create<AstNodeModule>(0) };
-    if (!parser.Parse())
-        return nullptr;
-
-    return parser.mod;
-}
-
-bool Parser::Parse()
+const AstNodeModule* Parser::Parse()
 {
     while (!Consume(TokenType::End))
     {
@@ -139,7 +63,7 @@ bool Parser::Parse()
                 continue;
             }
 
-            ctx.LoadImport(*imp);
+            ctx_.LoadImport(*imp);
             continue;
         }
 
@@ -171,12 +95,15 @@ bool Parser::Parse()
         break;
     }
 
-    return result;
+    if (failed_)
+        return nullptr;
+
+    return mod;
 }
 
 bool Parser::ParseAnnotations()
 {
-    annotations = {};
+    annotations_ = {};
 
     while (Consume(TokenType::LBracket))
     {
@@ -185,12 +112,12 @@ bool Parser::ParseAnnotations()
             if (Consume(TokenType::End))
                 break;
 
-            AstNodeAnnotation* const attr = alloc.Create<AstNodeAnnotation>(Pos());
+            AstNodeAnnotation* const attr = alloc_.Create<AstNodeAnnotation>(Pos());
 
             if (!ExpectQualifiedName(attr->name))
                 return false;
 
-            annotations.PushBack(alloc, attr);
+            annotations_.PushBack(alloc_, attr);
 
             if (Consume(TokenType::LParen) && !Consume(TokenType::RParen))
             {
@@ -200,7 +127,7 @@ bool Parser::ParseAnnotations()
                     if (arg == nullptr)
                         break;
 
-                    attr->arguments.PushBack(alloc, arg);
+                    attr->arguments.PushBack(alloc_, arg);
 
                     if (Match(TokenType::RParen))
                         break;
@@ -228,7 +155,7 @@ bool Parser::ParseAnnotations()
 
 bool Parser::ParseImport(const AstNodeImport*& imp)
 {
-    AstNodeImport* const local = alloc.Create<AstNodeImport>(Pos());
+    AstNodeImport* const local = alloc_.Create<AstNodeImport>(Pos());
     imp = local;
 
     if (!ExpectIdent(local->target))
@@ -237,16 +164,16 @@ bool Parser::ParseImport(const AstNodeImport*& imp)
     if (!Expect(TokenType::SemiColon))
         return false;
 
-    mod->nodes.EmplaceBack(alloc, local);
+    mod->nodes.EmplaceBack(alloc_, local);
     return true;
 }
 
 bool Parser::ParseAggregateDecl()
 {
-    AstNodeAggregateDecl* const agg = alloc.Create<AstNodeAggregateDecl>(Pos());
-    agg->annotations = annotations;
+    AstNodeAggregateDecl* const agg = alloc_.Create<AstNodeAggregateDecl>(Pos());
+    agg->annotations = annotations_;
 
-    mod->nodes.EmplaceBack(alloc, agg);
+    mod->nodes.EmplaceBack(alloc_, agg);
 
     if (!ExpectIdent(agg->name))
         return false;
@@ -290,10 +217,10 @@ bool Parser::ParseAggregateDecl()
 
 bool Parser::ParseAttributeDecl()
 {
-    AstNodeAttributeDecl* const attr = alloc.Create<AstNodeAttributeDecl>(Pos());
-    attr->annotations = annotations;
+    AstNodeAttributeDecl* const attr = alloc_.Create<AstNodeAttributeDecl>(Pos());
+    attr->annotations = annotations_;
 
-    mod->nodes.EmplaceBack(alloc, attr);
+    mod->nodes.EmplaceBack(alloc_, attr);
 
     if (!ExpectIdent(attr->name))
         return false;
@@ -328,9 +255,9 @@ bool Parser::ParseAttributeDecl()
 
 const bool Parser::ParseField(Array<const AstNodeField*>& fields)
 {
-    AstNodeField* const field = alloc.Create<AstNodeField>(Pos());
-    field->annotations = annotations;
-    fields.PushBack(alloc, field);
+    AstNodeField* const field = alloc_.Create<AstNodeField>(Pos());
+    field->annotations = annotations_;
+    fields.PushBack(alloc_, field);
 
     field->type = ParseType();
     if (field->type == nullptr)
@@ -350,10 +277,10 @@ const bool Parser::ParseField(Array<const AstNodeField*>& fields)
 
 bool Parser::ParseEnumDecl()
 {
-    AstNodeEnumDecl* const enum_ = alloc.Create<AstNodeEnumDecl>(Pos());
-    enum_->annotations = annotations;
+    AstNodeEnumDecl* const enum_ = alloc_.Create<AstNodeEnumDecl>(Pos());
+    enum_->annotations = annotations_;
 
-    mod->nodes.EmplaceBack(alloc, enum_);
+    mod->nodes.EmplaceBack(alloc_, enum_);
 
     if (!ExpectIdent(enum_->name))
         return false;
@@ -378,10 +305,10 @@ bool Parser::ParseEnumDecl()
             if (!ParseAnnotations())
                 return false;
 
-            AstNodeEnumItem* const item = alloc.Create<AstNodeEnumItem>(Pos());
-            item->annotations = annotations;
+            AstNodeEnumItem* const item = alloc_.Create<AstNodeEnumItem>(Pos());
+            item->annotations = annotations_;
 
-            enum_->items.EmplaceBack(alloc, item);
+            enum_->items.EmplaceBack(alloc_, item);
 
             if (!ExpectIdent(item->name))
                 continue;
@@ -412,20 +339,20 @@ const AstNodeExpression* Parser::ParseExpression()
 
     if (ConsumeKey("true"))
     {
-        AstNodeLiteralBool* const literal = alloc.Create<AstNodeLiteralBool>(pos);
+        AstNodeLiteralBool* const literal = alloc_.Create<AstNodeLiteralBool>(pos);
         literal->value = true;
         return literal;
     }
 
     if (ConsumeKey("false"))
     {
-        AstNodeLiteralBool* const literal = alloc.Create<AstNodeLiteralBool>(pos);
+        AstNodeLiteralBool* const literal = alloc_.Create<AstNodeLiteralBool>(pos);
         literal->value = false;
         return literal;
     }
 
     if (ConsumeKey("null"))
-        return alloc.Create<AstNodeLiteralNull>(pos);
+        return alloc_.Create<AstNodeLiteralNull>(pos);
 
     if (const AstNodeLiteralInt* literal = nullptr; ConsumeInt(literal))
         return literal;
@@ -446,16 +373,16 @@ const AstNodeExpression* Parser::ParseExpression()
     if (Match(TokenType::LBrace))
         return ParseInitializer(qual);
 
-    AstNodeQualifiedId* const literal = alloc.Create<AstNodeQualifiedId>(pos);
+    AstNodeQualifiedId* const literal = alloc_.Create<AstNodeQualifiedId>(pos);
     literal->id = qual;
     return literal;
 }
 
 const AstNodeExpression* Parser::ParseInitializer(const AstQualifiedName& name)
 {
-    const std::uint32_t tokenIndex = name.parts ? name.parts.Front().tokenIndex : next;
+    const std::uint32_t tokenIndex = name.parts ? name.parts.Front().tokenIndex : next_;
 
-    AstNodeInitializerList* const list = alloc.Create<AstNodeInitializerList>(tokenIndex);
+    AstNodeInitializerList* const list = alloc_.Create<AstNodeInitializerList>(tokenIndex);
     list->type = name;
 
     if (!Expect(TokenType::LBrace))
@@ -470,7 +397,7 @@ const AstNodeExpression* Parser::ParseInitializer(const AstQualifiedName& name)
         if (element == nullptr)
             return nullptr;
 
-        list->elements.PushBack(alloc, element);
+        list->elements.PushBack(alloc_, element);
 
         if (!Consume(TokenType::Comma))
             break;
@@ -489,7 +416,7 @@ const AstNode* Parser::ParseArgument()
     {
         if (Consume(TokenType::Equals))
         {
-            AstNodeNamedArgument* const named = alloc.Create<AstNodeNamedArgument>(Pos());
+            AstNodeNamedArgument* const named = alloc_.Create<AstNodeNamedArgument>(Pos());
 
             named->name = ident;
             named->value = ParseExpression();
@@ -517,7 +444,7 @@ const AstNodeType* Parser::ParseType()
         if (!ExpectQualifiedName(name))
             return type;
 
-        AstNodeTypeQualified* qual = alloc.Create<AstNodeTypeQualified>(name.parts.Front().tokenIndex);
+        AstNodeTypeQualified* qual = alloc_.Create<AstNodeTypeQualified>(name.parts.Front().tokenIndex);
         qual->name = name;
         type = qual;
     }
@@ -526,7 +453,7 @@ const AstNodeType* Parser::ParseType()
     {
         if (Consume(TokenType::LBracket))
         {
-            AstNodeTypeArray* const array = alloc.Create<AstNodeTypeArray>(type->tokenIndex);
+            AstNodeTypeArray* const array = alloc_.Create<AstNodeTypeArray>(type->tokenIndex);
             array->type = type;
             type = array;
 
@@ -540,7 +467,7 @@ const AstNodeType* Parser::ParseType()
 
         if (Consume(TokenType::Star))
         {
-            AstNodeTypePolymorphic* const poly = alloc.Create<AstNodeTypePolymorphic>(type->tokenIndex);
+            AstNodeTypePolymorphic* const poly = alloc_.Create<AstNodeTypePolymorphic>(type->tokenIndex);
             poly->type = type;
             type = poly;
 
@@ -549,7 +476,7 @@ const AstNodeType* Parser::ParseType()
 
         if (Consume(TokenType::Question))
         {
-            AstNodeTypeNullable* const nullable = alloc.Create<AstNodeTypeNullable>(type->tokenIndex);
+            AstNodeTypeNullable* const nullable = alloc_.Create<AstNodeTypeNullable>(type->tokenIndex);
             nullable->type = type;
             type = nullable;
 
@@ -585,7 +512,7 @@ void Parser::Recover(RecoverType type)
                 break;
         }
 
-        ++next;
+        ++next_;
     }
 }
 
@@ -599,17 +526,17 @@ bool Parser::ConsumeInt(const AstNodeLiteralInt*& lit)
 
     if (Consume(TokenType::Integer))
     {
-        lit = result = alloc.Create<AstNodeLiteralInt>(pos);
+        lit = result = alloc_.Create<AstNodeLiteralInt>(pos);
         result->base = 10;
     }
     else if (Consume(TokenType::HexInteger))
     {
-        lit = result = alloc.Create<AstNodeLiteralInt>(pos);
+        lit = result = alloc_.Create<AstNodeLiteralInt>(pos);
         result->base = 16;
     }
     else if (Consume(TokenType::BinaryInteger))
     {
-        lit = result = alloc.Create<AstNodeLiteralInt>(pos);
+        lit = result = alloc_.Create<AstNodeLiteralInt>(pos);
         result->base = 2;
     }
     else
@@ -619,8 +546,8 @@ bool Parser::ConsumeInt(const AstNodeLiteralInt*& lit)
         return false;
     }
 
-    const Token& token = tokens[pos];
-    std::string_view number = source->Data().substr(token.offset, token.length);
+    const Token& token = tokens_[pos];
+    std::string_view number = source_->Data().substr(token.offset, token.length);
 
     // skip the 0x or 0b prefix
     if (result->base != 10)
@@ -658,11 +585,11 @@ bool Parser::ConsumeFloat(const AstNodeLiteralFloat*& lit)
         return false;
     }
 
-    AstNodeLiteralFloat* const result = alloc.Create<AstNodeLiteralFloat>(pos);
+    AstNodeLiteralFloat* const result = alloc_.Create<AstNodeLiteralFloat>(pos);
     lit = result;
 
-    const Token& token = tokens[pos];
-    const std::string_view number = source->Data().substr(token.offset, token.length);
+    const Token& token = tokens_[pos];
+    const std::string_view number = source_->Data().substr(token.offset, token.length);
 
     const auto err = std::from_chars(number.data(), number.data() + number.size(), result->value);
     if (err.ec != std::errc{})
@@ -681,10 +608,10 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
 
     if (Consume(TokenType::String, &token))
     {
-        AstNodeLiteralString* const result = alloc.Create<AstNodeLiteralString>(pos);
+        AstNodeLiteralString* const result = alloc_.Create<AstNodeLiteralString>(pos);
         lit = result;
 
-        const std::string_view content = source->Data().substr(token->offset + 1 /*"*/, token->length - 2 /*double "*/);
+        const std::string_view content = source_->Data().substr(token->offset + 1 /*"*/, token->length - 2 /*double "*/);
 
         std::size_t length = 0;
         for (const char c : content)
@@ -693,7 +620,7 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
                 ++length;
         }
 
-        char* out = static_cast<char*>(alloc.Allocate(length + 1 /*NUL*/, 1));
+        char* out = static_cast<char*>(alloc_.Allocate(length + 1 /*NUL*/, 1));
         const char* const string = out;
 
         for (const char* c = content.data(); c != content.data() + content.size(); ++c)
@@ -723,10 +650,10 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
 
     if (Consume(TokenType::MultilineString, &token))
     {
-        AstNodeLiteralString* const result = alloc.Create<AstNodeLiteralString>(pos);
+        AstNodeLiteralString* const result = alloc_.Create<AstNodeLiteralString>(pos);
         lit = result;
 
-        result->value = alloc.NewString(source->Data().substr(token->offset + 3 /*"""*/, token->length - 6 /*double """*/));
+        result->value = alloc_.NewString(source_->Data().substr(token->offset + 3 /*"""*/, token->length - 6 /*double """*/));
         return true;
     }
 
@@ -735,32 +662,32 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
 
 void Parser::Error(std::string_view message)
 {
-    const Token& token = tokens[next];
-    logger.Error({ .source = source, .offset = token.offset, .length = token.length }, message);
-    result = false;
+    const Token& token = tokens_[next_];
+    logger_.Error({ .source = source_, .offset = token.offset, .length = token.length }, message);
+    failed_ = true;
 }
 
 void Parser::ErrorExpect(std::string_view expected)
 {
-    if (next != 0)
+    if (next_ != 0)
         Error(fmt::format("Unexpected {} after {} expected {}",
-            PrintToken{ .token = tokens[next], .source = source },
-            PrintToken{ .token = tokens[next - 1], .source = source },
+            PrintToken{ .token = tokens_[next_], .source = source_ },
+            PrintToken{ .token = tokens_[next_ - 1], .source = source_ },
             expected));
     else
         Error(fmt::format("Unexpected {} expected {}",
-            PrintToken{ .token = tokens[next], .source = source },
+            PrintToken{ .token = tokens_[next_], .source = source_ },
             expected));
 }
 
 bool Parser::Match(TokenType type, const Token** out)
 {
-    if (next == tokens.size())
+    if (next_ == tokens_.size())
         return type == TokenType::End;
-    if (tokens[next].type != type)
+    if (tokens_[next_].type != type)
         return false;
     if (out != nullptr)
-        *out = &tokens[next];
+        *out = &tokens_[next_];
     return true;
 }
 
@@ -768,8 +695,8 @@ bool Parser::Consume(TokenType type, const Token** out)
 {
     if (!Match(type, out))
         return false;
-    if (next + 1 < tokens.size())
-        ++next;
+    if (next_ + 1 < tokens_.size())
+        ++next_;
     return true;
 }
 
@@ -789,8 +716,8 @@ bool Parser::ConsumeIdent(AstIdentifier& out)
     if (!Consume(TokenType::Identifier, &token))
         return false;
 
-    const std::string_view ident = source->Data().substr(token->offset, token->length);
-    out.name = alloc.NewString(ident);
+    const std::string_view ident = source_->Data().substr(token->offset, token->length);
+    out.name = alloc_.NewString(ident);
     out.tokenIndex = pos;
     return true;
 }
@@ -810,14 +737,14 @@ bool Parser::ConsumeQualifiedName(AstQualifiedName& out)
     if (!ConsumeIdent(ident))
         return false;
 
-    out.parts.PushBack(alloc, ident);
+    out.parts.PushBack(alloc_, ident);
 
     while (Consume(TokenType::Dot))
     {
         if (!ExpectIdent(ident))
             break;
 
-        out.parts.PushBack(alloc, ident);
+        out.parts.PushBack(alloc_, ident);
     }
 
     return true;
@@ -837,23 +764,23 @@ bool Parser::ConsumeKey(std::string_view keyword)
     const Token* token = nullptr;
     if (!Match(TokenType::Identifier, &token))
         return false;
-    const std::string_view extracted = source->Data().substr(token->offset, token->length);
+    const std::string_view extracted = source_->Data().substr(token->offset, token->length);
     if (extracted != keyword)
         return false;
-    ++next;
+    ++next_;
     return true;
 }
 
 void Parser::Unwind(std::uint32_t count) noexcept
 {
-    assert(next >= count);
-    next -= count;
+    assert(next_ >= count);
+    next_ -= count;
 }
 
 std::uint32_t Parser::Pos(const Token* token) const
 {
     if (token == nullptr)
-        token = &tokens[next];
+        token = &tokens_[next_];
 
-    return static_cast<std::uint32_t>(token - tokens.data());
+    return static_cast<std::uint32_t>(token - tokens_.data());
 }
