@@ -17,9 +17,10 @@ namespace potato::schematic::compiler
     class ParseContext
     {
     public:
-        virtual ~ParseContext() = default;
-
         virtual const AstNodeModule* LoadImport(const AstNodeImport& imp) = 0;
+
+    protected:
+        ~ParseContext() = default;
     };
 
     class Parser

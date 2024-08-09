@@ -73,21 +73,7 @@ namespace
         void Error(std::uint32_t tokenIndex, fmt::format_string<Args...> format, const Args&... args);
 
         template <typename T>
-        T* AddType(std::uint32_t tokenIndex, CStringView name)
-        {
-            if (const Type* const previous = FindType(stack.Back()->mod, name); previous != nullptr)
-            {
-                Error(tokenIndex, "Type already defined: {}", name.CStr());
-                return nullptr;
-            }
-
-            T* const type = alloc.Create<T>();
-            stack.Back()->mod->types.PushBack(alloc, type);
-            type->name = name;
-            type->owner = stack.Back()->mod;
-
-            return type;
-        }
+        T* AddType(std::uint32_t tokenIndex, CStringView name);
     };
 
     struct Context : ParseContext
@@ -687,6 +673,23 @@ void Compiler::Error(std::uint32_t tokenIndex, fmt::format_string<Args...> forma
     {
         logger.Error({ .source = stack.Back()->source }, fmt::vformat(format, fmt::make_format_args(args...)));
     }
+}
+
+template <typename T>
+T* Compiler::AddType(std::uint32_t tokenIndex, CStringView name)
+{
+    if (const Type* const previous = FindType(stack.Back()->mod, name); previous != nullptr)
+    {
+        Error(tokenIndex, "Type already defined: {}", name.CStr());
+        return nullptr;
+    }
+
+    T* const type = alloc.Create<T>();
+    stack.Back()->mod->types.PushBack(alloc, type);
+    type->name = name;
+    type->owner = stack.Back()->mod;
+
+    return type;
 }
 
 void Compiler::VisitTypes(ArenaAllocator& alloc, const Module* mod, Array<const Type*>& visited)
