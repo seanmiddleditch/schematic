@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "schematic/compiler.h"
 #include "schematic/logger.h"
 #include "schematic/schema.h"
 #include "schematic/source.h"
@@ -118,18 +119,15 @@ namespace potato::schematic::test
         std::string_view Data() const noexcept override { return data; }
     };
 
-    struct TestResolver final : potato::schematic::compiler::Resolver
+    struct TestContext final : potato::schematic::CompileContext
     {
+        inline void Error(const potato::schematic::compiler::LogLocation& location, std::string_view message) override;
+        inline const potato::schematic::compiler::Source* LoadModule(const std::filesystem::path& filename) override;
         inline const potato::schematic::compiler::Source* ResolveModule(std::string_view name, const potato::schematic::compiler::Source* referrer) override;
 
         inline void AddFile(std::string name, std::string source);
 
         std::vector<TestSource> files;
-    };
-
-    struct TestLogger final : potato::schematic::compiler::Logger
-    {
-        inline void Error(const potato::schematic::compiler::LogLocation& location, std::string_view message) override;
     };
 
     struct IsTokenType : Catch::Matchers::MatcherGenericBase
@@ -143,7 +141,7 @@ namespace potato::schematic::test
         {
             using namespace potato::schematic::compiler;
 
-            TestLogger ctx;
+            TestContext ctx;
             ArenaAllocator alloc;
             Array<Token> tokens;
 
@@ -280,7 +278,7 @@ namespace potato::schematic::test
 
             const TestSource source("<test>", text);
 
-            TestLogger ctx;
+            TestContext ctx;
             ArenaAllocator alloc;
             Array<Token> tokens;
 
@@ -317,7 +315,7 @@ namespace potato::schematic::test
         std::span<const uint8_t> expected_;
     };
 
-    void TestLogger::Error(const potato::schematic::compiler::LogLocation& location, std::string_view message)
+    void TestContext::Error(const potato::schematic::compiler::LogLocation& location, std::string_view message)
     {
         UNSCOPED_INFO(message);
         if (location.source == nullptr)
@@ -347,7 +345,15 @@ namespace potato::schematic::test
         UNSCOPED_INFO(buffer);
     }
 
-    const potato::schematic::compiler::Source* TestResolver::ResolveModule(std::string_view name, const potato::schematic::compiler::Source* referrer)
+    const potato::schematic::compiler::Source* TestContext::LoadModule(const std::filesystem::path& filename)
+    {
+        for (const TestSource& file : files)
+            if (filename == file.name)
+                return &file;
+        return nullptr;
+    }
+
+    const potato::schematic::compiler::Source* TestContext::ResolveModule(std::string_view name, const potato::schematic::compiler::Source* referrer)
     {
         for (const TestSource& file : files)
             if (name == file.name)
@@ -355,7 +361,7 @@ namespace potato::schematic::test
         return nullptr;
     }
 
-    void TestResolver::AddFile(std::string name, std::string source)
+    void TestContext::AddFile(std::string name, std::string source)
     {
         files.emplace_back(std::move(name), std::move(source));
     }

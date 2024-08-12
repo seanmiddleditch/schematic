@@ -46,7 +46,7 @@ namespace
         std::string_view Data() const noexcept override { return source; }
     };
 
-    struct MainCompiler final : potato::schematic::Compiler
+    struct MainContext final : potato::schematic::CompileContext
     {
         void Error(const LogLocation& location, std::string_view message) override;
         const File* LoadModule(const std::filesystem::path& filename) override;
@@ -65,16 +65,17 @@ namespace
     };
 } // namespace
 
-static bool ParseArguments(MainCompiler& compiler, std::span<char*> args);
+static bool ParseArguments(MainContext& ctx, std::span<char*> args);
 
 int main(int argc, char** argv)
 {
-    MainCompiler compiler;
+    MainContext ctx;
 
-    if (!ParseArguments(compiler, std::span{ &argv[1], &argv[argc] }))
+    if (!ParseArguments(ctx, std::span{ &argv[1], &argv[argc] }))
         return 1;
 
-    const Schema* const schema = compiler.Compile(compiler.input);
+    Compiler compiler(ctx);
+    const Schema* const schema = compiler.Compile(ctx.input);
     if (schema == nullptr)
         return 1;
 
@@ -82,23 +83,23 @@ int main(int argc, char** argv)
         std::ostream* out = &std::cout;
 
         std::ofstream out_file;
-        if (!compiler.output.empty())
+        if (!ctx.output.empty())
         {
             auto ios_flags = std::ios_base::out;
-            if (!compiler.writeJson)
+            if (!ctx.writeJson)
                 ios_flags |= std::ios_base::binary;
 
-            out_file.open(compiler.output, ios_flags);
+            out_file.open(ctx.output, ios_flags);
             if (!out_file)
             {
-                fmt::println(stderr, "Cannot open output file: {}", compiler.output);
+                fmt::println(stderr, "Cannot open output file: {}", ctx.output);
                 return 1;
             }
 
             out = &out_file;
         }
 
-        if (compiler.writeJson)
+        if (ctx.writeJson)
         {
             const std::string serialized = SerializeJson(*schema);
             out->write(serialized.data(), serialized.size());
@@ -112,26 +113,26 @@ int main(int argc, char** argv)
         out_file.close();
     }
 
-    if (!compiler.deps.empty())
+    if (!ctx.deps.empty())
     {
         std::ofstream deps(compiler.deps);
         if (!deps)
         {
-            fmt::println(stderr, "Cannot open deps file: {}", compiler.deps);
+            fmt::println(stderr, "Cannot open deps file: {}", ctx.deps);
             return 1;
         }
 
         const std::filesystem::path cwd = std::filesystem::current_path();
-        deps << compiler.output.lexically_proximate(cwd) << ": ";
+        deps << ctx.output.lexically_proximate(cwd) << ": ";
 
-        for (size_t index = 0; index != compiler.files.size(); ++index)
+        for (size_t index = 0; index != ctx.files.size(); ++index)
         {
             if (index != 0)
                 deps << "  ";
 
-            deps << compiler.files[index]->filename.lexically_proximate(cwd);
+            deps << ctx.files[index]->filename.lexically_proximate(cwd);
 
-            if (index != compiler.files.size() - 1)
+            if (index != ctx.files.size() - 1)
                 deps << " \\";
             deps << '\n';
         }
@@ -147,7 +148,7 @@ static bool StartsWithOption(std::string_view arg, std::string option)
         arg[option.size()] == '=';
 }
 
-bool ParseArguments(MainCompiler& compiler, std::span<char*> args)
+bool ParseArguments(MainContext& ctx, std::span<char*> args)
 {
     enum class NextArg
     {
@@ -268,7 +269,7 @@ bool ParseArguments(MainCompiler& compiler, std::span<char*> args)
     return true;
 }
 
-void MainCompiler::Error(const LogLocation& location, std::string_view message)
+void MainContext::Error(const LogLocation& location, std::string_view message)
 {
     if (location.source == nullptr)
     {
@@ -280,7 +281,7 @@ void MainCompiler::Error(const LogLocation& location, std::string_view message)
     fmt::println(stderr, "{}({},{}): {}", location.source->Name(), loc.line, loc.column, message);
 }
 
-const File* MainCompiler::ResolveModuleFile(std::string_view name, const std::filesystem::path& dir)
+const File* MainContext::ResolveModuleFile(std::string_view name, const std::filesystem::path& dir)
 {
     std::filesystem::path filename;
 
@@ -305,7 +306,7 @@ const File* MainCompiler::ResolveModuleFile(std::string_view name, const std::fi
     return nullptr;
 }
 
-const File* MainCompiler::LoadModule(const std::filesystem::path& filename)
+const File* MainContext::LoadModule(const std::filesystem::path& filename)
 {
     std::ifstream input(filename);
     if (!input)
@@ -320,7 +321,7 @@ const File* MainCompiler::LoadModule(const std::filesystem::path& filename)
     return file;
 }
 
-const File* MainCompiler::ResolveModule(std::string_view name, const Source* referrer)
+const File* MainContext::ResolveModule(std::string_view name, const Source* referrer)
 {
     const File* const file = static_cast<const File*>(referrer);
     if (file == nullptr)

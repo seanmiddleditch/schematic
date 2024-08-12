@@ -2,7 +2,7 @@
 
 #include "schematic_test.h"
 
-#include "schematic/compile.h"
+#include "schematic/compiler.h"
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_templated.hpp>
@@ -17,14 +17,13 @@ using namespace potato::schematic::test;
 TEST_CASE("Compiler", "[potato][schematic]")
 {
     ArenaAllocator alloc;
-    TestResolver resolver;
-    TestLogger logger;
+    TestContext ctx;
+    Compiler compiler(ctx);
+    compiler.AddBuiltins();
 
-    auto CompileTest = [&alloc, &logger, &resolver](std::string_view name) -> const Schema&
+    auto CompileTest = [&alloc, &compiler](std::string_view name) -> const Schema&
     {
-        const Source* const source = resolver.ResolveModule(name, nullptr);
-        REQUIRE(source != nullptr);
-        const Schema* const schema = Compile(logger, resolver, alloc, source, CompileOptions{});
+        const Schema* const schema = compiler.Compile(name);
         REQUIRE(schema != nullptr);
         REQUIRE(schema->root != nullptr);
         return *schema;
@@ -39,7 +38,7 @@ TEST_CASE("Compiler", "[potato][schematic]")
         // and another comment
 )--");
 
-        REQUIRE(Tokenize(logger, alloc, &source, tokens));
+        REQUIRE(Tokenize(ctx, alloc, &source, tokens));
 
         CHECK_THAT("123", IsTokenType(TokenType::Integer));
 
@@ -70,7 +69,7 @@ World!""")",
 
     SECTION("Enum")
     {
-        resolver.AddFile("enum", R"--(
+        ctx.AddFile("enum", R"--(
         enum color
         {
             red,
@@ -102,7 +101,7 @@ World!""")",
 
     SECTION("Struct")
     {
-        resolver.AddFile("main", R"--(
+        ctx.AddFile("main", R"--(
         import imported;
 
         struct test : base
@@ -113,7 +112,7 @@ World!""")",
             float thousand = 1.0e3;
         }
 )--");
-        resolver.AddFile("imported", R"--(
+        ctx.AddFile("imported", R"--(
         struct unused {}
         struct base {}
 )--");
@@ -138,7 +137,7 @@ World!""")",
 
     SECTION("Type Modifiers")
     {
-        resolver.AddFile("type_modifiers", R"--(
+        ctx.AddFile("type_modifiers", R"--(
         struct test
         {
             int32[] num = { 1, 2, 3 };
@@ -151,7 +150,7 @@ World!""")",
 
     SECTION("Initializers")
     {
-        resolver.AddFile("initializer", R"--(
+        ctx.AddFile("initializer", R"--(
         struct embed
         {
             int32 a;
@@ -208,7 +207,7 @@ World!""")",
 
     SECTION("Attributes")
     {
-        resolver.AddFile("annotations", R"--(
+        ctx.AddFile("annotations", R"--(
         attribute Ignore;
         attribute Name { string first; int32 second; int32 third = 7; }
         attribute More {}

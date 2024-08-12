@@ -10,10 +10,21 @@
 
 namespace potato::schematic
 {
+    class CompileContext : public potato::schematic::compiler::Logger
+    {
+    public:
+        virtual void Error(const compiler::LogLocation& location, std::string_view message) = 0;
+        virtual const compiler::Source* LoadModule(const std::filesystem::path& filename) = 0;
+        virtual const compiler::Source* ResolveModule(std::string_view name, const compiler::Source* referrer) = 0;
+
+    protected:
+        ~CompileContext() = default;
+    };
+
     class Compiler
     {
     public:
-        Compiler();
+        explicit Compiler(CompileContext& ctx);
         virtual ~Compiler();
 
         Compiler(const Compiler&) = delete;
@@ -23,13 +34,8 @@ namespace potato::schematic
 
         const Schema* Compile(const std::filesystem::path& filename);
 
-    protected:
-        virtual void Error(const compiler::LogLocation& location, std::string_view message) = 0;
-        virtual const compiler::Source* LoadModule(const std::filesystem::path& filename) = 0;
-        virtual const compiler::Source* ResolveModule(std::string_view name, const compiler::Source* referrer) = 0;
-
     private:
         struct Impl;
         Impl* impl_ = nullptr;
     };
-} // namespace potato::schematic::compiler
+} // namespace potato::schematic
