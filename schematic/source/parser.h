@@ -2,10 +2,10 @@
 
 #pragma once
 
+#include "arena.h"
 #include "ast.h"
 #include "token.h"
 
-#include "schematic/arena.h"
 #include "schematic/source.h"
 
 #include <span>

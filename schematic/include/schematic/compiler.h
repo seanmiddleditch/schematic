@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "schematic/arena.h"
 #include "schematic/logger.h"
 #include "schematic/schema.h"
 

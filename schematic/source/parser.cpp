@@ -2,9 +2,9 @@
 
 #include "parser.h"
 
+#include "arena.h"
 #include "ast.h"
 
-#include "schematic/arena.h"
 #include "schematic/logger.h"
 #include "schematic/source.h"
 

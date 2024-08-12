@@ -2,7 +2,8 @@
 
 #include "lexer.h"
 
-#include "schematic/arena.h"
+#include "arena.h"
+
 #include "schematic/logger.h"
 #include "schematic/source.h"
 

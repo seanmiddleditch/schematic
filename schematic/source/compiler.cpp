@@ -2,6 +2,7 @@
 
 #include "schematic/compiler.h"
 
+#include "arena.h"
 #include "ast.h"
 #include "lexer.h"
 #include "parser.h"

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "schematic/arena.h"
+#include "schematic/string.h"
 
 #include <cstdint>
 #include <string_view>

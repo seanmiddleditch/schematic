@@ -4,7 +4,7 @@
 
 #include "token.h"
 
-#include "schematic/arena.h"
+#include "arena.h"
 
 namespace potato::schematic::compiler
 {

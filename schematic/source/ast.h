@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "schematic/arena.h"
+#include "arena.h"
 
 #include <fmt/core.h>
 
