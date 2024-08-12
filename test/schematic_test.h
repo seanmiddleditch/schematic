@@ -3,7 +3,6 @@
 #pragma once
 
 #include "schematic/logger.h"
-#include "schematic/resolver.h"
 #include "schematic/schema.h"
 #include "schematic/source.h"
 
@@ -14,6 +13,7 @@
 #include <span>
 
 #include "../source/lexer.h"
+#include "../source/resolver.h"
 #include "../source/token.h"
 
 namespace potato::schematic::test

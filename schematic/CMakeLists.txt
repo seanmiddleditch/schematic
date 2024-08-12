@@ -8,8 +8,7 @@ target_link_libraries(schematic_libschematic PRIVATE fmt::fmt protobuf::libproto
 target_include_directories(schematic_libschematic PUBLIC include)
 target_sources(schematic_libschematic PRIVATE FILE_SET HEADERS FILES
     "include/schematic/arena.h"
-    "include/schematic/compile.h"
-    "include/schematic/resolver.h"
+    "include/schematic/compiler.h"
     "include/schematic/schema.h"
     "include/schematic/serialize.h"
     "include/schematic/source.h"
@@ -18,11 +17,14 @@ target_sources(schematic_libschematic PRIVATE FILE_SET HEADERS FILES
 target_sources(schematic_libschematic PRIVATE
     "schematic.natvis"
     "source/ast.h"
+    "source/compile.h"
     "source/compile.cpp"
+    "source/compiler.cpp"
     "source/lexer.cpp"
     "source/lexer.h"
     "source/parser.cpp"
     "source/parser.h"
+    "source/resolver.h"
     "source/schema.cpp"
     "source/serialize.cpp"
     "source/source.cpp"

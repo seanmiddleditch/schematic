@@ -1,13 +1,13 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
-#include "schematic/compile.h"
+#include "compile.h"
 
 #include "ast.h"
 #include "lexer.h"
 #include "parser.h"
+#include "resolver.h"
 #include "token.h"
 
-#include "schematic/resolver.h"
 #include "schematic/source.h"
 
 #include <fmt/core.h>

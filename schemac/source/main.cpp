@@ -2,9 +2,7 @@
 
 #define _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
 
-#include "schematic/compile.h"
-#include "schematic/logger.h"
-#include "schematic/resolver.h"
+#include "schematic/compiler.h"
 #include "schematic/serialize.h"
 #include "schematic/source.h"
 
@@ -48,10 +46,13 @@ namespace
         std::string_view Data() const noexcept override { return source; }
     };
 
-    struct State
+    struct MainCompiler final : potato::schematic::Compiler
     {
+        void Error(const LogLocation& location, std::string_view message) override;
+        const File* LoadModule(const std::filesystem::path& filename) override;
+        const File* ResolveModule(std::string_view name, const Source* referrer) override;
+
         const File* ResolveModuleFile(std::string_view name, const std::filesystem::path& dir);
-        const File* LoadFile(const std::filesystem::path& filename);
 
         std::filesystem::path input;
         std::filesystem::path output;
@@ -62,56 +63,18 @@ namespace
 
         std::vector<std::unique_ptr<File>> files;
     };
-
-    struct MainLogger final : potato::schematic::compiler::Logger
-    {
-        explicit MainLogger(State& state)
-            : state(state)
-        {
-        }
-
-        void Error(const LogLocation& location, std::string_view message) override;
-
-        State& state;
-    };
-
-    struct MainResolver final : potato::schematic::compiler::Resolver
-    {
-        explicit MainResolver(State& state)
-            : state(state)
-        {
-        }
-
-        const Source* ResolveModule(std::string_view name, const Source* referrer) override;
-
-        State& state;
-    };
 } // namespace
 
-static bool ParseArguments(State& state, std::span<char*> args);
+static bool ParseArguments(MainCompiler& compiler, std::span<char*> args);
 
 int main(int argc, char** argv)
 {
-    State state;
+    MainCompiler compiler;
 
-    if (!ParseArguments(state, std::span{ &argv[1], &argv[argc] }))
+    if (!ParseArguments(compiler, std::span{ &argv[1], &argv[argc] }))
         return 1;
 
-    state.search = std::move(state.search);
-
-    MainLogger logger(state);
-    MainResolver resolver(state);
-
-    const Source* const source = state.LoadFile(state.input);
-    if (source == nullptr)
-    {
-        fmt::println(stderr, "Cannot open input file: {}", state.input);
-        return 1;
-    }
-
-    ArenaAllocator alloc;
-    CompileOptions options;
-    const Schema* const schema = Compile(logger, resolver, alloc, source, options);
+    const Schema* const schema = compiler.Compile(compiler.input);
     if (schema == nullptr)
         return 1;
 
@@ -119,23 +82,23 @@ int main(int argc, char** argv)
         std::ostream* out = &std::cout;
 
         std::ofstream out_file;
-        if (!state.output.empty())
+        if (!compiler.output.empty())
         {
             auto ios_flags = std::ios_base::out;
-            if (!state.writeJson)
+            if (!compiler.writeJson)
                 ios_flags |= std::ios_base::binary;
 
-            out_file.open(state.output, ios_flags);
+            out_file.open(compiler.output, ios_flags);
             if (!out_file)
             {
-                fmt::println(stderr, "Cannot open output file: {}", state.output);
+                fmt::println(stderr, "Cannot open output file: {}", compiler.output);
                 return 1;
             }
 
             out = &out_file;
         }
 
-        if (state.writeJson)
+        if (compiler.writeJson)
         {
             const std::string serialized = SerializeJson(*schema);
             out->write(serialized.data(), serialized.size());
@@ -149,26 +112,26 @@ int main(int argc, char** argv)
         out_file.close();
     }
 
-    if (!state.deps.empty())
+    if (!compiler.deps.empty())
     {
-        std::ofstream deps(state.deps);
+        std::ofstream deps(compiler.deps);
         if (!deps)
         {
-            fmt::println(stderr, "Cannot open deps file: {}", state.deps);
+            fmt::println(stderr, "Cannot open deps file: {}", compiler.deps);
             return 1;
         }
 
         const std::filesystem::path cwd = std::filesystem::current_path();
-        deps << state.output.lexically_proximate(cwd) << ": ";
+        deps << compiler.output.lexically_proximate(cwd) << ": ";
 
-        for (size_t index = 0; index != state.files.size(); ++index)
+        for (size_t index = 0; index != compiler.files.size(); ++index)
         {
             if (index != 0)
                 deps << "  ";
 
-            deps << state.files[index]->filename.lexically_proximate(cwd);
+            deps << compiler.files[index]->filename.lexically_proximate(cwd);
 
-            if (index != state.files.size() - 1)
+            if (index != compiler.files.size() - 1)
                 deps << " \\";
             deps << '\n';
         }
@@ -184,7 +147,7 @@ static bool StartsWithOption(std::string_view arg, std::string option)
         arg[option.size()] == '=';
 }
 
-bool ParseArguments(State& state, std::span<char*> args)
+bool ParseArguments(MainCompiler& compiler, std::span<char*> args)
 {
     enum class NextArg
     {
@@ -203,15 +166,15 @@ bool ParseArguments(State& state, std::span<char*> args)
             case Unknown:
                 break;
             case Search:
-                state.search.push_back(arg);
+                compiler.search.push_back(arg);
                 next = NextArg::Unknown;
                 continue;
             case Output:
-                state.output = arg;
+                compiler.output = arg;
                 next = NextArg::Unknown;
                 continue;
             case Dependency:
-                state.deps = arg;
+                compiler.deps = arg;
                 next = NextArg::Unknown;
                 continue;
         }
@@ -231,7 +194,7 @@ bool ParseArguments(State& state, std::span<char*> args)
             }
             if (arg.starts_with("-I"))
             {
-                state.search.emplace_back(arg.substr(2));
+                compiler.search.emplace_back(arg.substr(2));
                 continue;
             }
 
@@ -242,7 +205,7 @@ bool ParseArguments(State& state, std::span<char*> args)
             }
             if (arg.starts_with("-o"))
             {
-                state.output = arg.substr(2);
+                compiler.output = arg.substr(2);
                 continue;
             }
 
@@ -253,18 +216,18 @@ bool ParseArguments(State& state, std::span<char*> args)
             }
             if (arg.starts_with("-MF"))
             {
-                state.deps = arg.substr(3);
+                compiler.deps = arg.substr(3);
                 continue;
             }
 
             if (arg == "-Ojson")
             {
-                state.writeJson = true;
+                compiler.writeJson = true;
                 continue;
             }
             if (arg == "-Obin")
             {
-                state.writeJson = false;
+                compiler.writeJson = false;
                 continue;
             }
 
@@ -272,12 +235,12 @@ bool ParseArguments(State& state, std::span<char*> args)
             return false;
         }
 
-        if (!state.input.empty())
+        if (!compiler.input.empty())
         {
             fmt::println(stderr, "Too many input files: {}", arg);
             return false;
         }
-        state.input = arg;
+        compiler.input = arg;
     }
 
     switch (next)
@@ -296,7 +259,7 @@ bool ParseArguments(State& state, std::span<char*> args)
             return false;
     }
 
-    if (state.input.empty())
+    if (compiler.input.empty())
     {
         fmt::println(stderr, "No input file provided");
         return false;
@@ -305,7 +268,7 @@ bool ParseArguments(State& state, std::span<char*> args)
     return true;
 }
 
-void MainLogger::Error(const LogLocation& location, std::string_view message)
+void MainCompiler::Error(const LogLocation& location, std::string_view message)
 {
     if (location.source == nullptr)
     {
@@ -317,7 +280,7 @@ void MainLogger::Error(const LogLocation& location, std::string_view message)
     fmt::println(stderr, "{}({},{}): {}", location.source->Name(), loc.line, loc.column, message);
 }
 
-const File* State::ResolveModuleFile(std::string_view name, const std::filesystem::path& dir)
+const File* MainCompiler::ResolveModuleFile(std::string_view name, const std::filesystem::path& dir)
 {
     std::filesystem::path filename;
 
@@ -328,21 +291,21 @@ const File* State::ResolveModuleFile(std::string_view name, const std::filesyste
         if (file->filename == filename)
             return file.get();
 
-    if (const File* const file = LoadFile(filename); file != nullptr)
+    if (const File* const file = LoadModule(filename); file != nullptr)
         return file;
 
     for (const std::filesystem::path& s : search)
     {
         filename = s / name;
         filename.replace_extension("sat");
-        if (const File* const file = LoadFile(filename); file != nullptr)
+        if (const File* const file = LoadModule(filename); file != nullptr)
             return file;
     }
 
     return nullptr;
 }
 
-const File* State::LoadFile(const std::filesystem::path& filename)
+const File* MainCompiler::LoadModule(const std::filesystem::path& filename)
 {
     std::ifstream input(filename);
     if (!input)
@@ -357,7 +320,7 @@ const File* State::LoadFile(const std::filesystem::path& filename)
     return file;
 }
 
-const Source* MainResolver::ResolveModule(std::string_view name, const Source* referrer)
+const File* MainCompiler::ResolveModule(std::string_view name, const Source* referrer)
 {
     const File* const file = static_cast<const File*>(referrer);
     if (file == nullptr)
@@ -365,5 +328,5 @@ const Source* MainResolver::ResolveModule(std::string_view name, const Source* r
 
     const std::filesystem::path dir = file->filename.parent_path();
 
-    return state.ResolveModuleFile(name, dir);
+    return ResolveModuleFile(name, dir);
 }
