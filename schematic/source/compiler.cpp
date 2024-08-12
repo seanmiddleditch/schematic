@@ -32,8 +32,7 @@ namespace
 } // namespace
 
 struct potato::schematic::Compiler::Impl final
-    : Logger
-    , Resolver
+    : Resolver
     , ParseContext
 {
     explicit Impl(CompileContext& ctx) noexcept
@@ -41,7 +40,6 @@ struct potato::schematic::Compiler::Impl final
     {
     }
 
-    void Error(const LogLocation& location, std::string_view message) override;
     const Source* ResolveModule(std::string_view name, const Source* referrer) override;
     const AstNodeModule* LoadImport(const AstNodeImport& imp) override
     {
@@ -50,6 +48,8 @@ struct potato::schematic::Compiler::Impl final
 
     const Schema* Compile(const std::filesystem::path& filename);
     const Module* Compile();
+
+    void Error(const LogLocation& location, std::string_view message);
 
     const AstNodeModule* HandleImport(const AstNodeImport& imp);
 
@@ -129,10 +129,10 @@ const Module* potato::schematic::Compiler::Impl::Compile()
 {
     State& state = *stack.Back();
 
-    if (!Tokenize(*this, arena, state.source, state.tokens))
+    if (!Tokenize(ctx, arena, state.source, state.tokens))
         return nullptr;
 
-    Parser parser(*this, *this, arena, state.source, state.tokens);
+    Parser parser(*this, ctx, arena, state.source, state.tokens);
     state.ast = parser.Parse();
 
     if (state.ast == nullptr)

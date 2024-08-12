@@ -4,7 +4,7 @@
 
 #include "arena.h"
 
-#include "schematic/logger.h"
+#include "schematic/compiler.h"
 #include "schematic/source.h"
 
 #include <fmt/core.h>
@@ -55,7 +55,7 @@ namespace
 //  provides no such guarantee. Either the interface needs to change, or the code here needs to be updated
 //  and deeply audited.
 
-bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc, const Source* source, Array<Token>& tokens)
+bool potato::schematic::compiler::Tokenize(CompileContext& ctx, ArenaAllocator& alloc, const Source* source, Array<Token>& tokens)
 {
     if (source == nullptr)
         return false;
@@ -66,9 +66,9 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
     Input in(data.data(), data.size());
     bool result = true;
 
-    auto Error = [&logger, source, &in, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
+    auto Error = [&ctx, source, &in, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
     {
-        logger.Error({ .source = source, .offset = in.Pos(), .length = 1 },
+        ctx.Error({ .source = source, .offset = in.Pos(), .length = 1 },
             fmt::vformat(format, fmt::make_format_args(args...)));
         result = false;
     };

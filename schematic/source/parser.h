@@ -10,10 +10,13 @@
 
 #include <span>
 
+namespace potato::schematic
+{
+    class CompileContext;
+}
+
 namespace potato::schematic::compiler
 {
-    class Logger;
-
     class ParseContext
     {
     public:
@@ -26,9 +29,9 @@ namespace potato::schematic::compiler
     class Parser
     {
     public:
-        Parser(ParseContext& ctx, Logger& logger, ArenaAllocator& alloc, const Source* source, const Array<Token>& tokens)
-            : ctx_(ctx)
-            , logger_(logger)
+        Parser(ParseContext& pctx, CompileContext& cctx, ArenaAllocator& alloc, const Source* source, const Array<Token>& tokens)
+            : pctx_(pctx)
+            , cctx_(cctx)
             , alloc_(alloc)
             , source_(source)
             , tokens_(tokens)
@@ -88,8 +91,8 @@ namespace potato::schematic::compiler
 
         std::uint32_t Pos(const Token* token = nullptr) const;
 
-        ParseContext& ctx_;
-        Logger& logger_;
+        ParseContext& pctx_;
+        CompileContext& cctx_;
         ArenaAllocator& alloc_;
         const Source* source_ = nullptr;
         std::span<const Token> tokens_;

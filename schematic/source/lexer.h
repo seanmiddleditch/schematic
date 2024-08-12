@@ -2,14 +2,17 @@
 
 #pragma once
 
+#include "arena.h"
 #include "token.h"
 
-#include "arena.h"
+namespace potato::schematic
+{
+    class CompileContext;
+}
 
 namespace potato::schematic::compiler
 {
-    class Logger;
     class Source;
 
-    bool Tokenize(Logger& logger, ArenaAllocator& alloc, const Source* source, Array<Token>& tokens);
+    bool Tokenize(CompileContext& ctx, ArenaAllocator& alloc, const Source* source, Array<Token>& tokens);
 } // namespace potato::schematic::compiler

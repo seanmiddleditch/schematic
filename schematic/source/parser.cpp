@@ -5,7 +5,7 @@
 #include "arena.h"
 #include "ast.h"
 
-#include "schematic/logger.h"
+#include "schematic/compiler.h"
 #include "schematic/source.h"
 
 #include <fmt/core.h>
@@ -63,7 +63,7 @@ const AstNodeModule* Parser::Parse()
                 continue;
             }
 
-            ctx_.LoadImport(*imp);
+            pctx_.LoadImport(*imp);
             continue;
         }
 
@@ -663,7 +663,7 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
 void Parser::Error(std::string_view message)
 {
     const Token& token = tokens_[next_];
-    logger_.Error({ .source = source_, .offset = token.offset, .length = token.length }, message);
+    cctx_.Error({ .source = source_, .offset = token.offset, .length = token.length }, message);
     failed_ = true;
 }
 

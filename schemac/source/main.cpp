@@ -75,6 +75,7 @@ int main(int argc, char** argv)
         return 1;
 
     Compiler compiler(ctx);
+    compiler.AddBuiltins();
     const Schema* const schema = compiler.Compile(ctx.input);
     if (schema == nullptr)
         return 1;
@@ -115,7 +116,7 @@ int main(int argc, char** argv)
 
     if (!ctx.deps.empty())
     {
-        std::ofstream deps(compiler.deps);
+        std::ofstream deps(ctx.deps);
         if (!deps)
         {
             fmt::println(stderr, "Cannot open deps file: {}", ctx.deps);
@@ -167,15 +168,15 @@ bool ParseArguments(MainContext& ctx, std::span<char*> args)
             case Unknown:
                 break;
             case Search:
-                compiler.search.push_back(arg);
+                ctx.search.push_back(arg);
                 next = NextArg::Unknown;
                 continue;
             case Output:
-                compiler.output = arg;
+                ctx.output = arg;
                 next = NextArg::Unknown;
                 continue;
             case Dependency:
-                compiler.deps = arg;
+                ctx.deps = arg;
                 next = NextArg::Unknown;
                 continue;
         }
@@ -195,7 +196,7 @@ bool ParseArguments(MainContext& ctx, std::span<char*> args)
             }
             if (arg.starts_with("-I"))
             {
-                compiler.search.emplace_back(arg.substr(2));
+                ctx.search.emplace_back(arg.substr(2));
                 continue;
             }
 
@@ -206,7 +207,7 @@ bool ParseArguments(MainContext& ctx, std::span<char*> args)
             }
             if (arg.starts_with("-o"))
             {
-                compiler.output = arg.substr(2);
+                ctx.output = arg.substr(2);
                 continue;
             }
 
@@ -217,18 +218,18 @@ bool ParseArguments(MainContext& ctx, std::span<char*> args)
             }
             if (arg.starts_with("-MF"))
             {
-                compiler.deps = arg.substr(3);
+                ctx.deps = arg.substr(3);
                 continue;
             }
 
             if (arg == "-Ojson")
             {
-                compiler.writeJson = true;
+                ctx.writeJson = true;
                 continue;
             }
             if (arg == "-Obin")
             {
-                compiler.writeJson = false;
+                ctx.writeJson = false;
                 continue;
             }
 
@@ -236,12 +237,12 @@ bool ParseArguments(MainContext& ctx, std::span<char*> args)
             return false;
         }
 
-        if (!compiler.input.empty())
+        if (!ctx.input.empty())
         {
             fmt::println(stderr, "Too many input files: {}", arg);
             return false;
         }
-        compiler.input = arg;
+        ctx.input = arg;
     }
 
     switch (next)
@@ -260,7 +261,7 @@ bool ParseArguments(MainContext& ctx, std::span<char*> args)
             return false;
     }
 
-    if (compiler.input.empty())
+    if (ctx.input.empty())
     {
         fmt::println(stderr, "No input file provided");
         return false;

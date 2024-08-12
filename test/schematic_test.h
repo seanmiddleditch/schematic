@@ -3,7 +3,6 @@
 #pragma once
 
 #include "schematic/compiler.h"
-#include "schematic/logger.h"
 #include "schematic/schema.h"
 #include "schematic/source.h"
 
@@ -121,7 +120,7 @@ namespace potato::schematic::test
 
     struct TestContext final : potato::schematic::CompileContext
     {
-        inline void Error(const potato::schematic::compiler::LogLocation& location, std::string_view message) override;
+        inline void Error(const potato::schematic::LogLocation& location, std::string_view message) override;
         inline const potato::schematic::compiler::Source* LoadModule(const std::filesystem::path& filename) override;
         inline const potato::schematic::compiler::Source* ResolveModule(std::string_view name, const potato::schematic::compiler::Source* referrer) override;
 
@@ -315,7 +314,7 @@ namespace potato::schematic::test
         std::span<const uint8_t> expected_;
     };
 
-    void TestContext::Error(const potato::schematic::compiler::LogLocation& location, std::string_view message)
+    void TestContext::Error(const potato::schematic::LogLocation& location, std::string_view message)
     {
         UNSCOPED_INFO(message);
         if (location.source == nullptr)
