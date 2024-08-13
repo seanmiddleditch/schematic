@@ -10,7 +10,6 @@ target_sources(schematic_libschematic PRIVATE FILE_SET HEADERS FILES
     "include/schematic/compiler.h"
     "include/schematic/schema.h"
     "include/schematic/serialize.h"
-    "include/schematic/source.h"
     "include/schematic/string.h"
 )
 target_sources(schematic_libschematic PRIVATE
@@ -20,12 +19,11 @@ target_sources(schematic_libschematic PRIVATE
     "source/compiler.cpp"
     "source/lexer.cpp"
     "source/lexer.h"
+    "source/location.h"
     "source/parser.cpp"
     "source/parser.h"
-    "source/resolver.h"
     "source/schema.cpp"
     "source/serialize.cpp"
-    "source/source.cpp"
     "source/token.cpp"
     "source/token.h"
 )

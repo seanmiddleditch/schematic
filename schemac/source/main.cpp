@@ -4,7 +4,6 @@
 
 #include "schematic/compiler.h"
 #include "schematic/serialize.h"
-#include "schematic/source.h"
 
 #include <fmt/core.h>
 #include <fmt/std.h>
@@ -12,14 +11,12 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
 #include <vector>
 
 using namespace potato::schematic;
-using namespace potato::schematic::compiler;
 
 // TODO:
 //
@@ -36,23 +33,21 @@ namespace
         Help
     };
 
-    struct File final : Source
+    struct File final
     {
         std::filesystem::path filename;
         std::string name;
         std::string source;
-
-        std::string_view Name() const noexcept override { return name; }
-        std::string_view Data() const noexcept override { return source; }
     };
 
     struct MainContext final : potato::schematic::CompileContext
     {
-        void Error(const LogLocation& location, std::string_view message) override;
-        const File* LoadModule(const std::filesystem::path& filename) override;
-        const File* ResolveModule(std::string_view name, const Source* referrer) override;
+        void Error(FileId file, const Range& range, std::string_view message) override;
+        std::string_view ReadFileContents(FileId id) override;
+        std::string_view GetFileName(FileId id) override;
+        FileId ResolveModule(std::string_view name, FileId referrer) override;
 
-        const File* ResolveModuleFile(std::string_view name, const std::filesystem::path& dir);
+        FileId TryLoadFile(const std::filesystem::path& filename);
 
         std::filesystem::path input;
         std::filesystem::path output;
@@ -61,7 +56,7 @@ namespace
         Command command = Command::Compile;
         bool writeJson = false;
 
-        std::vector<std::unique_ptr<File>> files;
+        std::vector<File> files;
     };
 } // namespace
 
@@ -74,9 +69,11 @@ int main(int argc, char** argv)
     if (!ParseArguments(ctx, std::span{ &argv[1], &argv[argc] }))
         return 1;
 
+    const FileId root = ctx.TryLoadFile(ctx.input);
+
     Compiler compiler(ctx);
     compiler.AddBuiltins();
-    const Schema* const schema = compiler.Compile(ctx.input);
+    const Schema* const schema = compiler.Compile(root);
     if (schema == nullptr)
         return 1;
 
@@ -131,7 +128,7 @@ int main(int argc, char** argv)
             if (index != 0)
                 deps << "  ";
 
-            deps << ctx.files[index]->filename.lexically_proximate(cwd);
+            deps << ctx.files[index].filename.lexically_proximate(cwd);
 
             if (index != ctx.files.size() - 1)
                 deps << " \\";
@@ -270,65 +267,78 @@ bool ParseArguments(MainContext& ctx, std::span<char*> args)
     return true;
 }
 
-void MainContext::Error(const LogLocation& location, std::string_view message)
+void MainContext::Error(FileId file, const Range& range, std::string_view message)
 {
-    if (location.source == nullptr)
+    if (file.value == FileId::InvalidValue)
     {
         fmt::println(stderr, "<unknown>: {}", message);
         return;
     }
 
-    const SourceLocation loc = location.source->OffsetToLocation(location.offset);
-    fmt::println(stderr, "{}({},{}): {}", location.source->Name(), loc.line, loc.column, message);
+    if (range.start.line == 0)
+    {
+        fmt::println(stderr, "{}: {}", files[file.value].filename, message);
+        return;
+    }
+
+    fmt::println(stderr, "{}({},{}): {}", files[file.value].filename, range.start.line, range.start.column, message);
 }
 
-const File* MainContext::ResolveModuleFile(std::string_view name, const std::filesystem::path& dir)
+std::string_view MainContext::ReadFileContents(FileId id)
+{
+    if (id.value >= files.size())
+        return { };
+
+    return files[id.value].source;
+}
+
+std::string_view MainContext::GetFileName(FileId id)
+{
+    if (id.value >= files.size())
+        return {};
+
+    return files[id.value].name;
+}
+
+FileId MainContext::ResolveModule(std::string_view name, FileId referrer)
 {
     std::filesystem::path filename;
 
-    filename = dir / name;
+    if (referrer.value < files.size())
+        filename = files[referrer.value].filename.parent_path() / name;
+    else
+        filename = name;
+
     filename.replace_extension("sat");
 
-    for (const std::unique_ptr<File>& file : files)
-        if (file->filename == filename)
-            return file.get();
+    for (std::size_t i = 0; i != files.size(); ++i)
+        if (files[i].filename == filename)
+            return FileId{ i };
 
-    if (const File* const file = LoadModule(filename); file != nullptr)
+    if (const FileId file = TryLoadFile(filename); file.value != FileId::InvalidValue)
         return file;
 
     for (const std::filesystem::path& s : search)
     {
         filename = s / name;
         filename.replace_extension("sat");
-        if (const File* const file = LoadModule(filename); file != nullptr)
+        if (const FileId file = TryLoadFile(filename); file.value != FileId::InvalidValue)
             return file;
     }
 
-    return nullptr;
+    return {};
 }
 
-const File* MainContext::LoadModule(const std::filesystem::path& filename)
+FileId MainContext::TryLoadFile(const std::filesystem::path& filename)
 {
     std::ifstream input(filename);
     if (!input)
-        return nullptr;
+        return FileId{};
 
-    File* const file = files.emplace_back(std::make_unique<File>()).get();
-    file->filename = filename;
-    file->name = file->filename.generic_string();
+    File& file = files.emplace_back();
+    file.filename = filename;
+    file.name = file.filename.generic_string();
+    file.source = std::string(std::istreambuf_iterator<char>(input), {});
 
-    file->source = std::string(std::istreambuf_iterator<char>(input), {});
-
-    return file;
-}
-
-const File* MainContext::ResolveModule(std::string_view name, const Source* referrer)
-{
-    const File* const file = static_cast<const File*>(referrer);
-    if (file == nullptr)
-        return {};
-
-    const std::filesystem::path dir = file->filename.parent_path();
-
-    return ResolveModuleFile(name, dir);
+    return FileId{ files.size() - 1 };
 }

@@ -6,14 +6,9 @@
 #include "ast.h"
 #include "token.h"
 
-#include "schematic/source.h"
+#include "schematic/compiler.h"
 
 #include <span>
-
-namespace potato::schematic
-{
-    class CompileContext;
-}
 
 namespace potato::schematic::compiler
 {
@@ -29,11 +24,11 @@ namespace potato::schematic::compiler
     class Parser
     {
     public:
-        Parser(ParseContext& pctx, CompileContext& cctx, ArenaAllocator& alloc, const Source* source, const Array<Token>& tokens)
+        Parser(ParseContext& pctx, CompileContext& cctx, ArenaAllocator& alloc, FileId file, const Array<Token>& tokens)
             : pctx_(pctx)
             , cctx_(cctx)
             , alloc_(alloc)
-            , source_(source)
+            , file_(file)
             , tokens_(tokens)
             , mod(alloc.Create<AstNodeModule>(0))
         {
@@ -94,7 +89,8 @@ namespace potato::schematic::compiler
         ParseContext& pctx_;
         CompileContext& cctx_;
         ArenaAllocator& alloc_;
-        const Source* source_ = nullptr;
+        FileId file_;
+        std::string_view contents_;
         std::span<const Token> tokens_;
         AstNodeModule* mod = nullptr;
         size_t next_ = 0;

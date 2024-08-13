@@ -14,6 +14,16 @@ using namespace potato::schematic;
 using namespace potato::schematic::compiler;
 using namespace potato::schematic::test;
 
+#define CompileTest(NAME) \
+    ([&](auto name) { \
+        const FileId file = ctx.ResolveModule(name, FileId{}); \
+        REQUIRE(file.value != FileId::InvalidValue); \
+        const Schema* const schema = compiler.Compile(file); \
+        REQUIRE(schema != nullptr); \
+        REQUIRE(schema->root != nullptr); \
+        return *schema; \
+    }((NAME)));
+
 TEST_CASE("Compiler", "[potato][schematic]")
 {
     ArenaAllocator alloc;
@@ -21,24 +31,16 @@ TEST_CASE("Compiler", "[potato][schematic]")
     Compiler compiler(ctx);
     compiler.AddBuiltins();
 
-    auto CompileTest = [&alloc, &compiler](std::string_view name) -> const Schema&
-    {
-        const Schema* const schema = compiler.Compile(name);
-        REQUIRE(schema != nullptr);
-        REQUIRE(schema->root != nullptr);
-        return *schema;
-    };
-
     SECTION("Lexer")
     {
         Array<Token> tokens;
-        const TestSource source("<test>", R"--(
+        ctx.AddFile("<test>", R"--(
         // this is a comment
 
         // and another comment
 )--");
 
-        REQUIRE(Tokenize(ctx, alloc, &source, tokens));
+        REQUIRE(Tokenize(ctx, alloc, FileId{ 0 }, tokens));
 
         CHECK_THAT("123", IsTokenType(TokenType::Integer));
 

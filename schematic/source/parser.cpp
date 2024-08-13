@@ -4,9 +4,9 @@
 
 #include "arena.h"
 #include "ast.h"
+#include "location.h"
 
 #include "schematic/compiler.h"
-#include "schematic/source.h"
 
 #include <fmt/core.h>
 
@@ -21,7 +21,7 @@ namespace
     struct PrintToken
     {
         const Token& token;
-        const Source* source = nullptr;
+        std::string_view source;
     };
 } // namespace
 
@@ -34,10 +34,10 @@ struct fmt::formatter<PrintToken> : fmt::formatter<const char*>
     {
         fmt::format_to(ctx.out(), "{}", ToCStr(value.token.type));
 
-        if (value.source == nullptr || value.token.length == 0)
+        if (value.source.empty() || value.token.length == 0)
             return ctx.out();
 
-        const std::string_view repr = value.source->Data().substr(value.token.offset, value.token.length);
+        const std::string_view repr = value.source.substr(value.token.offset, value.token.length);
 
         switch (value.token.type)
         {
@@ -52,6 +52,8 @@ struct fmt::formatter<PrintToken> : fmt::formatter<const char*>
 
 const AstNodeModule* Parser::Parse()
 {
+    contents_ = cctx_.ReadFileContents(file_);
+
     while (!Consume(TokenType::End))
     {
         if (ConsumeKey("import"))
@@ -311,12 +313,12 @@ bool Parser::ParseEnumDecl()
             enum_->items.EmplaceBack(alloc_, item);
 
             if (!ExpectIdent(item->name))
-                continue;
+                return false;
 
             if (Consume(TokenType::Equals))
             {
                 if (!ExpectInt(item->value))
-                    continue;
+                    return false;
             }
 
             if (!Consume(TokenType::Comma))
@@ -547,7 +549,7 @@ bool Parser::ConsumeInt(const AstNodeLiteralInt*& lit)
     }
 
     const Token& token = tokens_[pos];
-    std::string_view number = source_->Data().substr(token.offset, token.length);
+    std::string_view number = contents_.substr(token.offset, token.length);
 
     // skip the 0x or 0b prefix
     if (result->base != 10)
@@ -589,7 +591,7 @@ bool Parser::ConsumeFloat(const AstNodeLiteralFloat*& lit)
     lit = result;
 
     const Token& token = tokens_[pos];
-    const std::string_view number = source_->Data().substr(token.offset, token.length);
+    const std::string_view number = contents_.substr(token.offset, token.length);
 
     const auto err = std::from_chars(number.data(), number.data() + number.size(), result->value);
     if (err.ec != std::errc{})
@@ -611,7 +613,7 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
         AstNodeLiteralString* const result = alloc_.Create<AstNodeLiteralString>(pos);
         lit = result;
 
-        const std::string_view content = source_->Data().substr(token->offset + 1 /*"*/, token->length - 2 /*double "*/);
+        const std::string_view content = contents_.substr(token->offset + 1 /*"*/, token->length - 2 /*double "*/);
 
         std::size_t length = 0;
         for (const char c : content)
@@ -653,7 +655,7 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
         AstNodeLiteralString* const result = alloc_.Create<AstNodeLiteralString>(pos);
         lit = result;
 
-        result->value = alloc_.NewString(source_->Data().substr(token->offset + 3 /*"""*/, token->length - 6 /*double """*/));
+        result->value = alloc_.NewString(contents_.substr(token->offset + 3 /*"""*/, token->length - 6 /*double """*/));
         return true;
     }
 
@@ -663,7 +665,7 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
 void Parser::Error(std::string_view message)
 {
     const Token& token = tokens_[next_];
-    cctx_.Error({ .source = source_, .offset = token.offset, .length = token.length }, message);
+    cctx_.Error(file_, FindRange(contents_, token.offset, token.length), message);
     failed_ = true;
 }
 
@@ -671,12 +673,12 @@ void Parser::ErrorExpect(std::string_view expected)
 {
     if (next_ != 0)
         Error(fmt::format("Unexpected {} after {} expected {}",
-            PrintToken{ .token = tokens_[next_], .source = source_ },
-            PrintToken{ .token = tokens_[next_ - 1], .source = source_ },
+            PrintToken{ .token = tokens_[next_], .source = contents_ },
+            PrintToken{ .token = tokens_[next_ - 1], .source = contents_ },
             expected));
     else
         Error(fmt::format("Unexpected {} expected {}",
-            PrintToken{ .token = tokens_[next_], .source = source_ },
+            PrintToken{ .token = tokens_[next_], .source = contents_ },
             expected));
 }
 
@@ -716,7 +718,7 @@ bool Parser::ConsumeIdent(AstIdentifier& out)
     if (!Consume(TokenType::Identifier, &token))
         return false;
 
-    const std::string_view ident = source_->Data().substr(token->offset, token->length);
+    const std::string_view ident = contents_.substr(token->offset, token->length);
     out.name = alloc_.NewString(ident);
     out.tokenIndex = pos;
     return true;
@@ -764,7 +766,7 @@ bool Parser::ConsumeKey(std::string_view keyword)
     const Token* token = nullptr;
     if (!Match(TokenType::Identifier, &token))
         return false;
-    const std::string_view extracted = source_->Data().substr(token->offset, token->length);
+    const std::string_view extracted = contents_.substr(token->offset, token->length);
     if (extracted != keyword)
         return false;
     ++next_;

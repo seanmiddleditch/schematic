@@ -4,7 +4,6 @@
 
 #include "schematic/compiler.h"
 #include "schematic/schema.h"
-#include "schematic/source.h"
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_templated.hpp>
@@ -13,7 +12,7 @@
 #include <span>
 
 #include "../source/lexer.h"
-#include "../source/resolver.h"
+#include "../source/location.h"
 #include "../source/token.h"
 
 namespace potato::schematic::test
@@ -103,7 +102,7 @@ namespace potato::schematic::test::_detail
 
 namespace potato::schematic::test
 {
-    struct TestSource final : potato::schematic::compiler::Source
+    struct TestSource final
     {
         TestSource(std::string name, std::string data) noexcept
             : name(std::move(name))
@@ -113,16 +112,14 @@ namespace potato::schematic::test
 
         std::string name;
         std::string data;
-
-        std::string_view Name() const noexcept override { return name; }
-        std::string_view Data() const noexcept override { return data; }
     };
 
     struct TestContext final : potato::schematic::CompileContext
     {
-        inline void Error(const potato::schematic::LogLocation& location, std::string_view message) override;
-        inline const potato::schematic::compiler::Source* LoadModule(const std::filesystem::path& filename) override;
-        inline const potato::schematic::compiler::Source* ResolveModule(std::string_view name, const potato::schematic::compiler::Source* referrer) override;
+        inline void Error(FileId file, const Range& range, std::string_view message) override;
+        inline std::string_view ReadFileContents(FileId id) override;
+        inline std::string_view GetFileName(FileId id) override;
+        inline FileId ResolveModule(std::string_view name, FileId referrer) override;
 
         inline void AddFile(std::string name, std::string source);
 
@@ -144,9 +141,9 @@ namespace potato::schematic::test
             ArenaAllocator alloc;
             Array<Token> tokens;
 
-            const TestSource source("<test>", text);
+            ctx.AddFile("<test>", text);
 
-            const bool result = Tokenize(ctx, alloc, &source, tokens);
+            const bool result = Tokenize(ctx, alloc, FileId{ 0 }, tokens);
 
             if (!result)
                 UNSCOPED_INFO("Tokenize failed");
@@ -158,7 +155,7 @@ namespace potato::schematic::test
             return result &&
                 tokens.Size() == 2 &&
                 tokens.Front().offset == 0 &&
-                tokens.Front().length == source.data.size() &&
+                tokens.Front().length == ctx.ReadFileContents(FileId{ 0 }).size() &&
                 tokens.Front().type == type_;
         }
 
@@ -275,13 +272,13 @@ namespace potato::schematic::test
         {
             using namespace potato::schematic::compiler;
 
-            const TestSource source("<test>", text);
-
             TestContext ctx;
             ArenaAllocator alloc;
             Array<Token> tokens;
 
-            const bool result = Tokenize(ctx, alloc, &source, tokens);
+            ctx.AddFile("<test>", text);
+
+            const bool result = Tokenize(ctx, alloc, FileId{ 0 }, tokens);
             return !result;
         }
 
@@ -314,22 +311,34 @@ namespace potato::schematic::test
         std::span<const uint8_t> expected_;
     };
 
-    void TestContext::Error(const potato::schematic::LogLocation& location, std::string_view message)
+    void TestContext::Error(FileId file, const Range& range, std::string_view message)
     {
         UNSCOPED_INFO(message);
-        if (location.source == nullptr)
+        if (file.value == FileId::InvalidValue)
             return;
 
-        const compiler::SourceLocation loc = location.source->OffsetToLocation(location.offset);
-        std::string_view line = location.source->Line(loc.line);
-        UNSCOPED_INFO(line);
+        std::string_view source = ReadFileContents(file);
+        std::string_view line = potato::schematic::compiler::ExtractLine(source, range.start.line);
         std::string buffer;
-        unsigned col = loc.column;
+        fmt::format_to(std::back_inserter(buffer), "{}({}): ", GetFileName(file), range.start.line);
+        const auto prefix = buffer.size();
+        buffer.append(line);
+        UNSCOPED_INFO(buffer);
+
+        buffer.clear();
+        buffer.append(prefix, ' ');
+        unsigned col = 0;
         for (const char c : line)
         {
-            if (--col == 0)
+            ++col;
+            if (col >= range.start.column)
             {
+                if (range.start.line == range.end.line && col >= range.end.column)
+                    break;
                 buffer.push_back('^');
+            }
+            else if (c == '\n')
+            {
                 break;
             }
             else if (std::isspace(c))
@@ -344,20 +353,28 @@ namespace potato::schematic::test
         UNSCOPED_INFO(buffer);
     }
 
-    const potato::schematic::compiler::Source* TestContext::LoadModule(const std::filesystem::path& filename)
+    std::string_view TestContext::ReadFileContents(FileId id)
     {
-        for (const TestSource& file : files)
-            if (filename == file.name)
-                return &file;
-        return nullptr;
+        if (id.value >= files.size())
+            return {};
+
+        return files[id.value].data;
     }
 
-    const potato::schematic::compiler::Source* TestContext::ResolveModule(std::string_view name, const potato::schematic::compiler::Source* referrer)
+    std::string_view TestContext::GetFileName(FileId id)
     {
-        for (const TestSource& file : files)
-            if (name == file.name)
-                return &file;
-        return nullptr;
+        if (id.value >= files.size())
+            return {};
+
+        return files[id.value].name;
+    }
+
+    FileId TestContext::ResolveModule(std::string_view name, FileId referrer)
+    {
+        for (std::size_t i = 0; i != files.size(); ++i)
+            if (files[i].name == name)
+                return FileId{ i };
+        return FileId{};
     }
 
     void TestContext::AddFile(std::string name, std::string source)

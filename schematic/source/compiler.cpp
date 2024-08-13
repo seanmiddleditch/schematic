@@ -5,11 +5,9 @@
 #include "arena.h"
 #include "ast.h"
 #include "lexer.h"
+#include "location.h"
 #include "parser.h"
-#include "resolver.h"
 #include "token.h"
-
-#include "schematic/source.h"
 
 #include <fmt/core.h>
 
@@ -24,32 +22,27 @@ namespace
 {
     struct State
     {
-        const Source* source = nullptr;
+        FileId file;
         const AstNodeModule* ast = nullptr;
         Module* mod = nullptr;
         Array<Token> tokens;
     };
 } // namespace
 
-struct potato::schematic::Compiler::Impl final
-    : Resolver
-    , ParseContext
+struct potato::schematic::Compiler::Impl final : ParseContext
 {
     explicit Impl(CompileContext& ctx) noexcept
         : ctx(ctx)
     {
     }
 
-    const Source* ResolveModule(std::string_view name, const Source* referrer) override;
     const AstNodeModule* LoadImport(const AstNodeImport& imp) override
     {
         return HandleImport(imp);
     }
 
-    const Schema* Compile(const std::filesystem::path& filename);
+    const Schema* Compile(FileId file);
     const Module* Compile();
-
-    void Error(const LogLocation& location, std::string_view message);
 
     const AstNodeModule* HandleImport(const AstNodeImport& imp);
 
@@ -110,29 +103,19 @@ void potato::schematic::Compiler::AddBuiltins()
     impl_->useBuiltins = true;
 }
 
-const Schema* potato::schematic::Compiler::Compile(const std::filesystem::path& filename)
+const Schema* potato::schematic::Compiler::Compile(FileId file)
 {
-    return impl_->Compile(filename);
-}
-
-void potato::schematic::Compiler::Impl::Error(const LogLocation& location, std::string_view message)
-{
-    ctx.Error(location, message);
-}
-
-const Source* potato::schematic::Compiler::Impl::ResolveModule(std::string_view name, const Source* referrer)
-{
-    return ctx.ResolveModule(name, referrer);
+    return impl_->Compile(file);
 }
 
 const Module* potato::schematic::Compiler::Impl::Compile()
 {
     State& state = *stack.Back();
 
-    if (!Tokenize(ctx, arena, state.source, state.tokens))
+    if (!Tokenize(ctx, arena, state.file, state.tokens))
         return nullptr;
 
-    Parser parser(*this, ctx, arena, state.source, state.tokens);
+    Parser parser(*this, ctx, arena, state.file, state.tokens);
     state.ast = parser.Parse();
 
     if (state.ast == nullptr)
@@ -171,10 +154,9 @@ const Module* potato::schematic::Compiler::Impl::Compile()
     return state.mod;
 }
 
-const Schema* potato::schematic::Compiler::Impl::Compile(const std::filesystem::path& filename)
+const Schema* potato::schematic::Compiler::Impl::Compile(FileId file)
 {
-    const Source* const source = ctx.LoadModule(filename);
-    if (source == nullptr)
+    if (file.value == FileId::InvalidValue)
         return nullptr;
 
     if (useBuiltins)
@@ -183,9 +165,9 @@ const Schema* potato::schematic::Compiler::Impl::Compile(const std::filesystem::
     State* const state = arena.Create<State>();
     stack.PushBack(arena, state);
 
-    state->source = source;
+    state->file = file;
     state->mod = arena.Create<Module>();
-    state->mod->filename = arena.NewString(source->Name());
+    state->mod->filename = arena.NewString(ctx.GetFileName(file));
 
     if (!Compile())
         return nullptr;
@@ -206,17 +188,17 @@ const Schema* potato::schematic::Compiler::Impl::Compile(const std::filesystem::
 
 const AstNodeModule* potato::schematic::Compiler::Impl::HandleImport(const AstNodeImport& imp)
 {
-    const Source* const source = ResolveModule(imp.target.name, stack.Back()->source);
-    if (source == nullptr)
+    const FileId file = ctx.ResolveModule(imp.target.name, stack.Back()->file);
+    if (file.value == FileId::InvalidValue)
     {
         Error(imp.tokenIndex, "Module not found: {}", imp.target.name.CStr());
         return nullptr;
     }
 
     State* const state = arena.Create<State>();
-    state->source = source;
+    state->file = file;
     state->mod = arena.Create<Module>();
-    state->mod->filename = arena.NewString(source->Name());
+    state->mod->filename = arena.NewString(ctx.GetFileName(file));
 
     stack.PushBack(arena, state);
     const bool success = Compile();
@@ -699,12 +681,12 @@ void potato::schematic::Compiler::Impl::Error(std::uint32_t tokenIndex, fmt::for
     {
         const Token& token = stack.Back()->tokens[tokenIndex];
 
-        Error({ .source = stack.Back()->source, .offset = token.offset, .length = token.length },
-            fmt::vformat(format, fmt::make_format_args(args...)));
+        const std::string_view source = ctx.ReadFileContents(stack.Back()->file);
+        ctx.Error(stack.Back()->file, FindRange(source, token.offset, token.length), fmt::vformat(format, fmt::make_format_args(args...)));
     }
     else
     {
-        Error({ .source = stack.Back()->source }, fmt::vformat(format, fmt::make_format_args(args...)));
+        ctx.Error(stack.Back()->file, {}, fmt::vformat(format, fmt::make_format_args(args...)));
     }
 }
 

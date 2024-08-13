@@ -3,25 +3,35 @@
 #pragma once
 
 #include "schematic/schema.h"
-#include "schematic/source.h"
-
-#include <filesystem>
 
 namespace potato::schematic
 {
-    struct LogLocation
+    struct FileId
     {
-        const compiler::Source* source = nullptr;
-        std::uint32_t offset = 0;
-        std::uint32_t length = 1;
+        static constexpr std::size_t InvalidValue = ~0;
+        std::size_t value = InvalidValue;
+    };
+
+    struct Location
+    {
+        std::uint32_t line = 1;
+        std::uint32_t column = 1;
+    };
+
+    struct Range
+    {
+        Location start;
+        Location end;
     };
 
     class CompileContext
     {
     public:
-        virtual void Error(const LogLocation& location, std::string_view message) = 0;
-        virtual const compiler::Source* LoadModule(const std::filesystem::path& filename) = 0;
-        virtual const compiler::Source* ResolveModule(std::string_view name, const compiler::Source* referrer) = 0;
+        virtual void Error(FileId file, const Range& range, std::string_view message) = 0;
+
+        virtual std::string_view ReadFileContents(FileId id) = 0;
+        virtual std::string_view GetFileName(FileId id) = 0;
+        virtual FileId ResolveModule(std::string_view name, FileId referrer) = 0;
 
     protected:
         ~CompileContext() = default;
@@ -38,7 +48,7 @@ namespace potato::schematic
 
         void AddBuiltins();
 
-        const Schema* Compile(const std::filesystem::path& filename);
+        const Schema* Compile(FileId file = FileId{0});
 
     private:
         struct Impl;

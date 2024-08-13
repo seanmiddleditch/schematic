@@ -3,9 +3,9 @@
 #include "lexer.h"
 
 #include "arena.h"
+#include "location.h"
 
 #include "schematic/compiler.h"
-#include "schematic/source.h"
 
 #include <fmt/core.h>
 
@@ -55,21 +55,20 @@ namespace
 //  provides no such guarantee. Either the interface needs to change, or the code here needs to be updated
 //  and deeply audited.
 
-bool potato::schematic::compiler::Tokenize(CompileContext& ctx, ArenaAllocator& alloc, const Source* source, Array<Token>& tokens)
+bool potato::schematic::compiler::Tokenize(CompileContext& ctx, ArenaAllocator& alloc, FileId file, Array<Token>& tokens)
 {
-    if (source == nullptr)
+    if (file.value == FileId::InvalidValue)
         return false;
 
     tokens = Array<Token>();
 
-    const std::string_view data = source->Data();
+    const std::string_view data = ctx.ReadFileContents(file);
     Input in(data.data(), data.size());
     bool result = true;
 
-    auto Error = [&ctx, source, &in, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
+    auto Error = [&ctx, file, &data, &in, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
     {
-        ctx.Error({ .source = source, .offset = in.Pos(), .length = 1 },
-            fmt::vformat(format, fmt::make_format_args(args...)));
+        ctx.Error(file, FindRange(data, in.Pos(), 1), fmt::vformat(format, fmt::make_format_args(args...)));
         result = false;
     };
 
