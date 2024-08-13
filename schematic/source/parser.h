@@ -21,10 +21,10 @@ namespace potato::schematic::compiler
         ~ParseContext() = default;
     };
 
-    class Parser
+    class Parser final
     {
     public:
-        Parser(ParseContext& pctx, CompileContext& cctx, ArenaAllocator& alloc, FileId file, const Array<Token>& tokens)
+        Parser(ParseContext& pctx, CompileContext& cctx, ArenaAllocator& alloc, FileId file, const Array<Token>& tokens) noexcept
             : pctx_(pctx)
             , cctx_(cctx)
             , alloc_(alloc)

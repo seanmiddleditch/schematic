@@ -5,15 +5,28 @@
 #include "arena.h"
 #include "token.h"
 
-namespace potato::schematic
-{
-    class CompileContext;
-    struct FileId;
-}
+#include "schematic/compiler.h"
 
 namespace potato::schematic::compiler
 {
     class Source;
 
-    bool Tokenize(CompileContext& ctx, ArenaAllocator& alloc, FileId file, Array<Token>& tokens);
+    class Lexer final
+    {
+    public:
+        Lexer(CompileContext& ctx, ArenaAllocator& alloc, FileId file) noexcept
+            : ctx_(ctx)
+            , alloc_(alloc)
+            , file_(file)
+        {
+        }
+
+        Array<Token> Tokenize();
+
+    private:
+        CompileContext& ctx_;
+        ArenaAllocator& alloc_;
+        FileId file_;
+        Array<Token> tokens_;
+    };
 } // namespace potato::schematic::compiler

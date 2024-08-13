@@ -140,20 +140,20 @@ namespace potato::schematic::test
 
             TestContext ctx;
             ArenaAllocator alloc;
-            Array<Token> tokens;
 
             ctx.AddFile("<test>", text);
 
-            const bool result = Tokenize(ctx, alloc, FileId{ 0 }, tokens);
+            Lexer lexer(ctx, alloc, FileId{ 0 });
+            Array<Token> tokens = lexer.Tokenize();
 
-            if (!result)
+            if (tokens.IsEmpty())
                 UNSCOPED_INFO("Tokenize failed");
 
             const TokenType actual = tokens.IsEmpty() ? TokenType::Unknown : tokens.Front().type;
             if (actual != type_)
                 UNSCOPED_INFO("Expected " << ToCStr(type_) << " got " << ToCStr(actual));
 
-            return result &&
+            return !tokens.IsEmpty() &&
                 tokens.Size() == 2 &&
                 tokens.Front().offset == 0 &&
                 tokens.Front().length == ctx.ReadFileContents(FileId{ 0 }).size() &&
@@ -279,8 +279,9 @@ namespace potato::schematic::test
 
             ctx.AddFile("<test>", text);
 
-            const bool result = Tokenize(ctx, alloc, FileId{ 0 }, tokens);
-            return !result;
+            Lexer lexer(ctx, alloc, FileId{ 0 });
+            tokens = lexer.Tokenize();
+            return !tokens.IsEmpty();
         }
 
         std::string describe() const override

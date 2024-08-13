@@ -10,7 +10,6 @@ target_sources(schematic_libschematic PRIVATE FILE_SET HEADERS FILES
     "include/schematic/compiler.h"
     "include/schematic/schema.h"
     "include/schematic/serialize.h"
-    "include/schematic/string.h"
 )
 target_sources(schematic_libschematic PRIVATE
     "schematic.natvis"

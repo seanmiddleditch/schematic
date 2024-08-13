@@ -40,7 +40,8 @@ TEST_CASE("Compiler", "[potato][schematic]")
         // and another comment
 )--");
 
-        REQUIRE(Tokenize(ctx, alloc, FileId{ 0 }, tokens));
+        Lexer lexer(ctx, alloc, FileId{ 0 });
+        REQUIRE(!lexer.Tokenize().IsEmpty());
 
         CHECK_THAT("123", IsTokenType(TokenType::Integer));
 
@@ -89,7 +90,7 @@ World!""")",
         const TypeEnum* const color = CastTo<TypeEnum>(FindType(&schema, "color"));
         REQUIRE(color != nullptr);
         CHECK(color->kind == TypeKind::Enum);
-        CHECK(color->items.Size() == 3);
+        CHECK(color->items.size() == 3);
 
         const EnumItem* const green = FindItem(color, "green");
 

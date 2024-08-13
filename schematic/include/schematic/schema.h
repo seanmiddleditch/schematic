@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "schematic/string.h"
-
 #include <cstdint>
 #include <span>
 #include <string_view>
@@ -102,15 +100,15 @@ namespace potato::schematic
     struct Module
     {
         const char* filename = nullptr;
-        Array<const Module*> imports;
-        Array<const Type*> types;
+        std::span<const Module* const> imports;
+        std::span<const Type* const> types;
     };
 
     struct Schema
     {
         const Module* root = nullptr;
-        Array<const Module*> modules;
-        Array<const Type*> types;
+        std::span<const Module* const> modules;
+        std::span<const Type* const> types;
     };
 
     struct Type
@@ -175,7 +173,7 @@ namespace potato::schematic
         SCHEMATIC_TYPE(Enum);
 
         const Type* base = nullptr;
-        Array<EnumItem> items;
+        std::span<const EnumItem> items;
     };
 
     struct TypeArray : Type
@@ -259,7 +257,7 @@ namespace potato::schematic
         SCHEMATIC_VALUE(Array);
 
         const Type* type = nullptr;
-        Array<const Value*> elements;
+        std::span<const Value* const> elements;
     };
 
     struct ValueType : Value
