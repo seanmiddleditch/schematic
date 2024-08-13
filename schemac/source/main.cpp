@@ -18,13 +18,6 @@
 
 using namespace potato::schematic;
 
-// TODO:
-//
-//  - Abstract types? With validation
-//
-//  - Lexer FIXME
-//
-
 namespace
 {
     enum class Command
