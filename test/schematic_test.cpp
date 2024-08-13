@@ -129,7 +129,7 @@ World!""")",
         REQUIRE(test != nullptr);
         CHECK(test->kind == TypeKind::Aggregate);
         CHECK(test->base == base);
-        CHECK(test->fields.Size() == 4);
+        CHECK(test->fields.size() == 4);
 
         CHECK_THAT(FindField(test, "num"), IsValue<ValueInt>(42));
         CHECK_THAT(FindField(test, "b"), IsValue<ValueBool>(true));
@@ -181,7 +181,7 @@ World!""")",
 
             const ValueObject* const value = CastTo<ValueObject>(field->value);
             REQUIRE(value != nullptr);
-            REQUIRE(value->fields.Size() == embed->fields.Size());
+            REQUIRE(value->fields.size() == embed->fields.size());
 
             CHECK(value->fields[0].field == &embed->fields[0]);
             CHECK_THAT(value->fields[0].value, IsValue<ValueInt>(1));
@@ -197,7 +197,7 @@ World!""")",
 
             const ValueObject* const value = CastTo<ValueObject>(field->value);
             REQUIRE(value != nullptr);
-            REQUIRE(value->fields.Size() == embed->fields.Size());
+            REQUIRE(value->fields.size() == embed->fields.size());
 
             CHECK(value->fields[0].field == &embed->fields[0]);
             CHECK_THAT(value->fields[0].value, IsValue<ValueInt>(4));

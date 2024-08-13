@@ -3,6 +3,7 @@
 #pragma once
 
 #include <cassert>
+#include <span>
 #include <type_traits>
 
 namespace potato::schematic
@@ -37,6 +38,11 @@ namespace potato::schematic
         [[nodiscard]] size_t Size() const noexcept { return last_ - first_; }
         [[nodiscard]] const T* Data() const noexcept { return first_; }
         [[nodiscard]] T* Data() noexcept { return first_; }
+
+        [[nodiscard]] operator std::span<T>() const noexcept
+        {
+            return { first_, last_ };
+        }
 
         inline void Reserve(ArenaAllocator& alloc, size_t capacity);
 

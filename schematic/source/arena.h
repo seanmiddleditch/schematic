@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstring>
 #include <new>
+#include <span>
 #include <string_view>
 #include <type_traits>
 

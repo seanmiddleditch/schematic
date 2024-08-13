@@ -54,8 +54,8 @@ struct potato::schematic::Compiler::Impl final : ParseContext
     void BuildAttribute(const AstNodeAttributeDecl& ast);
     void BuildEnum(const AstNodeEnumDecl& ast);
 
-    void BuildAnnotations(Array<const Annotation*>& out, Array<const AstNodeAnnotation*> ast);
-    void BuildArguments(const Type* type, const Array<Field>& fields, const TypeAggregate* baseType, Array<Argument>& out, Array<const AstNode*> ast);
+    void BuildAnnotations(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast);
+    void BuildArguments(std::span<const Argument>& out, const Type* type, const std::span<const Field>& fields, const TypeAggregate* baseType, Array<const AstNode*> ast);
 
     const ValueBool* BuildBool(const AstNodeLiteralBool& lit);
     const ValueInt* BuildInteger(const AstNodeLiteralInt& lit);
@@ -277,10 +277,10 @@ void potato::schematic::Compiler::Impl::BuildAggregate(const AstNodeAggregateDec
 
     BuildAnnotations(type->annotations, ast.annotations);
 
-    type->fields = arena.NewArray<Field>(ast.fields.Size());
+    auto fields = arena.NewArray<Field>(ast.fields.Size());
     for (const AstNodeField* ast_field : ast.fields)
     {
-        Field& field = type->fields.EmplaceBack(arena);
+        Field& field = fields.EmplaceBack(arena);
         field.owner = type;
         if (ast_field->name.name)
             field.name = ast_field->name.name;
@@ -289,6 +289,7 @@ void potato::schematic::Compiler::Impl::BuildAggregate(const AstNodeAggregateDec
             field.value = BuildExpression(field.type, *ast_field->value);
         BuildAnnotations(field.annotations, ast_field->annotations);
     }
+    type->fields = fields;
 }
 
 void potato::schematic::Compiler::Impl::BuildAttribute(const AstNodeAttributeDecl& ast)
@@ -301,10 +302,10 @@ void potato::schematic::Compiler::Impl::BuildAttribute(const AstNodeAttributeDec
 
     BuildAnnotations(type->annotations, ast.annotations);
 
-    type->fields = arena.NewArray<Field>(ast.fields.Size());
+    auto fields = arena.NewArray<Field>(ast.fields.Size());
     for (const AstNodeField* ast_field : ast.fields)
     {
-        Field& field = type->fields.EmplaceBack(arena);
+        Field& field = fields.EmplaceBack(arena);
         field.owner = type;
         if (ast_field->name.name)
             field.name = ast_field->name.name;
@@ -313,6 +314,7 @@ void potato::schematic::Compiler::Impl::BuildAttribute(const AstNodeAttributeDec
             field.value = BuildExpression(field.type, *ast_field->value);
         BuildAnnotations(field.annotations, ast_field->annotations);
     }
+    type->fields = fields;
 }
 
 void potato::schematic::Compiler::Impl::BuildEnum(const AstNodeEnumDecl& ast)
@@ -352,9 +354,9 @@ void potato::schematic::Compiler::Impl::BuildEnum(const AstNodeEnumDecl& ast)
     }
 }
 
-void potato::schematic::Compiler::Impl::BuildAnnotations(Array<const Annotation*>& out, Array<const AstNodeAnnotation*> ast)
+void potato::schematic::Compiler::Impl::BuildAnnotations(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast)
 {
-    out = arena.NewArray<const Annotation*>(ast.Size());
+    Array<const Annotation*> temp = arena.NewArray<const Annotation*>(ast.Size());
 
     for (const AstNodeAnnotation* const astAttr : ast)
     {
@@ -370,21 +372,25 @@ void potato::schematic::Compiler::Impl::BuildAnnotations(Array<const Annotation*
         }
 
         Annotation* const attr = arena.Create<Annotation>();
-        out.PushBack(arena, attr);
+        temp.PushBack(arena, attr);
 
         attr->attribute = attrType;
 
-        BuildArguments(attrType, attrType->fields, nullptr, attr->arguments, astAttr->arguments);
+        BuildArguments(attr->arguments, attrType, attrType->fields, nullptr, astAttr->arguments);
     }
+
+    out = temp;
 }
 
-void potato::schematic::Compiler::Impl::BuildArguments(const Type* type, const Array<Field>& fields, const TypeAggregate* baseType, Array<Argument>& out, Array<const AstNode*> ast)
+void potato::schematic::Compiler::Impl::BuildArguments(std::span<const Argument>& out, const Type* type, const std::span<const Field>& fields, const TypeAggregate* baseType, Array<const AstNode*> ast)
 {
     bool hasNamed = false;
     size_t index = 0;
 
     bool hasUnnamedAfterNamedError = false;
     bool hasUnnamedWithBaseError = false;
+
+    Array<Argument> temp;
 
     for (const AstNode* const elem : ast)
     {
@@ -418,7 +424,7 @@ void potato::schematic::Compiler::Impl::BuildArguments(const Type* type, const A
 
             const Value* const value = BuildExpression(field->type, *named->value);
 
-            out.PushBack(arena, Argument{ .field = field, .value = value });
+            temp.PushBack(arena, Argument{ .field = field, .value = value });
         }
         else if (hasNamed)
         {
@@ -437,7 +443,7 @@ void potato::schematic::Compiler::Impl::BuildArguments(const Type* type, const A
             }
             continue;
         }
-        else if (index >= fields.Size())
+        else if (index >= fields.size())
         {
             Error(elem->tokenIndex, "Too many initializers");
             break;
@@ -446,9 +452,11 @@ void potato::schematic::Compiler::Impl::BuildArguments(const Type* type, const A
         {
             const Field& field = fields[index++];
             const Value* const value = BuildExpression(field.type, *elem);
-            out.PushBack(arena, Argument{ .field = &field, .value = value });
+            temp.PushBack(arena, Argument{ .field = &field, .value = value });
         }
     }
+
+    out = temp;
 }
 
 const ValueBool* potato::schematic::Compiler::Impl::BuildBool(const AstNodeLiteralBool& lit)
@@ -584,7 +592,7 @@ const ValueObject* potato::schematic::Compiler::Impl::BuildObject(const TypeAggr
             Error(expr.tokenIndex, "Type is not compatible: {}", obj->type->name);
     }
 
-    BuildArguments(type, type->fields, type->base, obj->fields, expr.elements);
+    BuildArguments(obj->fields, type, type->fields, type->base, expr.elements);
 
     return obj;
 }

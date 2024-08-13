@@ -5,6 +5,7 @@
 #include "schematic/string.h"
 
 #include <cstdint>
+#include <span>
 #include <string_view>
 
 namespace potato::schematic
@@ -78,7 +79,7 @@ namespace potato::schematic
     struct Annotation
     {
         const TypeAttribute* attribute = nullptr;
-        Array<Argument> arguments;
+        std::span<const Argument> arguments;
     };
 
     struct EnumItem
@@ -86,7 +87,7 @@ namespace potato::schematic
         const char* name = nullptr;
         const TypeEnum* owner = nullptr;
         const ValueInt* value = nullptr;
-        Array<const Annotation*> annotations;
+        std::span<const Annotation* const> annotations;
     };
 
     struct Field
@@ -95,7 +96,7 @@ namespace potato::schematic
         const Type* owner = nullptr;
         const Type* type = nullptr;
         const Value* value = nullptr;
-        Array<const Annotation*> annotations;
+        std::span<const Annotation* const> annotations;
     };
 
     struct Module
@@ -117,7 +118,7 @@ namespace potato::schematic
         TypeKind kind = TypeKind::Aggregate;
         const char* name = nullptr;
         const Module* owner = nullptr;
-        Array<const Annotation*> annotations;
+        std::span<const Annotation* const> annotations;
     };
 
     struct Value
@@ -159,14 +160,14 @@ namespace potato::schematic
         SCHEMATIC_TYPE(Aggregate);
 
         const TypeAggregate* base = nullptr;
-        Array<Field> fields;
+        std::span<const Field> fields;
     };
 
     struct TypeAttribute : Type
     {
         SCHEMATIC_TYPE(Attribute);
 
-        Array<Field> fields;
+        std::span<const Field> fields;
     };
 
     struct TypeEnum : Type
@@ -250,7 +251,7 @@ namespace potato::schematic
         SCHEMATIC_VALUE(Object);
 
         const Type* type = nullptr;
-        Array<Argument> fields;
+        std::span<const Argument> fields;
     };
 
     struct ValueArray : Value
