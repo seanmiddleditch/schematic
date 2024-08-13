@@ -1,5 +1,7 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
+#include "schematic/utility.h"
+
 #include "schematic/schema.h"
 
 using namespace potato::schematic;

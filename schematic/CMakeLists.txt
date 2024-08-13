@@ -22,10 +22,10 @@ target_sources(schematic_libschematic PRIVATE
     "source/location.h"
     "source/parser.cpp"
     "source/parser.h"
-    "source/schema.cpp"
     "source/serialize.cpp"
     "source/token.cpp"
     "source/token.h"
+    "source/utility.cpp"
 )
 
 add_custom_command(

@@ -9,6 +9,8 @@
 #include "parser.h"
 #include "token.h"
 
+#include "schematic/utility.h"
+
 #include <fmt/core.h>
 
 #include <charconv>
