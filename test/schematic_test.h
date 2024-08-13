@@ -225,7 +225,7 @@ namespace potato::schematic::test
 
         std::string describe() const override
         {
-            return fmt::format("== {}.{} ({})", enum_->name.CStr(), item_->name.CStr(), item_->value->value);
+            return fmt::format("== {}.{} ({})", enum_->name, item_->name, item_->value->value);
         }
 
     private:
@@ -399,7 +399,7 @@ std::string Catch::StringMaker<const potato::schematic::EnumItem*>::convert(cons
     if (item == nullptr)
         return "invalid(nullptr)";
 
-    return fmt::format("{}({})", item->name.CStr(), item->value->value);
+    return fmt::format("{}({})", item->name, item->value->value);
 }
 
 std::string Catch::StringMaker<const potato::schematic::Value*>::convert(const potato::schematic::Value* value)

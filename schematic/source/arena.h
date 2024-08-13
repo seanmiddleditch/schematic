@@ -40,7 +40,7 @@ namespace potato::schematic
 
         [[nodiscard]] inline void* Allocate(size_t size, size_t align);
 
-        [[nodiscard]] inline CStringView NewString(std::string_view string);
+        [[nodiscard]] inline const char* NewString(std::string_view string);
 
         template <Trivial T>
         [[nodiscard]] inline Array<T> NewArray(size_t capacity)
@@ -126,7 +126,7 @@ namespace potato::schematic
         return address;
     }
 
-    CStringView ArenaAllocator::NewString(std::string_view string)
+    const char* ArenaAllocator::NewString(std::string_view string)
     {
         if (string.empty())
             return {};
@@ -134,7 +134,7 @@ namespace potato::schematic
         char* const memory = static_cast<char*>(Allocate(string.size() + 1 /*NUL*/, 1));
         std::memcpy(memory, string.data(), string.size());
         memory[string.size()] = '\0';
-        return CStringView{ memory, string.size() };
+        return memory;
     }
 
     template <Trivial T>

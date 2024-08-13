@@ -88,7 +88,7 @@ namespace potato::schematic::compiler
 
     struct AstIdentifier
     {
-        CStringView name;
+        const char* name = nullptr;
         std::uint32_t tokenIndex = 0;
     };
 
@@ -235,7 +235,7 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeLiteralString, AstNodeExpression, AstNodeKind::LiteralString);
 
-        CStringView value;
+        const char* value = nullptr;
     };
 
     struct AstNodeNamedArgument : AstNode
@@ -277,7 +277,7 @@ struct fmt::formatter<potato::schematic::compiler::AstQualifiedName> : fmt::form
             if (!first)
                 fmt::format_to(ctx.out(), ".");
             first = false;
-            fmt::format_to(ctx.out(), "{}", part.name.CStr());
+            fmt::format_to(ctx.out(), "{}", part.name);
         }
         return ctx.out();
     }

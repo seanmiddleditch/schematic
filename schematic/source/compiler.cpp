@@ -73,7 +73,7 @@ struct potato::schematic::Compiler::Impl final : ParseContext
     void Error(std::uint32_t tokenIndex, fmt::format_string<Args...> format, const Args&... args);
 
     template <typename T>
-    T* AddType(std::uint32_t tokenIndex, CStringView name);
+    T* AddType(std::uint32_t tokenIndex, const char* name);
 
     void VisitTypes(const Module* mod, Array<const Type*>& visited);
     void VisitTypes(const Type* type, Array<const Type*>& visited);
@@ -193,7 +193,7 @@ const AstNodeModule* potato::schematic::Compiler::Impl::HandleImport(const AstNo
     const FileId file = ctx.ResolveModule(imp.target.name, stack.Back()->file);
     if (file.value == FileId::InvalidValue)
     {
-        Error(imp.tokenIndex, "Module not found: {}", imp.target.name.CStr());
+        Error(imp.tokenIndex, "Module not found: {}", imp.target.name);
         return nullptr;
     }
 
@@ -272,7 +272,7 @@ void potato::schematic::Compiler::Impl::BuildAggregate(const AstNodeAggregateDec
     {
         type->base = CastTo<TypeAggregate>(baseType);
         if (type->base == nullptr)
-            Error(ast.base.parts.Front().tokenIndex, "Base type is not an aggregate: {}", baseType->name.CStr());
+            Error(ast.base.parts.Front().tokenIndex, "Base type is not an aggregate: {}", baseType->name);
     }
 
     BuildAnnotations(type->annotations, ast.annotations);
@@ -325,7 +325,7 @@ void potato::schematic::Compiler::Impl::BuildEnum(const AstNodeEnumDecl& ast)
 
     type->base = Resolve(ast.base);
     if (type->base != nullptr && type->kind != TypeKind::Int)
-        Error(ast.base.parts.Front().tokenIndex, "Base type is not an integer: {}", type->base->name.CStr());
+        Error(ast.base.parts.Front().tokenIndex, "Base type is not an integer: {}", type->base->name);
 
     BuildAnnotations(type->annotations, ast.annotations);
 
@@ -365,7 +365,7 @@ void potato::schematic::Compiler::Impl::BuildAnnotations(Array<const Annotation*
         const TypeAttribute* const attrType = CastTo<TypeAttribute>(type);
         if (attrType == nullptr)
         {
-            Error(astAttr->tokenIndex, "Not an attribute: {}", type->name.CStr());
+            Error(astAttr->tokenIndex, "Not an attribute: {}", type->name);
             continue;
         }
 
@@ -392,14 +392,14 @@ void potato::schematic::Compiler::Impl::BuildArguments(const Type* type, const A
 
         if (named != nullptr)
         {
-            const CStringView name = named->name.name;
+            const char* const name = named->name.name;
 
             hasNamed = true;
 
             const Field* field = nullptr;
             for (const Field& f : fields)
             {
-                if (f.name == name)
+                if (std::strcmp(f.name, name) == 0)
                 {
                     field = &f;
                     break;
@@ -410,7 +410,7 @@ void potato::schematic::Compiler::Impl::BuildArguments(const Type* type, const A
 
             if (field == nullptr)
             {
-                Error(elem->tokenIndex, "Field does not exist on type: {}", name.CStr());
+                Error(elem->tokenIndex, "Field does not exist on type: {}", name);
                 continue;
             }
 
@@ -539,11 +539,11 @@ const Value* potato::schematic::Compiler::Impl::BuildQualifiedId(const AstNodeQu
     const TypeEnum* const enumType = CastTo<TypeEnum>(type);
     if (enumType == nullptr)
     {
-        Error(id.tokenIndex, "Not an enumeration type: {}", enumType->name.CStr());
+        Error(id.tokenIndex, "Not an enumeration type: {}", enumType->name);
         return nullptr;
     }
 
-    const EnumItem* const enumItem = FindItem(enumType, id.id.parts[1].name.CStr());
+    const EnumItem* const enumItem = FindItem(enumType, id.id.parts[1].name);
     if (enumItem == nullptr)
     {
         Error(id.tokenIndex, "No such enumeration item: {}", id.id);
@@ -581,7 +581,7 @@ const ValueObject* potato::schematic::Compiler::Impl::BuildObject(const TypeAggr
     {
         obj->type = Resolve(expr.type);
         if (obj->type != nullptr && !IsA(obj->type, type))
-            Error(expr.tokenIndex, "Type is not compatible: {}", obj->type->name.CStr());
+            Error(expr.tokenIndex, "Type is not compatible: {}", obj->type->name);
     }
 
     BuildArguments(type, type->fields, type->base, obj->fields, expr.elements);
@@ -601,7 +601,7 @@ const Type* potato::schematic::Compiler::Impl::Resolve(const AstQualifiedName& n
     }
 
     State& state = *stack.Back();
-    CStringView ident = name.parts.Front().name;
+    const char* const ident = name.parts.Front().name;
 
     if (const Type* const type = FindType(state.mod, ident); type != nullptr)
         return type;
@@ -637,7 +637,7 @@ const Type* potato::schematic::Compiler::Impl::Resolve(const AstNodeType* type)
             return nullptr;
         }
 
-        const CStringView name = arena.NewString(fmt::format("{}[]", inner->name.CStr()));
+        const char* const name = arena.NewString(fmt::format("{}[]", inner->name));
         TypeArray* const type = AddType<TypeArray>(array->tokenIndex, name);
         type->type = inner;
 
@@ -650,7 +650,7 @@ const Type* potato::schematic::Compiler::Impl::Resolve(const AstNodeType* type)
         if (inner == nullptr)
             return nullptr;
 
-        const CStringView name = arena.NewString(fmt::format("{}*", inner->name.CStr()));
+        const char* const name = arena.NewString(fmt::format("{}*", inner->name));
         TypePolymorphic* const type = AddType<TypePolymorphic>(poly->tokenIndex, name);
         type->type = inner;
         type->isNullable = false;
@@ -664,7 +664,7 @@ const Type* potato::schematic::Compiler::Impl::Resolve(const AstNodeType* type)
         if (inner == nullptr)
             return nullptr;
 
-        const CStringView name = arena.NewString(fmt::format("{}?", inner->name.CStr()));
+        const char* const name = arena.NewString(fmt::format("{}?", inner->name));
         TypePolymorphic* const type = AddType<TypePolymorphic>(nullable->tokenIndex, name);
         type->type = inner;
         type->isNullable = true;
@@ -693,11 +693,11 @@ void potato::schematic::Compiler::Impl::Error(std::uint32_t tokenIndex, fmt::for
 }
 
 template <typename T>
-T* potato::schematic::Compiler::Impl::AddType(std::uint32_t tokenIndex, CStringView name)
+T* potato::schematic::Compiler::Impl::AddType(std::uint32_t tokenIndex, const char* name)
 {
     if (const Type* const previous = FindType(stack.Back()->mod, name); previous != nullptr)
     {
-        Error(tokenIndex, "Type already defined: {}", name.CStr());
+        Error(tokenIndex, "Type already defined: {}", name);
         return nullptr;
     }
 

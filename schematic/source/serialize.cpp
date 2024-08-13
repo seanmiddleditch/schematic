@@ -89,7 +89,7 @@ void Serializer::Serialize(proto::Schema& out)
     for (const Module* const mod : schema_.modules)
     {
         proto::Module* const pmod = out.add_modules();
-        pmod->set_filename(mod->filename.CStr());
+        pmod->set_filename(mod->filename);
     }
 
     for (const Type* const type : schema_.types)
@@ -171,7 +171,7 @@ void Serializer::Serialize(proto::Type::Aggregate& out, const TypeAggregate& in)
     for (const Field& field : in.fields)
     {
         proto::Field& out_field = *out.add_fields();
-        out_field.set_name(field.name.CStr());
+        out_field.set_name(field.name);
         out_field.set_type(IndexOfType(field.type));
 
         if (field.value != nullptr)
@@ -226,7 +226,7 @@ void Serializer::Serialize(proto::Type::Enum& out, const TypeEnum& in)
     for (const EnumItem& item : in.items)
     {
         proto::EnumItem& out_item = *out.add_items();
-        out_item.set_name(item.name.CStr());
+        out_item.set_name(item.name);
         if (item.value != nullptr)
             out_item.set_value(item.value->value);
 
@@ -257,7 +257,7 @@ void Serializer::Serialize(proto::Type::Attribute& out, const TypeAttribute& in)
     for (const Field& field : in.fields)
     {
         proto::Field& out_field = *out.add_fields();
-        out_field.set_name(field.name.CStr());
+        out_field.set_name(field.name);
         out_field.set_type(IndexOfType(field.type));
         if (field.value != nullptr)
             Serialize(*out_field.mutable_value(), *field.value);
@@ -270,7 +270,7 @@ void Serializer::Serialize(proto::Type::Attribute& out, const TypeAttribute& in)
 template <typename T>
 void Serializer::SerializeTypeCommon(T& out, const Type& in)
 {
-    out.set_name(in.name.CStr());
+    out.set_name(in.name);
     out.set_module(IndexOfModule(in.owner));
 
     for (const Annotation* const annotation : in.annotations)
@@ -319,7 +319,7 @@ void Serializer::Serialize(proto::Value::Object& out, const ValueObject& in)
     for (const Argument& arg : in.fields)
     {
         proto::Argument& out_arg = *out.add_arguments();
-        out_arg.set_field_name(arg.field->name.CStr());
+        out_arg.set_field_name(arg.field->name);
 
         if (arg.value != nullptr)
             Serialize(*out_arg.mutable_value(), *arg.value);
@@ -343,7 +343,7 @@ void Serializer::Serialize(proto::Value::Float& out, const ValueFloat& in)
 
 void Serializer::Serialize(proto::Value::String& out, const ValueString& in)
 {
-    out.set_value(in.value.CStr());
+    out.set_value(in.value);
 }
 
 void Serializer::Serialize(proto::Value::Array& out, const ValueArray& in)
@@ -389,7 +389,7 @@ void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
     for (const Argument& arg : in.arguments)
     {
         proto::Argument& out_arg = *out.add_arguments();
-        out_arg.set_field_name(arg.field->name.CStr());
+        out_arg.set_field_name(arg.field->name);
 
         if (arg.value != nullptr)
             Serialize(*out_arg.mutable_value(), *arg.value);
