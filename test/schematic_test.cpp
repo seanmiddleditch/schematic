@@ -1,5 +1,6 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
+#include "lexer.h"
 #include "test_context.h"
 #include "test_matchers.h"
 #include "test_strings.h"
@@ -9,8 +10,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_templated.hpp>
 #include <fmt/core.h>
-
-#include "lexer.h"
 
 using namespace potato::schematic;
 using namespace potato::schematic::compiler;

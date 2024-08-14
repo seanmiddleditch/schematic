@@ -266,7 +266,7 @@ namespace potato::schematic
 
     void ArenaAllocator::EnsureBlock(size_t minimum)
     {
-        constexpr size_t block_size = 16u * 1024u;
+        constexpr size_t block_size = 16ull * 1024ull;
         constexpr size_t block_capacity = block_size - sizeof(BlockHeader);
 
         capacity_ = block_capacity >= minimum ? block_capacity : minimum;

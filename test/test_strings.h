@@ -2,18 +2,18 @@
 
 #pragma once
 
+#include "lexer.h"
+#include "location.h"
 #include "test_context.h"
+#include "token.h"
 
 #include "schematic/schema.h"
+#include "schematic/utility.h"
 
 #include <catch2/catch_test_macros.hpp>
 #include <fmt/core.h>
 
 #include <span>
-
-#include "lexer.h"
-#include "location.h"
-#include "token.h"
 
 namespace potato::schematic::test
 {

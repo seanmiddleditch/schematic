@@ -1,7 +1,5 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
-#define _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
-
 #include "schematic/compiler.h"
 #include "schematic/serialize.h"
 
@@ -94,12 +92,12 @@ int main(int argc, char** argv)
         if (ctx.writeJson)
         {
             const std::string serialized = SerializeJson(*schema);
-            out->write(serialized.data(), serialized.size());
+            out->write(serialized.data(), static_cast<std::streamsize>(serialized.size()));
         }
         else
         {
             const std::vector<char> serialized = SerializeBinary(*schema);
-            out->write(serialized.data(), serialized.size());
+            out->write(serialized.data(), static_cast<std::streamsize>(serialized.size()));
         }
 
         out_file.close();
@@ -133,7 +131,7 @@ int main(int argc, char** argv)
     return 0;
 }
 
-static bool StartsWithOption(std::string_view arg, std::string option)
+static bool StartsWithOption(std::string_view arg, std::string_view option)
 {
     return arg.starts_with(option) &&
         arg.size() > option.size() &&
@@ -159,7 +157,7 @@ bool ParseArguments(MainContext& ctx, std::span<char*> args)
             case Unknown:
                 break;
             case Search:
-                ctx.search.push_back(arg);
+                ctx.search.emplace_back(arg);
                 next = NextArg::Unknown;
                 continue;
             case Output:
@@ -281,7 +279,7 @@ void MainContext::Error(FileId file, const Range& range, std::string_view messag
 std::string_view MainContext::ReadFileContents(FileId id)
 {
     if (id.value >= files.size())
-        return { };
+        return {};
 
     return files[id.value].source;
 }

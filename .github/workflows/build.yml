@@ -13,15 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v3.5.3
+        uses: actions/checkout@v4
 
       - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.13
+        uses: jwlawson/actions-setup-cmake@v2
         with:
           cmake-version: '3.26.x'
 
       - name: Install ninja
-        uses: seanmiddleditch/gha-setup-ninja@v4
+        uses: seanmiddleditch/gha-setup-ninja@v5
 
       - name: Vcpkg
         id: vcpkg
@@ -41,7 +41,7 @@ jobs:
         run: cmake --build out/build/linux-debug
 
       - name: Test the project
-        run: ctest --test-dir out/build/linux-debug
+        run: ctest --no-tests=error --test-dir out/build/linux-debug
 
       - name: Lint changes
         uses: cpp-linter/cpp-linter-action@v2.6.1
@@ -52,7 +52,7 @@ jobs:
           style: file
           files-changed-only: true
           tidy-checks: ''
-          version: 17
+          version: 18
           verbosity: 20
           ignore: out|vcpkg
           database: out/build/linux-debug

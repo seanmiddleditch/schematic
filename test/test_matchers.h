@@ -2,21 +2,20 @@
 
 #pragma once
 
+#include "lexer.h"
+#include "test_context.h"
+#include "test_strings.h"
+#include "token.h"
+
 #include "schematic/compiler.h"
 #include "schematic/schema.h"
 #include "schematic/utility.h"
-
-#include "test_context.h"
-#include "test_strings.h"
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_templated.hpp>
 #include <fmt/core.h>
 
 #include <span>
-
-#include "lexer.h"
-#include "token.h"
 
 namespace potato::schematic::test::_detail
 {
