@@ -121,8 +121,9 @@ namespace potato::schematic
     class ArenaAllocator
     {
     public:
-        explicit inline ArenaAllocator(CompileContext& ctx) noexcept
-            : ctx_(&ctx)
+        inline ArenaAllocator() noexcept = default;
+        explicit inline ArenaAllocator(Allocator& alloc) noexcept
+            : alloc_(&alloc)
         {
         }
         inline ~ArenaAllocator();
@@ -153,7 +154,7 @@ namespace potato::schematic
             size_t size = 0;
         };
 
-        CompileContext* ctx_ = nullptr;
+        Allocator* alloc_ = nullptr;
         void* block_ = nullptr;
         size_t head_ = 0;
         size_t capacity_ = 0;
@@ -202,8 +203,10 @@ namespace potato::schematic
         while (block != nullptr)
         {
             void* const previous = static_cast<const BlockHeader*>(block)->previous;
-            ctx_->Deallocate(previous, static_cast<const BlockHeader*>(block)->size);
-            ::operator delete(block);
+            if (alloc_ != nullptr)
+                alloc_->Deallocate(block, static_cast<const BlockHeader*>(block)->size);
+            else
+                ::operator delete(block, static_cast<const BlockHeader*>(block)->size);
             block = previous;
         }
     }
@@ -267,7 +270,9 @@ namespace potato::schematic
         constexpr size_t block_capacity = block_size - sizeof(BlockHeader);
 
         capacity_ = block_capacity >= minimum ? block_capacity : minimum;
-        void* const block = ctx_->Allocate(sizeof(BlockHeader) + capacity_);
+        void* const block = alloc_ != nullptr
+            ? alloc_->Allocate(sizeof(BlockHeader) + capacity_)
+            : ::operator new(sizeof(BlockHeader) + capacity_);
         head_ = sizeof(BlockHeader);
 
         new (block) BlockHeader{ .previous = block_, .size = capacity_ };

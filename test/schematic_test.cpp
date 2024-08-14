@@ -39,7 +39,7 @@ TEST_CASE("Compiler", "[potato][schematic]")
         // and another comment
 )--");
 
-        ArenaAllocator alloc(ctx);
+        ArenaAllocator alloc;
         Lexer lexer(ctx, alloc, FileId{ 0 });
         REQUIRE(!lexer.Tokenize().IsEmpty());
 

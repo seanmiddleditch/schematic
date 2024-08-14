@@ -9,6 +9,7 @@
 #include "parser.h"
 #include "token.h"
 
+#include "schematic/schema.h"
 #include "schematic/utility.h"
 
 #include <fmt/core.h>
@@ -37,7 +38,11 @@ struct potato::schematic::Compiler::Impl final : ParseContext
 {
     explicit Impl(CompileContext& ctx) noexcept
         : ctx(ctx)
-        , arena(ctx)
+    {
+    }
+    explicit Impl(CompileContext& ctx, Allocator& allocator) noexcept
+        : ctx(ctx)
+        , arena(allocator)
     {
     }
 
@@ -92,14 +97,23 @@ struct potato::schematic::Compiler::Impl final : ParseContext
     Array<State*> stack;
 };
 
+potato::schematic::Compiler::Compiler(CompileContext& ctx, Allocator& allocator)
+    : impl_(new(allocator.Allocate(sizeof(Impl))) Impl(ctx, allocator))
+    , allocator_(&allocator)
+{
+}
+
 potato::schematic::Compiler::Compiler(CompileContext& ctx)
-    : impl_(new (ctx.Allocate(sizeof(Impl))) Impl(ctx))
+    : impl_(new Impl(ctx))
 {
 }
 
 potato::schematic::Compiler::~Compiler()
 {
-    impl_->ctx.Deallocate(impl_, sizeof(Impl));
+    if (allocator_ != nullptr)
+        allocator_->Deallocate(impl_, sizeof(Impl));
+    else
+        delete impl_;
     impl_ = nullptr;
 }
 

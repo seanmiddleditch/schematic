@@ -37,9 +37,6 @@ namespace
     {
         void Error(FileId file, const Range& range, std::string_view message) override;
 
-        void* Allocate(std::size_t size) override { return ::operator new(size); }
-        void Deallocate(void* memory, std::size_t size) override { ::operator delete(memory, size); }
-
         std::string_view ReadFileContents(FileId id) override;
         std::string_view GetFileName(FileId id) override;
         FileId ResolveModule(std::string_view name, FileId referrer) override;
