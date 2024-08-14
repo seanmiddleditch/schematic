@@ -37,6 +37,7 @@ struct potato::schematic::Compiler::Impl final : ParseContext
 {
     explicit Impl(CompileContext& ctx) noexcept
         : ctx(ctx)
+        , arena(ctx)
     {
     }
 
@@ -92,13 +93,13 @@ struct potato::schematic::Compiler::Impl final : ParseContext
 };
 
 potato::schematic::Compiler::Compiler(CompileContext& ctx)
-    : impl_(new Impl(ctx))
+    : impl_(new (ctx.Allocate(sizeof(Impl))) Impl(ctx))
 {
 }
 
 potato::schematic::Compiler::~Compiler()
 {
-    delete impl_;
+    impl_->ctx.Deallocate(impl_, sizeof(Impl));
     impl_ = nullptr;
 }
 
@@ -165,7 +166,7 @@ const Schema* potato::schematic::Compiler::Impl::Compile(FileId file)
     if (file.value == FileId::InvalidValue)
         return nullptr;
 
-    if (useBuiltins)
+    if (useBuiltins && builtins == nullptr)
         CreateBuiltins();
 
     State* const state = arena.Create<State>();

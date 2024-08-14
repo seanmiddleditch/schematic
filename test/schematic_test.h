@@ -118,6 +118,10 @@ namespace potato::schematic::test
     struct TestContext final : potato::schematic::CompileContext
     {
         inline void Error(FileId file, const Range& range, std::string_view message) override;
+
+        void* Allocate(std::size_t size) override { return ::operator new(size); }
+        void Deallocate(void* memory, std::size_t size) override { ::operator delete(memory, size); }
+
         inline std::string_view ReadFileContents(FileId id) override;
         inline std::string_view GetFileName(FileId id) override;
         inline FileId ResolveModule(std::string_view name, FileId referrer) override;
@@ -139,7 +143,7 @@ namespace potato::schematic::test
             using namespace potato::schematic::compiler;
 
             TestContext ctx;
-            ArenaAllocator alloc;
+            ArenaAllocator alloc(ctx);
 
             ctx.AddFile("<test>", text);
 
@@ -274,7 +278,7 @@ namespace potato::schematic::test
             using namespace potato::schematic::compiler;
 
             TestContext ctx;
-            ArenaAllocator alloc;
+            ArenaAllocator alloc(ctx);
             Array<Token> tokens;
 
             ctx.AddFile("<test>", text);

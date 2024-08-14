@@ -4,6 +4,8 @@
 
 #include "schematic/schema.h"
 
+#include <string_view>
+
 namespace potato::schematic
 {
     struct FileId
@@ -29,6 +31,9 @@ namespace potato::schematic
     public:
         virtual void Error(FileId file, const Range& range, std::string_view message) = 0;
 
+        virtual void* Allocate(std::size_t size) = 0;
+        virtual void Deallocate(void* memory, std::size_t size) = 0;
+
         virtual std::string_view ReadFileContents(FileId id) = 0;
         virtual std::string_view GetFileName(FileId id) = 0;
         virtual FileId ResolveModule(std::string_view name, FileId referrer) = 0;
@@ -37,7 +42,7 @@ namespace potato::schematic
         ~CompileContext() = default;
     };
 
-    class Compiler
+    class Compiler final
     {
     public:
         explicit Compiler(CompileContext& ctx);
@@ -48,7 +53,7 @@ namespace potato::schematic
 
         void AddBuiltins();
 
-        const Schema* Compile(FileId file = FileId{0});
+        const Schema* Compile(FileId file = FileId{ 0 });
 
     private:
         struct Impl;

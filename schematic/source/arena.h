@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "schematic/compiler.h"
+
 #include <cassert>
 #include <cstring>
 #include <new>
@@ -119,7 +121,10 @@ namespace potato::schematic
     class ArenaAllocator
     {
     public:
-        inline ArenaAllocator() noexcept = default;
+        explicit inline ArenaAllocator(CompileContext& ctx) noexcept
+            : ctx_(&ctx)
+        {
+        }
         inline ~ArenaAllocator();
 
         ArenaAllocator(const ArenaAllocator&) = delete;
@@ -145,8 +150,10 @@ namespace potato::schematic
         struct BlockHeader
         {
             void* previous = nullptr;
+            size_t size = 0;
         };
 
+        CompileContext* ctx_ = nullptr;
         void* block_ = nullptr;
         size_t head_ = 0;
         size_t capacity_ = 0;
@@ -195,6 +202,7 @@ namespace potato::schematic
         while (block != nullptr)
         {
             void* const previous = static_cast<const BlockHeader*>(block)->previous;
+            ctx_->Deallocate(previous, static_cast<const BlockHeader*>(block)->size);
             ::operator delete(block);
             block = previous;
         }
@@ -206,7 +214,10 @@ namespace potato::schematic
         head_ = AlignTo(head_, align);
 
         if (capacity_ < size || head_ >= capacity_ - size)
+        {
             EnsureBlock(size);
+            head_ = AlignTo(head_, align);
+        }
 
         void* const address = static_cast<char*>(block_) + head_;
         head_ += size;
@@ -256,10 +267,10 @@ namespace potato::schematic
         constexpr size_t block_capacity = block_size - sizeof(BlockHeader);
 
         capacity_ = block_capacity >= minimum ? block_capacity : minimum;
-        void* const block = ::operator new(sizeof(BlockHeader) + capacity_);
+        void* const block = ctx_->Allocate(sizeof(BlockHeader) + capacity_);
         head_ = sizeof(BlockHeader);
 
-        new (block) BlockHeader{ .previous = block_ };
+        new (block) BlockHeader{ .previous = block_, .size = capacity_ };
         block_ = block;
     }
 } // namespace potato::schematic

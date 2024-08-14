@@ -26,7 +26,6 @@ using namespace potato::schematic::test;
 
 TEST_CASE("Compiler", "[potato][schematic]")
 {
-    ArenaAllocator alloc;
     TestContext ctx;
     Compiler compiler(ctx);
     compiler.AddBuiltins();
@@ -40,6 +39,7 @@ TEST_CASE("Compiler", "[potato][schematic]")
         // and another comment
 )--");
 
+        ArenaAllocator alloc(ctx);
         Lexer lexer(ctx, alloc, FileId{ 0 });
         REQUIRE(!lexer.Tokenize().IsEmpty());
 

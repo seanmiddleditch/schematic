@@ -4,7 +4,6 @@
 
 #include <cstdint>
 #include <span>
-#include <string_view>
 
 namespace potato::schematic
 {
