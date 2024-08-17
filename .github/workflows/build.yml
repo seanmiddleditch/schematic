@@ -34,7 +34,7 @@ jobs:
 
       - name: Set environment
         run: |
-          echo "BUILD=out/build/linux-build" | tee -a "$GITHUB_ENV"
+          echo "BUILD=out/build/linux-debug" | tee -a "$GITHUB_ENV"
 
       - name: Configure the project
         run: |
