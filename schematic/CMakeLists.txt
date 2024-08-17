@@ -3,13 +3,15 @@ find_package(Protobuf CONFIG REQUIRED)
 
 add_library(schematic_libschematic)
 add_library(schematic::libschematic ALIAS schematic_libschematic)
+set_target_properties(schematic_libschematic PROPERTIES OUTPUT_NAME libschematic)
 target_compile_features(schematic_libschematic PUBLIC cxx_std_23)
 target_link_libraries(schematic_libschematic PRIVATE fmt::fmt protobuf::libprotobuf)
 target_include_directories(schematic_libschematic PUBLIC include)
-target_sources(schematic_libschematic PRIVATE FILE_SET HEADERS FILES
+target_sources(schematic_libschematic PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
     "include/schematic/compiler.h"
     "include/schematic/schema.h"
     "include/schematic/serialize.h"
+    "include/schematic/utility.h"
 )
 target_sources(schematic_libschematic PRIVATE
     "schematic.natvis"
@@ -26,6 +28,9 @@ target_sources(schematic_libschematic PRIVATE
     "source/token.h"
     "source/utility.cpp"
 )
+
+install(TARGETS schematic_libschematic)
+install(TARGETS schematic_libschematic FILE_SET HEADERS)
 
 add_custom_command(
     OUTPUT
