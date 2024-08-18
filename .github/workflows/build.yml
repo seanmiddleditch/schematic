@@ -63,6 +63,7 @@ jobs:
           verbosity: 20
           ignore: out|vcpkg
           database: ${{ env.BUILD }}
+          extra-args: -std=c++23
           step-summary: true
 
       - name: Lint fail check
