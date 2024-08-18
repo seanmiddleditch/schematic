@@ -165,7 +165,7 @@ const Module* potato::schematic::Compiler::Impl::Compile()
         if (adecl->kind == AstNodeKind::Import)
             continue;
 
-        Error(adecl->tokenIndex, "Internal error: unexpected top-level node kind {}", std::to_underlying(adecl->kind));
+        Error(adecl->tokenIndex, "Internal error: unexpected top-level node kind {}", static_cast<std::underlying_type_t<AstNodeKind>>(adecl->kind));
         break;
     }
 
@@ -543,7 +543,7 @@ const Value* potato::schematic::Compiler::Impl::BuildExpression(const Type* type
                 return BuildArray(array, *expr.CastTo<AstNodeInitializerList>());
             Error(expr.tokenIndex, "Not implemented");
         default:
-            Error(expr.tokenIndex, "Unknown expression AST node type: {}", std::to_underlying(expr.kind));
+            Error(expr.tokenIndex, "Unknown expression AST node type: {}", static_cast<std::underlying_type_t<AstNodeKind>>(expr.kind));
             return nullptr;
     }
 }
