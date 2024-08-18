@@ -1,5 +1,7 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
+#include "schematic/utility.h"
+
 #include "schematic/schema.h"
 
 using namespace potato::schematic;
@@ -49,7 +51,7 @@ const EnumItem* potato::schematic::FindItem(const TypeEnum* enumeration, std::st
     return nullptr;
 }
 
-static const Annotation* FindAnnotation(Array<const Annotation*> annotations, const TypeAttribute* attribute) noexcept
+static const Annotation* FindAnnotation(std::span<const Annotation* const> annotations, const TypeAttribute* attribute) noexcept
 {
     for (const Annotation* const annotation : annotations)
     {
@@ -60,7 +62,7 @@ static const Annotation* FindAnnotation(Array<const Annotation*> annotations, co
     return nullptr;
 }
 
-static const Annotation* FindAnnotation(Array<const Annotation*> annotations, std::string_view name) noexcept
+static const Annotation* FindAnnotation(std::span<const Annotation* const> annotations, std::string_view name) noexcept
 {
     for (const Annotation* const annotation : annotations)
     {
@@ -199,7 +201,7 @@ const Type* potato::schematic::FindType(const Schema* schema, std::string_view n
     return nullptr;
 }
 
-static const Value* FindArgument(const Array<Argument>& arguments, const Field* field) noexcept
+static const Value* FindArgument(const std::span<const Argument>& arguments, const Field* field) noexcept
 {
     if (field == nullptr)
         return nullptr;

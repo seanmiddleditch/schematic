@@ -2,13 +2,17 @@
 
 #include "lexer.h"
 
-#include "schematic/arena.h"
-#include "schematic/logger.h"
-#include "schematic/source.h"
+#include "arena.h"
+#include "location.h"
+
+#include "schematic/compiler.h"
 
 #include <fmt/core.h>
 
 #include <cstdint>
+
+using namespace potato::schematic;
+using namespace potato::schematic::compiler;
 
 static bool IsWhitespace(char c) noexcept;
 static bool IsDigit(char c) noexcept;
@@ -54,27 +58,26 @@ namespace
 //  provides no such guarantee. Either the interface needs to change, or the code here needs to be updated
 //  and deeply audited.
 
-bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc, const Source* source, Array<Token>& tokens)
+Array<Token> potato::schematic::compiler::Lexer::Tokenize()
 {
-    if (source == nullptr)
-        return false;
+    if (file_.value == FileId::InvalidValue)
+        return {};
 
-    tokens = Array<Token>();
+    tokens_.Clear();
 
-    const std::string_view data = source->Data();
+    const std::string_view data = ctx_.ReadFileContents(file_);
     Input in(data.data(), data.size());
     bool result = true;
 
-    auto Error = [&logger, source, &in, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
+    auto Error = [this, &data, &in, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
     {
-        logger.Error({ .source = source, .offset = in.Pos(), .length = 1 },
-            fmt::vformat(format, fmt::make_format_args(args...)));
+        ctx_.Error(file_, FindRange(data, in.Pos(), 1), fmt::vformat(format, fmt::make_format_args(args...)));
         result = false;
     };
 
-    auto Push = [&alloc, &tokens, &in](TokenType type)
+    auto Push = [this, &in](TokenType type)
     {
-        tokens.PushBack(alloc, Token{ .type = type, .offset = in.Pos(), .length = 1 });
+        tokens_.PushBack(alloc_, Token{ .type = type, .offset = in.Pos(), .length = 1 });
     };
 
     while (!in.IsEof())
@@ -181,7 +184,7 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
                         Error("Expected digits after 0x prefix");
                     while (in.Match(IsHexDigit))
                         ;
-                    tokens.PushBack(alloc, Token{ .type = TokenType::HexInteger, .offset = start, .length = in.Pos() - start });
+                    tokens_.PushBack(alloc_, Token{ .type = TokenType::HexInteger, .offset = start, .length = in.Pos() - start });
                     continue;
                 }
 
@@ -192,7 +195,7 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
                         Error("Expected digits after 0b prefix");
                     while (in.Match(IsBinaryDigit))
                         ;
-                    tokens.PushBack(alloc, Token{ .type = TokenType::BinaryInteger, .offset = start, .length = in.Pos() - start });
+                    tokens_.PushBack(alloc_, Token{ .type = TokenType::BinaryInteger, .offset = start, .length = in.Pos() - start });
                     continue;
                 }
 
@@ -203,7 +206,7 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
 
             if (isDot && !in.Match(IsDigit))
             {
-                tokens.PushBack(alloc, Token{ .type = TokenType::Dot, .offset = start, .length = 1 });
+                tokens_.PushBack(alloc_, Token{ .type = TokenType::Dot, .offset = start, .length = 1 });
                 continue;
             }
 
@@ -233,7 +236,7 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
                     ;
             }
 
-            tokens.PushBack(alloc, Token{ .type = type, .offset = start, .length = in.Pos() - start });
+            tokens_.PushBack(alloc_, Token{ .type = type, .offset = start, .length = in.Pos() - start });
             continue;
         }
 
@@ -243,7 +246,7 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
             while (in.Match(IsIdentBody))
                 ;
 
-            tokens.PushBack(alloc, Token{ .type = TokenType::Identifier, .offset = start, .length = in.Pos() - start });
+            tokens_.PushBack(alloc_, Token{ .type = TokenType::Identifier, .offset = start, .length = in.Pos() - start });
             continue;
         }
 
@@ -261,7 +264,7 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
                 in.Advance();
             }
 
-            tokens.PushBack(alloc, Token{ .type = TokenType::MultilineString, .offset = start, .length = in.Pos() - start });
+            tokens_.PushBack(alloc_, Token{ .type = TokenType::MultilineString, .offset = start, .length = in.Pos() - start });
             continue;
         }
         else if (in.Match('"'))
@@ -293,7 +296,7 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
                 break;
             }
 
-            tokens.PushBack(alloc, Token{ .type = TokenType::String, .offset = start, .length = in.Pos() - start });
+            tokens_.PushBack(alloc_, Token{ .type = TokenType::String, .offset = start, .length = in.Pos() - start });
             continue;
         }
 
@@ -302,8 +305,8 @@ bool potato::schematic::compiler::Tokenize(Logger& logger, ArenaAllocator& alloc
         in.Advance();
     }
 
-    tokens.PushBack(alloc, Token{ .type = TokenType::End, .offset = in.Pos() });
-    return result;
+    tokens_.PushBack(alloc_, Token{ .type = TokenType::End, .offset = in.Pos() });
+    return tokens_;
 }
 
 bool Match(const char* c, std::string_view match) noexcept

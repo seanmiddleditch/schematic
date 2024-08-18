@@ -1,12 +1,7 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
-#define _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
-
-#include "schematic/compile.h"
-#include "schematic/logger.h"
-#include "schematic/resolver.h"
+#include "schematic/compiler.h"
 #include "schematic/serialize.h"
-#include "schematic/source.h"
 
 #include <fmt/core.h>
 #include <fmt/std.h>
@@ -14,44 +9,39 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
 #include <vector>
 
-using namespace potato::schematic;
-using namespace potato::schematic::compiler;
+#include "google/protobuf/util/json_util.h"
 
-// TODO:
-//
-//  - Abstract types? With validation
-//
-//  - Lexer FIXME
-//
+using namespace potato::schematic;
 
 namespace
 {
-    enum class Command
+    enum class Command : unsigned char
     {
         Compile,
         Help
     };
 
-    struct File final : Source
+    struct File final
     {
         std::filesystem::path filename;
         std::string name;
         std::string source;
-
-        std::string_view Name() const noexcept override { return name; }
-        std::string_view Data() const noexcept override { return source; }
     };
 
-    struct State
+    struct MainContext final : potato::schematic::CompileContext
     {
-        const File* ResolveModuleFile(std::string_view name, const std::filesystem::path& dir);
-        const File* LoadFile(const std::filesystem::path& filename);
+        void Error(FileId file, const Range& range, std::string_view message) override;
+
+        std::string_view ReadFileContents(FileId id) override;
+        std::string_view GetFileName(FileId id) override;
+        FileId ResolveModule(std::string_view name, FileId referrer) override;
+
+        FileId TryLoadFile(const std::filesystem::path& filename);
 
         std::filesystem::path input;
         std::filesystem::path output;
@@ -60,115 +50,102 @@ namespace
         Command command = Command::Compile;
         bool writeJson = false;
 
-        std::vector<std::unique_ptr<File>> files;
-    };
-
-    struct MainLogger final : potato::schematic::compiler::Logger
-    {
-        explicit MainLogger(State& state)
-            : state(state)
-        {
-        }
-
-        void Error(const LogLocation& location, std::string_view message) override;
-
-        State& state;
-    };
-
-    struct MainResolver final : potato::schematic::compiler::Resolver
-    {
-        explicit MainResolver(State& state)
-            : state(state)
-        {
-        }
-
-        const Source* ResolveModule(std::string_view name, const Source* referrer) override;
-
-        State& state;
+        std::vector<File> files;
     };
 } // namespace
 
-static bool ParseArguments(State& state, std::span<char*> args);
+static bool ParseArguments(MainContext& ctx, std::span<char*> args);
 
 int main(int argc, char** argv)
 {
-    State state;
+    MainContext ctx;
 
-    if (!ParseArguments(state, std::span{ &argv[1], &argv[argc] }))
+    if (!ParseArguments(ctx, std::span{ &argv[1], &argv[argc] }))
         return 1;
 
-    state.search = std::move(state.search);
+    const FileId root = ctx.TryLoadFile(ctx.input);
 
-    MainLogger logger(state);
-    MainResolver resolver(state);
+    Compiler compiler(ctx);
+    compiler.SetUseBuiltins(true);
+    if (!compiler.Compile(root))
+        return 1;
 
-    const Source* const source = state.LoadFile(state.input);
-    if (source == nullptr)
+    const Schema* const schema = compiler.GetSchema();
+    if (schema == nullptr)
     {
-        fmt::println(stderr, "Cannot open input file: {}", state.input);
+        fmt::println(stderr, "Internal error: schema not created");
         return 1;
     }
-
-    ArenaAllocator alloc;
-    CompileOptions options;
-    const Schema* const schema = Compile(logger, resolver, alloc, source, options);
-    if (schema == nullptr)
-        return 1;
 
     {
         std::ostream* out = &std::cout;
 
         std::ofstream out_file;
-        if (!state.output.empty())
+        if (!ctx.output.empty())
         {
             auto ios_flags = std::ios_base::out;
-            if (!state.writeJson)
+            if (!ctx.writeJson)
                 ios_flags |= std::ios_base::binary;
 
-            out_file.open(state.output, ios_flags);
+            out_file.open(ctx.output, ios_flags);
             if (!out_file)
             {
-                fmt::println(stderr, "Cannot open output file: {}", state.output);
+                fmt::println(stderr, "Cannot open output file: {}", ctx.output);
                 return 1;
             }
 
             out = &out_file;
         }
 
-        if (state.writeJson)
+        google::protobuf::Arena arena;
+        const proto::Schema* const proto = SerializeBinary(arena, *schema);
+        if (proto == nullptr)
         {
-            const std::string serialized = SerializeJson(*schema);
-            out->write(serialized.data(), serialized.size());
+            fmt::println(stderr, "Internal error: serialization to protobuf failed");
+            return 1;
+        }
+
+        if (ctx.writeJson)
+        {
+            google::protobuf::util::JsonPrintOptions options;
+            options.add_whitespace = true;
+            options.preserve_proto_field_names = true;
+            std::string json;
+            google::protobuf::util::MessageToJsonString(*proto, &json, options);
+            out->write(json.data(), static_cast<std::streamsize>(json.size()));
         }
         else
         {
-            const std::vector<char> serialized = SerializeBinary(*schema);
-            out->write(serialized.data(), serialized.size());
+            if (!proto->SerializeToOstream(out))
+            {
+                fmt::println(stderr, "Internal error: serializing to output stream failed");
+                return 1;
+            }
         }
 
         out_file.close();
     }
 
-    if (!state.deps.empty())
+    if (!ctx.deps.empty())
     {
-        std::ofstream deps(state.deps);
+        std::ofstream deps(ctx.deps);
         if (!deps)
         {
-            fmt::println(stderr, "Cannot open deps file: {}", state.deps);
+            fmt::println(stderr, "Cannot open deps file: {}", ctx.deps);
             return 1;
         }
 
         const std::filesystem::path cwd = std::filesystem::current_path();
-        deps << state.output.lexically_proximate(cwd) << ": ";
+        deps << ctx.output.lexically_proximate(cwd) << ": ";
 
-        for (size_t index = 0; index != state.files.size(); ++index)
+        for (size_t index = 0; index != ctx.files.size(); ++index)
         {
             if (index != 0)
                 deps << "  ";
 
-            deps << state.files[index]->filename.lexically_proximate(cwd);
+            deps << ctx.files[index].filename.lexically_proximate(cwd);
 
-            if (index != state.files.size() - 1)
+            if (index != ctx.files.size() - 1)
                 deps << " \\";
             deps << '\n';
         }
@@ -177,16 +154,16 @@ int main(int argc, char** argv)
     return 0;
 }
 
-static bool StartsWithOption(std::string_view arg, std::string option)
+static bool StartsWithOption(std::string_view arg, std::string_view option)
 {
     return arg.starts_with(option) &&
         arg.size() > option.size() &&
         arg[option.size()] == '=';
 }
 
-bool ParseArguments(State& state, std::span<char*> args)
+bool ParseArguments(MainContext& ctx, std::span<char*> args)
 {
-    enum class NextArg
+    enum class NextArg : unsigned char
     {
         Unknown,
         Search,
@@ -203,15 +180,15 @@ bool ParseArguments(State& state, std::span<char*> args)
             case Unknown:
                 break;
             case Search:
-                state.search.push_back(arg);
+                ctx.search.emplace_back(arg);
                 next = NextArg::Unknown;
                 continue;
             case Output:
-                state.output = arg;
+                ctx.output = arg;
                 next = NextArg::Unknown;
                 continue;
             case Dependency:
-                state.deps = arg;
+                ctx.deps = arg;
                 next = NextArg::Unknown;
                 continue;
         }
@@ -231,7 +208,7 @@ bool ParseArguments(State& state, std::span<char*> args)
             }
             if (arg.starts_with("-I"))
             {
-                state.search.emplace_back(arg.substr(2));
+                ctx.search.emplace_back(arg.substr(2));
                 continue;
             }
 
@@ -242,7 +219,7 @@ bool ParseArguments(State& state, std::span<char*> args)
             }
             if (arg.starts_with("-o"))
             {
-                state.output = arg.substr(2);
+                ctx.output = arg.substr(2);
                 continue;
             }
 
@@ -253,18 +230,18 @@ bool ParseArguments(State& state, std::span<char*> args)
             }
             if (arg.starts_with("-MF"))
             {
-                state.deps = arg.substr(3);
+                ctx.deps = arg.substr(3);
                 continue;
             }
 
             if (arg == "-Ojson")
             {
-                state.writeJson = true;
+                ctx.writeJson = true;
                 continue;
             }
             if (arg == "-Obin")
             {
-                state.writeJson = false;
+                ctx.writeJson = false;
                 continue;
             }
 
@@ -272,12 +249,12 @@ bool ParseArguments(State& state, std::span<char*> args)
             return false;
         }
 
-        if (!state.input.empty())
+        if (!ctx.input.empty())
         {
             fmt::println(stderr, "Too many input files: {}", arg);
             return false;
         }
-        state.input = arg;
+        ctx.input = arg;
     }
 
     switch (next)
@@ -296,7 +273,7 @@ bool ParseArguments(State& state, std::span<char*> args)
             return false;
     }
 
-    if (state.input.empty())
+    if (ctx.input.empty())
     {
         fmt::println(stderr, "No input file provided");
         return false;
@@ -305,65 +282,78 @@ bool ParseArguments(State& state, std::span<char*> args)
     return true;
 }
 
-void MainLogger::Error(const LogLocation& location, std::string_view message)
+void MainContext::Error(FileId file, const Range& range, std::string_view message)
 {
-    if (location.source == nullptr)
+    if (file.value == FileId::InvalidValue)
     {
         fmt::println(stderr, "<unknown>: {}", message);
         return;
     }
 
-    const SourceLocation loc = location.source->OffsetToLocation(location.offset);
-    fmt::println(stderr, "{}({},{}): {}", location.source->Name(), loc.line, loc.column, message);
+    if (range.start.line == 0)
+    {
+        fmt::println(stderr, "{}: {}", files[file.value].filename, message);
+        return;
+    }
+
+    fmt::println(stderr, "{}({},{}): {}", files[file.value].filename, range.start.line, range.start.column, message);
 }
 
-const File* State::ResolveModuleFile(std::string_view name, const std::filesystem::path& dir)
+std::string_view MainContext::ReadFileContents(FileId id)
+{
+    if (id.value >= files.size())
+        return {};
+
+    return files[id.value].source;
+}
+
+std::string_view MainContext::GetFileName(FileId id)
+{
+    if (id.value >= files.size())
+        return {};
+
+    return files[id.value].name;
+}
+
+FileId MainContext::ResolveModule(std::string_view name, FileId referrer)
 {
     std::filesystem::path filename;
 
-    filename = dir / name;
+    if (referrer.value < files.size())
+        filename = files[referrer.value].filename.parent_path() / name;
+    else
+        filename = name;
+
     filename.replace_extension("sat");
 
-    for (const std::unique_ptr<File>& file : files)
-        if (file->filename == filename)
-            return file.get();
+    for (std::size_t i = 0; i != files.size(); ++i)
+        if (files[i].filename == filename)
+            return FileId{ i };
 
-    if (const File* const file = LoadFile(filename); file != nullptr)
+    if (const FileId file = TryLoadFile(filename); file.value != FileId::InvalidValue)
         return file;
 
     for (const std::filesystem::path& s : search)
     {
         filename = s / name;
         filename.replace_extension("sat");
-        if (const File* const file = LoadFile(filename); file != nullptr)
+        if (const FileId file = TryLoadFile(filename); file.value != FileId::InvalidValue)
             return file;
     }
 
-    return nullptr;
+    return {};
 }
 
-const File* State::LoadFile(const std::filesystem::path& filename)
+FileId MainContext::TryLoadFile(const std::filesystem::path& filename)
 {
     std::ifstream input(filename);
     if (!input)
-        return nullptr;
+        return FileId{};
 
-    File* const file = files.emplace_back(std::make_unique<File>()).get();
-    file->filename = filename;
-    file->name = file->filename.generic_string();
+    File& file = files.emplace_back();
+    file.filename = filename;
+    file.name = file.filename.generic_string();
+    file.source = std::string(std::istreambuf_iterator<char>(input), {});
 
-    file->source = std::string(std::istreambuf_iterator<char>(input), {});
-
-    return file;
-}
-
-const Source* MainResolver::ResolveModule(std::string_view name, const Source* referrer)
-{
-    const File* const file = static_cast<const File*>(referrer);
-    if (file == nullptr)
-        return {};
-
-    const std::filesystem::path dir = file->filename.parent_path();
-
-    return state.ResolveModuleFile(name, dir);
+    return FileId{ files.size() - 1 };
 }

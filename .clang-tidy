@@ -13,6 +13,7 @@ FormatStyle: "file"
 # -modernize-avoid-c-arrays: nope we use C arrays
 # -modernize-raw-string-literal: style choice, don't like it in many cases
 # -modernize-use-trailing-return-type: not stylistically desired
+# -modernize-use-auto: not stylistically desired
 # -readability-braces-around-statements: not as necessary with clang-format indentation; bloats simple statements
 # -readability-qualified-auto: is often "wrong" because we use raw pointers as iterators
 # -readability-convert-member-functions-to-static: has side effects (e.g. calling conventions)

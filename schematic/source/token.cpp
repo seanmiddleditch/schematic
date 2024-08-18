@@ -2,10 +2,6 @@
 
 #include "token.h"
 
-#include "schematic/source.h"
-
-#include <fmt/core.h>
-
 const char* potato::schematic::compiler::ToCStr(TokenType type) noexcept
 {
     switch (type)

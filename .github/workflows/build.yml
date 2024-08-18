@@ -13,15 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v3.5.3
+        uses: actions/checkout@v4
 
       - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.13
+        uses: jwlawson/actions-setup-cmake@v2
         with:
           cmake-version: '3.26.x'
 
       - name: Install ninja
-        uses: seanmiddleditch/gha-setup-ninja@v4
+        uses: seanmiddleditch/gha-setup-ninja@v5
 
       - name: Vcpkg
         id: vcpkg
@@ -32,19 +32,26 @@ jobs:
           revision: master
           token: ${{ github.token }}
 
+      - name: Set environment
+        run: |
+          echo "BUILD=out/build/linux-debug" | tee -a "$GITHUB_ENV"
+
       - name: Configure the project
         run: |
           mkdir out
           cmake -G Ninja --preset linux-debug ${{ steps.vcpkg.outputs.vcpkg-cmake-config }}
 
       - name: Build the project
-        run: cmake --build out/build/linux-debug
+        run: cmake --build ${BUILD}
 
       - name: Test the project
-        run: ctest --test-dir out/build/linux-debug
+        run: ctest --no-tests=error --output-on-failure --test-dir ${BUILD}
+
+      - name: Install the project
+        run: cmake --install ${BUILD}
 
       - name: Lint changes
-        uses: cpp-linter/cpp-linter-action@v2.6.1
+        uses: cpp-linter/cpp-linter-action@v2.12.1
         id: linter
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -52,10 +59,11 @@ jobs:
           style: file
           files-changed-only: true
           tidy-checks: ''
-          version: 17
+          version: 18
           verbosity: 20
           ignore: out|vcpkg
-          database: out/build/linux-debug
+          database: ${{ env.BUILD }}
+          extra-args: -std=c++23
           step-summary: true
 
       - name: Lint fail check

@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "schematic/string.h"
+#include "schematic/compiler.h"
 
 #include <cassert>
 #include <cstring>
 #include <new>
+#include <span>
 #include <string_view>
 #include <type_traits>
 
@@ -30,7 +31,7 @@ namespace potato::schematic
     // Operations that mutate capacity require an ArenaAllocator
     // from which new capacity is allocated. Previous memory is
     // left untouched, as elements must be trivially copyable.
-    template <Trivial T>
+    template <typename T>
     class Array
     {
     public:
@@ -52,6 +53,13 @@ namespace potato::schematic
         [[nodiscard]] size_t Size() const noexcept { return last_ - first_; }
         [[nodiscard]] const T* Data() const noexcept { return first_; }
         [[nodiscard]] T* Data() noexcept { return first_; }
+
+        void Clear() noexcept { last_ = first_; }
+
+        [[nodiscard]] operator std::span<T>() const noexcept
+        {
+            return { first_, last_ };
+        }
 
         inline void Reserve(ArenaAllocator& alloc, size_t capacity);
 
@@ -113,7 +121,11 @@ namespace potato::schematic
     class ArenaAllocator
     {
     public:
-        inline ArenaAllocator() noexcept = default;
+        ArenaAllocator() noexcept = default;
+        explicit ArenaAllocator(Allocator& alloc) noexcept
+            : alloc_(&alloc)
+        {
+        }
         inline ~ArenaAllocator();
 
         ArenaAllocator(const ArenaAllocator&) = delete;
@@ -121,7 +133,7 @@ namespace potato::schematic
 
         [[nodiscard]] inline void* Allocate(size_t size, size_t align);
 
-        [[nodiscard]] inline CStringView NewString(std::string_view string);
+        [[nodiscard]] inline const char* NewString(std::string_view string);
 
         template <Trivial T>
         [[nodiscard]] inline Array<T> NewArray(size_t capacity)
@@ -131,22 +143,28 @@ namespace potato::schematic
         [[nodiscard]] inline T* Create(Args&&... args)
             requires std::is_constructible_v<T, Args...>;
 
+        inline void Clear();
+
     private:
-        [[nodiscard]] inline static constexpr size_t AlignTo(size_t value, size_t align) noexcept;
+        [[nodiscard]] static constexpr size_t AlignTo(size_t value, size_t align) noexcept;
 
         inline void EnsureBlock(size_t minimum);
 
         struct BlockHeader
         {
-            void* previous = nullptr;
+            BlockHeader* previous = nullptr;
+            BlockHeader* next = nullptr;
+            size_t size = 0;
         };
 
+        Allocator* alloc_ = nullptr;
         void* block_ = nullptr;
         size_t head_ = 0;
         size_t capacity_ = 0;
+        BlockHeader* first_ = nullptr;
     };
 
-    template <Trivial T>
+    template <typename T>
     void Array<T>::Reserve(ArenaAllocator& alloc, size_t capacity)
     {
         if ((sentinel_ - first_) >= capacity)
@@ -156,10 +174,10 @@ namespace potato::schematic
 
         *this = alloc.NewArray<T>(capacity);
         for (const T* item = previous.first_; item != previous.last_; ++item)
-            new (last_++) T(*item);
+            new (static_cast<void*>(last_++)) T(*item); // NOLINT(bugprone-multi-level-implicit-pointer-conversion)
     }
 
-    template <Trivial T>
+    template <typename T>
     template <typename U>
         requires std::is_trivially_constructible_v<T, U>
     T& Array<T>::PushBack(ArenaAllocator& alloc, const U& value)
@@ -167,11 +185,11 @@ namespace potato::schematic
         if (last_ == sentinel_)
             Reserve(alloc, first_ == sentinel_ ? 32 : (sentinel_ - first_) * 2);
 
-        new (last_) T(value);
+        new (static_cast<void*>(last_)) T(value); // NOLINT(bugprone-multi-level-implicit-pointer-conversion)
         return *last_++;
     }
 
-    template <Trivial T>
+    template <typename T>
     template <typename... Args>
         requires std::is_constructible_v<T, Args...>
     T& Array<T>::EmplaceBack(ArenaAllocator& alloc, Args&&... args)
@@ -179,17 +197,20 @@ namespace potato::schematic
         if (last_ == sentinel_)
             Reserve(alloc, first_ == sentinel_ ? 32 : (sentinel_ - first_) * 2);
 
-        new (last_) T(std::forward<Args>(args)...);
+        new (static_cast<void*>(last_)) T(std::forward<Args>(args)...); // NOLINT(bugprone-multi-level-implicit-pointer-conversion)
         return *last_++;
     }
 
     ArenaAllocator::~ArenaAllocator()
     {
-        void* block = block_;
+        BlockHeader* block = static_cast<BlockHeader*>(block_);
         while (block != nullptr)
         {
-            void* const previous = static_cast<const BlockHeader*>(block)->previous;
-            ::operator delete(block);
+            BlockHeader* const previous = block->previous;
+            if (alloc_ != nullptr)
+                alloc_->Deallocate(block, block->size);
+            else
+                ::operator delete(block);
             block = previous;
         }
     }
@@ -200,14 +221,17 @@ namespace potato::schematic
         head_ = AlignTo(head_, align);
 
         if (capacity_ < size || head_ >= capacity_ - size)
+        {
             EnsureBlock(size);
+            head_ = AlignTo(head_, align);
+        }
 
         void* const address = static_cast<char*>(block_) + head_;
         head_ += size;
         return address;
     }
 
-    CStringView ArenaAllocator::NewString(std::string_view string)
+    const char* ArenaAllocator::NewString(std::string_view string)
     {
         if (string.empty())
             return {};
@@ -215,7 +239,7 @@ namespace potato::schematic
         char* const memory = static_cast<char*>(Allocate(string.size() + 1 /*NUL*/, 1));
         std::memcpy(memory, string.data(), string.size());
         memory[string.size()] = '\0';
-        return CStringView{ memory, string.size() };
+        return memory;
     }
 
     template <Trivial T>
@@ -233,6 +257,13 @@ namespace potato::schematic
         return new (Allocate(sizeof(T), alignof(T))) T(std::forward<Args>(args)...);
     }
 
+    void ArenaAllocator::Clear()
+    {
+        block_ = first_;
+        head_ = 0;
+        capacity_ = block_ != nullptr ? static_cast<BlockHeader*>(block_)->size : 0;
+    }
+
     constexpr size_t ArenaAllocator::AlignTo(size_t value, size_t align) noexcept
     {
         size_t mask = align - 1;
@@ -246,14 +277,32 @@ namespace potato::schematic
 
     void ArenaAllocator::EnsureBlock(size_t minimum)
     {
-        constexpr size_t block_size = 16u * 1024u;
+        constexpr size_t block_size = 16ull * 1024ull;
         constexpr size_t block_capacity = block_size - sizeof(BlockHeader);
 
-        capacity_ = block_capacity >= minimum ? block_capacity : minimum;
-        void* const block = ::operator new(sizeof(BlockHeader) + capacity_);
-        head_ = sizeof(BlockHeader);
+        const bool is_large = minimum > block_capacity;
 
-        new (block) BlockHeader{ .previous = block_ };
+        void* block = nullptr;
+        if (block_ != nullptr && !is_large && static_cast<BlockHeader*>(block_)->next != nullptr)
+        {
+            block = static_cast<BlockHeader*>(block_)->next;
+        }
+        else
+        {
+            capacity_ = block_capacity >= minimum ? block_capacity : minimum;
+            block = alloc_ != nullptr
+                ? alloc_->Allocate(sizeof(BlockHeader) + capacity_)
+                : ::operator new(sizeof(BlockHeader) + capacity_);
+            head_ = sizeof(BlockHeader);
+        }
+
+        BlockHeader* const header = new (block) BlockHeader{ .previous = static_cast<BlockHeader*>(block_), .size = capacity_ };
+
+        if (block_ != nullptr)
+            static_cast<BlockHeader*>(block_)->next = header;
+        if (first_ == nullptr)
+            first_ = header;
+
         block_ = block;
     }
 } // namespace potato::schematic

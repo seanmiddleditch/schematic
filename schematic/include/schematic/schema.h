@@ -2,15 +2,13 @@
 
 #pragma once
 
-#include "schematic/arena.h"
-
 #include <cstdint>
-#include <string_view>
+#include <span>
 
 namespace potato::schematic
 {
-    enum class TypeKind;
-    enum class ValueKind;
+    enum class TypeKind : std::uint8_t;
+    enum class ValueKind : std::uint8_t;
 
     struct Argument;
     struct Annotation;
@@ -42,62 +40,7 @@ namespace potato::schematic
     struct ValueFloat;
     struct ValueType;
 
-    const Field* FindField(const TypeAggregate* aggregate, std::string_view name) noexcept;
-    const Field* FindField(const TypeAttribute* attribute, std::string_view name) noexcept;
-
-    const EnumItem* FindItem(const TypeEnum* enumeration, std::string_view name) noexcept;
-
-    const Annotation* FindAnnotation(const Type* type, const TypeAttribute* attribute) noexcept;
-    const Annotation* FindAnnotation(const Type* type, std::string_view name) noexcept;
-
-    const Annotation* FindAnnotation(const Field* field, const TypeAttribute* attribute) noexcept;
-    const Annotation* FindAnnotation(const Field* field, std::string_view name) noexcept;
-
-    const Annotation* FindAnnotation(const EnumItem* item, const TypeAttribute* attribute) noexcept;
-    const Annotation* FindAnnotation(const EnumItem* item, std::string_view name) noexcept;
-
-    bool HasAttribute(const Type* type, const TypeAttribute* attribute) noexcept;
-    bool HasAttribute(const Type* type, std::string_view name) noexcept;
-
-    bool HasAttribute(const Field* field, const TypeAttribute* attribute) noexcept;
-    bool HasAttribute(const Field* field, std::string_view name) noexcept;
-
-    bool HasAttribute(const EnumItem* item, const TypeAttribute* attribute) noexcept;
-    bool HasAttribute(const EnumItem* item, std::string_view name) noexcept;
-
-    const Type* FindType(const Module* mod, std::string_view name) noexcept;
-    const Type* FindType(const Schema* schema, std::string_view name) noexcept;
-
-    const Value* FindArgument(const ValueObject* object, const Field* field) noexcept;
-    const Value* FindArgument(const ValueObject* object, std::string_view name) noexcept;
-
-    const Value* FindArgument(const Annotation* annotation, const Field* field) noexcept;
-    const Value* FindArgument(const Annotation* annotation, std::string_view name) noexcept;
-
-    bool IsA(const Type* type, const Type* parent) noexcept;
-
-    bool IsKind(const Type* type, TypeKind kind) noexcept;
-    bool IsKind(const Value* value, ValueKind kind) noexcept;
-
-    template <typename T>
-    const T* CastTo(const Type* type) noexcept
-        requires std::is_base_of_v<Type, T>
-    {
-        if (IsKind(type, T::Kind))
-            return static_cast<const T*>(type);
-        return nullptr;
-    }
-
-    template <typename T>
-    const T* CastTo(const Value* value) noexcept
-        requires std::is_base_of_v<Value, T>
-    {
-        if (IsKind(value, T::Kind))
-            return static_cast<const T*>(value);
-        return nullptr;
-    }
-
-    enum class TypeKind
+    enum class TypeKind : std::uint8_t
     {
         Bool,
         Int,
@@ -111,7 +54,7 @@ namespace potato::schematic
         Type,
     };
 
-    enum class ValueKind
+    enum class ValueKind : std::uint8_t
     {
         Bool,
         Null,
@@ -133,46 +76,46 @@ namespace potato::schematic
     struct Annotation
     {
         const TypeAttribute* attribute = nullptr;
-        Array<Argument> arguments;
+        std::span<const Argument> arguments;
     };
 
     struct EnumItem
     {
-        CStringView name;
+        const char* name = nullptr;
         const TypeEnum* owner = nullptr;
         const ValueInt* value = nullptr;
-        Array<const Annotation*> annotations;
+        std::span<const Annotation* const> annotations;
     };
 
     struct Field
     {
-        CStringView name;
+        const char* name = nullptr;
         const Type* owner = nullptr;
         const Type* type = nullptr;
         const Value* value = nullptr;
-        Array<const Annotation*> annotations;
+        std::span<const Annotation* const> annotations;
     };
 
     struct Module
     {
-        CStringView filename;
-        Array<const Module*> imports;
-        Array<const Type*> types;
+        const char* filename = nullptr;
+        std::span<const Module* const> imports;
+        std::span<const Type* const> types;
     };
 
     struct Schema
     {
         const Module* root = nullptr;
-        Array<const Module*> modules;
-        Array<const Type*> types;
+        std::span<const Module* const> modules;
+        std::span<const Type* const> types;
     };
 
     struct Type
     {
         TypeKind kind = TypeKind::Aggregate;
-        CStringView name;
+        const char* name = nullptr;
         const Module* owner = nullptr;
-        Array<const Annotation*> annotations;
+        std::span<const Annotation* const> annotations;
     };
 
     struct Value
@@ -214,14 +157,14 @@ namespace potato::schematic
         SCHEMATIC_TYPE(Aggregate);
 
         const TypeAggregate* base = nullptr;
-        Array<Field> fields;
+        std::span<const Field> fields;
     };
 
     struct TypeAttribute : Type
     {
         SCHEMATIC_TYPE(Attribute);
 
-        Array<Field> fields;
+        std::span<const Field> fields;
     };
 
     struct TypeEnum : Type
@@ -229,7 +172,7 @@ namespace potato::schematic
         SCHEMATIC_TYPE(Enum);
 
         const Type* base = nullptr;
-        Array<EnumItem> items;
+        std::span<const EnumItem> items;
     };
 
     struct TypeArray : Type
@@ -297,7 +240,7 @@ namespace potato::schematic
     {
         SCHEMATIC_VALUE(String);
 
-        CStringView value;
+        const char* value = nullptr;
     };
 
     struct ValueObject : Value
@@ -305,7 +248,7 @@ namespace potato::schematic
         SCHEMATIC_VALUE(Object);
 
         const Type* type = nullptr;
-        Array<Argument> fields;
+        std::span<const Argument> fields;
     };
 
     struct ValueArray : Value
@@ -313,7 +256,7 @@ namespace potato::schematic
         SCHEMATIC_VALUE(Array);
 
         const Type* type = nullptr;
-        Array<const Value*> elements;
+        std::span<const Value* const> elements;
     };
 
     struct ValueType : Value

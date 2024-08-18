@@ -1,45 +1,49 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
-#include "schematic_test.h"
+#include "lexer.h"
+#include "test_context.h"
+#include "test_matchers.h"
+#include "test_strings.h"
 
-#include "schematic/compile.h"
+#include "schematic/compiler.h"
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_templated.hpp>
 #include <fmt/core.h>
 
-#include "../source/lexer.h"
-
 using namespace potato::schematic;
 using namespace potato::schematic::compiler;
 using namespace potato::schematic::test;
 
+#define CompileTest(NAME) \
+    ([&](auto name) { \
+        const FileId file = ctx.ResolveModule(name, FileId{}); \
+        REQUIRE(file.value != FileId::InvalidValue); \
+        REQUIRE(compiler.Compile(file)); \
+        const Schema* const schema = compiler.GetSchema(); \
+        REQUIRE(schema != nullptr); \
+        REQUIRE(schema->root != nullptr); \
+        return *schema; \
+    }((NAME)));
+
 TEST_CASE("Compiler", "[potato][schematic]")
 {
-    ArenaAllocator alloc;
-    TestResolver resolver;
-    TestLogger logger;
-
-    auto CompileTest = [&alloc, &logger, &resolver](std::string_view name) -> const Schema&
-    {
-        const Source* const source = resolver.ResolveModule(name, nullptr);
-        REQUIRE(source != nullptr);
-        const Schema* const schema = Compile(logger, resolver, alloc, source, CompileOptions{});
-        REQUIRE(schema != nullptr);
-        REQUIRE(schema->root != nullptr);
-        return *schema;
-    };
+    TestContext ctx;
+    Compiler compiler(ctx);
+    compiler.SetUseBuiltins(true);
 
     SECTION("Lexer")
     {
         Array<Token> tokens;
-        const TestSource source("<test>", R"--(
+        ctx.AddFile("<test>", R"--(
         // this is a comment
 
         // and another comment
 )--");
 
-        REQUIRE(Tokenize(logger, alloc, &source, tokens));
+        ArenaAllocator alloc;
+        Lexer lexer(ctx, alloc, FileId{ 0 });
+        REQUIRE(!lexer.Tokenize().IsEmpty());
 
         CHECK_THAT("123", IsTokenType(TokenType::Integer));
 
@@ -70,7 +74,7 @@ World!""")",
 
     SECTION("Enum")
     {
-        resolver.AddFile("enum", R"--(
+        ctx.AddFile("enum", R"--(
         enum color
         {
             red,
@@ -88,7 +92,7 @@ World!""")",
         const TypeEnum* const color = CastTo<TypeEnum>(FindType(&schema, "color"));
         REQUIRE(color != nullptr);
         CHECK(color->kind == TypeKind::Enum);
-        CHECK(color->items.Size() == 3);
+        CHECK(color->items.size() == 3);
 
         const EnumItem* const green = FindItem(color, "green");
 
@@ -102,7 +106,7 @@ World!""")",
 
     SECTION("Struct")
     {
-        resolver.AddFile("main", R"--(
+        ctx.AddFile("main", R"--(
         import imported;
 
         struct test : base
@@ -113,7 +117,7 @@ World!""")",
             float thousand = 1.0e3;
         }
 )--");
-        resolver.AddFile("imported", R"--(
+        ctx.AddFile("imported", R"--(
         struct unused {}
         struct base {}
 )--");
@@ -128,7 +132,7 @@ World!""")",
         REQUIRE(test != nullptr);
         CHECK(test->kind == TypeKind::Aggregate);
         CHECK(test->base == base);
-        CHECK(test->fields.Size() == 4);
+        CHECK(test->fields.size() == 4);
 
         CHECK_THAT(FindField(test, "num"), IsValue<ValueInt>(42));
         CHECK_THAT(FindField(test, "b"), IsValue<ValueBool>(true));
@@ -138,7 +142,7 @@ World!""")",
 
     SECTION("Type Modifiers")
     {
-        resolver.AddFile("type_modifiers", R"--(
+        ctx.AddFile("type_modifiers", R"--(
         struct test
         {
             int32[] num = { 1, 2, 3 };
@@ -151,7 +155,7 @@ World!""")",
 
     SECTION("Initializers")
     {
-        resolver.AddFile("initializer", R"--(
+        ctx.AddFile("initializer", R"--(
         struct embed
         {
             int32 a;
@@ -180,7 +184,7 @@ World!""")",
 
             const ValueObject* const value = CastTo<ValueObject>(field->value);
             REQUIRE(value != nullptr);
-            REQUIRE(value->fields.Size() == embed->fields.Size());
+            REQUIRE(value->fields.size() == embed->fields.size());
 
             CHECK(value->fields[0].field == &embed->fields[0]);
             CHECK_THAT(value->fields[0].value, IsValue<ValueInt>(1));
@@ -196,7 +200,7 @@ World!""")",
 
             const ValueObject* const value = CastTo<ValueObject>(field->value);
             REQUIRE(value != nullptr);
-            REQUIRE(value->fields.Size() == embed->fields.Size());
+            REQUIRE(value->fields.size() == embed->fields.size());
 
             CHECK(value->fields[0].field == &embed->fields[0]);
             CHECK_THAT(value->fields[0].value, IsValue<ValueInt>(4));
@@ -208,7 +212,7 @@ World!""")",
 
     SECTION("Attributes")
     {
-        resolver.AddFile("annotations", R"--(
+        ctx.AddFile("annotations", R"--(
         attribute Ignore;
         attribute Name { string first; int32 second; int32 third = 7; }
         attribute More {}
