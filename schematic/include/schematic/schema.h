@@ -7,8 +7,8 @@
 
 namespace potato::schematic
 {
-    enum class TypeKind;
-    enum class ValueKind;
+    enum class TypeKind : std::uint8_t;
+    enum class ValueKind : std::uint8_t;
 
     struct Argument;
     struct Annotation;
