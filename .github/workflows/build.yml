@@ -45,7 +45,7 @@ jobs:
         run: cmake --build ${BUILD}
 
       - name: Test the project
-        run: ctest --no-tests=error --test-dir ${BUILD}
+        run: ctest --no-tests=error --output-on-failure --test-dir ${BUILD}
 
       - name: Install the project
         run: cmake --install ${BUILD}

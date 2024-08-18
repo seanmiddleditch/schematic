@@ -23,34 +23,31 @@ execute_process(
     RESULT_VARIABLE RESULT
 )
 
+function(test_output EXPECTED ACTUAL)
+    cmake_path(CONVERT "${EXPECTED}" TO_NATIVE_PATH_LIST EXPECTED_NATIVE NORMALIZE)
+    cmake_path(CONVERT "${ACTUAL}" TO_NATIVE_PATH_LIST ACTUAL_NATIVE NORMALIZE)
+    if(NOT EXISTS "${ACTUAL}")
+        message(FATAL_ERROR "${TEST} failed: deps file ${ACTUAL} missing")
+    endif()
+    execute_process(COMMAND
+        ${CMAKE_COMMAND} -E compare_files --ignore-eol "${ACTUAL_NATIVE}" "${EXPECTED_NATIVE}"
+        RESULT_VARIABLE DEPS_COMPARE
+    )
+    if(NOT DEPS_COMPARE EQUAL 0)
+        if(DIFF)
+            execute_process(COMMAND "${DIFF}" "${EXPECTED_NATIVE}" "${ACTUAL_NATIVE}")
+        else()
+            file(READ "${EXPECTED}" EXPECTED_CONTENTS)
+            file(READ "${ACTUAL}" ACTUAL_CONTENTS) 
+            message("Expected:\n${EXPECTED_CONTENTS}\nGot:\n${ACTUAL_CONTENTS}")
+            message(FATAL_ERROR "Deps output does not match acceptance test")
+        endif()
+    endif()
+endfunction()
+
 if(NOT ${RESULT} EQUAL 0)
     message(FATAL_ERROR "${TEST} failed: ${RESULT}")
 endif()
 
-if(NOT EXISTS "${DEPS_FILE}")
-    message(FATAL_ERROR "${TEST} failed: deps file ${DEPS_FILE} missing")
-endif()
-execute_process(COMMAND
-    ${CMAKE_COMMAND} -E compare_files --ignore-eol "${DEPS_FILE}" "${ACCEPT}/${TEST}.d"
-    RESULT_VARIABLE DEPS_COMPARE
-)
-if(NOT DEPS_COMPARE EQUAL 0)
-    file(READ "${ACCEPT}/${TEST}.d" EXPECTED)
-    file(READ "${DEPS_FILE}" ACTUAL) 
-    message("Expected:\n${EXPECTED}\nGot:\n${ACTUAL}")
-    message(FATAL_ERROR "Deps output does not match acceptance test")
-endif()
-
-if(NOT EXISTS "${OUTPUT_FILE}")
-    message(FATAL_ERROR "${TEST} failed: output file ${OUTPUT_FILE} missing")
-endif()
-execute_process(COMMAND
-    ${CMAKE_COMMAND} -E compare_files --ignore-eol "${OUTPUT_FILE}" "${ACCEPT}/${TEST}.json"
-    RESULT_VARIABLE OUTPUT_COMPARE
-)
-if(NOT OUTPUT_COMPARE EQUAL 0)
-    file(READ "${ACCEPT}/${TEST}.json" EXPECTED)
-    file(READ "${OUTPUT_FILE}" ACTUAL) 
-    message("Expected:\n'''${EXPECTED}'''\nGot:\n'''${ACTUAL}'''")
-    message(FATAL_ERROR "Output file does not match acceptance test")
-endif()
+test_output("${ACCEPT}/${TEST}.d" "${DEPS_FILE}")
+test_output("${ACCEPT}/${TEST}.json" "${OUTPUT_FILE}")

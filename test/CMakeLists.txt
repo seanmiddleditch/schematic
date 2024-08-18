@@ -14,6 +14,8 @@ target_sources(schematic_test PRIVATE
 )
 catch_discover_tests(schematic_test)
 
+find_program(DIFF_PATH NAMES diff fc DOC "diff utility for displaying test output mismatch context")
+
 set(_SCHEMA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/schemas")
 function(_schematic_add_test TEST)
     add_test(
@@ -23,6 +25,7 @@ function(_schematic_add_test TEST)
             "-DEXE=$<TARGET_FILE:schematic::schemac>"
             "-DACCEPT=${CMAKE_CURRENT_SOURCE_DIR}/accept"
             "-DSEARCH=${_SCHEMA_DIR}"
+            "-DDIFF=${DIFF_PATH}"
             "-DTEST=${TEST}"
             "-DOUT=${CMAKE_CURRENT_BINARY_DIR}"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/driver.cmake"
