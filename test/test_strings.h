@@ -77,5 +77,5 @@ std::string Catch::StringMaker<const potato::schematic::Value*>::convert(const p
         case Type: return fmt::format("type");
     }
 
-    return fmt::format("unknown(kind={})", static_cast<std::underlying_type_t<ValueKind>>(value->kind));
+    return fmt::format("unknown(kind={})", std::to_underlying(value->kind));
 }
