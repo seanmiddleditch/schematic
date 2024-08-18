@@ -17,6 +17,7 @@
 #include <charconv>
 #include <climits>
 #include <cstdint>
+#include <utility>
 
 using namespace potato::schematic;
 using namespace potato::schematic::compiler;
