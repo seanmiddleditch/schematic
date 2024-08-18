@@ -53,7 +53,7 @@ struct potato::schematic::Compiler::Impl final : ParseContext
     }
 
     const Schema* Compile(FileId file);
-    const Module* Compile();
+    const Module* CompileModule();
 
     const AstNodeModule* HandleImport(const AstNodeImport& imp);
 
@@ -94,6 +94,7 @@ struct potato::schematic::Compiler::Impl final : ParseContext
     ArenaAllocator arena;
     bool useBuiltins = false;
     const Module* builtins = nullptr;
+    const Schema* schema = nullptr;
     bool result = true;
     Array<State*> stack;
 };
@@ -118,17 +119,27 @@ potato::schematic::Compiler::~Compiler()
     impl_ = nullptr;
 }
 
-void potato::schematic::Compiler::AddBuiltins()
+void potato::schematic::Compiler::SetUseBuiltins(bool useBuiltins)
 {
-    impl_->useBuiltins = true;
+    impl_->useBuiltins = useBuiltins;
 }
 
-const Schema* potato::schematic::Compiler::Compile(FileId file)
+bool potato::schematic::Compiler::Compile(FileId file)
 {
-    return impl_->Compile(file);
+    impl_->arena.Clear();
+    impl_->builtins = nullptr;
+    impl_->schema = nullptr;
+    impl_->result = true;
+    impl_->stack = Array<State*>{};
+    return impl_->Compile(file) != nullptr;
 }
 
-const Module* potato::schematic::Compiler::Impl::Compile()
+const Schema* potato::schematic::Compiler::GetSchema()
+{
+    return impl_->schema;
+}
+
+const Module* potato::schematic::Compiler::Impl::CompileModule()
 {
     State& state = *stack.Back();
 
@@ -191,10 +202,10 @@ const Schema* potato::schematic::Compiler::Impl::Compile(FileId file)
     state->mod = arena.Create<Module>();
     state->mod->filename = arena.NewString(ctx.GetFileName(file));
 
-    if (builtins != nullptr)
+    if (useBuiltins)
         state->imports.EmplaceBack(arena, builtins);
 
-    if (!Compile())
+    if (!CompileModule())
         return nullptr;
 
     stack.PopBack();
@@ -215,6 +226,7 @@ const Schema* potato::schematic::Compiler::Impl::Compile(FileId file)
         schema->modules = visited;
     }
 
+    this->schema = schema;
     return schema;
 }
 
@@ -233,7 +245,7 @@ const AstNodeModule* potato::schematic::Compiler::Impl::HandleImport(const AstNo
     state->mod->filename = arena.NewString(ctx.GetFileName(file));
 
     stack.PushBack(arena, state);
-    const bool success = Compile() != nullptr;
+    const bool success = CompileModule() != nullptr;
     stack.PopBack();
 
     if (success)

@@ -2,9 +2,8 @@
 
 #include "schematic/serialize.h"
 
-#include "schematic.pb.h"
-
 #include "schematic/schema.h"
+#include "schematic/schematic.pb.h"
 
 #include <google/protobuf/util/json_util.h>
 
@@ -58,32 +57,14 @@ namespace
     };
 } // namespace
 
-std::vector<char> potato::schematic::SerializeBinary(const Schema& schema)
+const proto::Schema* potato::schematic::SerializeBinary(google::protobuf::Arena& arena, const Schema& schema)
 {
-    proto::Schema out;
+    proto::Schema* const result = google::protobuf::Arena::Create<proto::Schema>(&arena);
     Serializer serializer(schema);
-    serializer.Serialize(out);
-
-    std::vector<char> result;
-    result.resize(out.ByteSizeLong());
-    out.SerializeToArray(result.data(), result.size());
-
+    serializer.Serialize(*result);
     return result;
 }
-std::string potato::schematic::SerializeJson(const Schema& schema)
-{
-    proto::Schema out;
-    Serializer serializer(schema);
-    serializer.Serialize(out);
 
-    std::string result;
-    google::protobuf::util::JsonPrintOptions options;
-    options.add_whitespace = true;
-    options.preserve_proto_field_names = true;
-    google::protobuf::util::MessageToJsonString(out, &result, options);
-
-    return result;
-}
 void Serializer::Serialize(proto::Schema& out)
 {
     for (const Module* const mod : schema_.modules)

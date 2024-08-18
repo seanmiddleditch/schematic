@@ -19,7 +19,8 @@ using namespace potato::schematic::test;
     ([&](auto name) { \
         const FileId file = ctx.ResolveModule(name, FileId{}); \
         REQUIRE(file.value != FileId::InvalidValue); \
-        const Schema* const schema = compiler.Compile(file); \
+        REQUIRE(compiler.Compile(file)); \
+        const Schema* const schema = compiler.GetSchema(); \
         REQUIRE(schema != nullptr); \
         REQUIRE(schema->root != nullptr); \
         return *schema; \
@@ -29,7 +30,7 @@ TEST_CASE("Compiler", "[potato][schematic]")
 {
     TestContext ctx;
     Compiler compiler(ctx);
-    compiler.AddBuiltins();
+    compiler.SetUseBuiltins(true);
 
     SECTION("Lexer")
     {

@@ -2,16 +2,14 @@
 
 #pragma once
 
-#include <cstddef>
-#include <span>
+#include "schematic/schematic.pb.h"
+
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace potato::schematic
 {
     struct Schema;
 
-    std::vector<char> SerializeBinary(const Schema& schema);
-    std::string SerializeJson(const Schema& schema);
+    const proto::Schema* SerializeBinary(google::protobuf::Arena& arena, const Schema& schema);
 } // namespace potato::schematic

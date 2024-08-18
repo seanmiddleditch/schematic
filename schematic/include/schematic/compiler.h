@@ -56,9 +56,11 @@ namespace potato::schematic
         Compiler(const Compiler&) = delete;
         Compiler& operator=(const Compiler&) = delete;
 
-        void AddBuiltins();
+        void SetUseBuiltins(bool useBuiltins = true);
 
-        const Schema* Compile(FileId file);
+        bool Compile(FileId file);
+
+        const Schema* GetSchema(); // returns nullptr if Compile has not previously returned true
 
     private:
         struct Impl;

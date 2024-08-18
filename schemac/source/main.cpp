@@ -14,6 +14,8 @@
 #include <string_view>
 #include <vector>
 
+#include "google/protobuf/util/json_util.h"
+
 using namespace potato::schematic;
 
 namespace
@@ -64,10 +66,16 @@ int main(int argc, char** argv)
     const FileId root = ctx.TryLoadFile(ctx.input);
 
     Compiler compiler(ctx);
-    compiler.AddBuiltins();
-    const Schema* const schema = compiler.Compile(root);
-    if (schema == nullptr)
+    compiler.SetUseBuiltins(true);
+    if (!compiler.Compile(root))
         return 1;
+
+    const Schema* const schema = compiler.GetSchema();
+    if (schema == nullptr)
+    {
+        fmt::println(stderr, "Internal error: schema not created");
+        return 1;
+    }
 
     {
         std::ostream* out = &std::cout;
@@ -89,15 +97,30 @@ int main(int argc, char** argv)
             out = &out_file;
         }
 
+        google::protobuf::Arena arena;
+        const proto::Schema* const proto = SerializeBinary(arena, *schema);
+        if (proto == nullptr)
+        {
+            fmt::println(stderr, "Internal error: serialization to protobuf failed");
+            return 1;
+        }
+
         if (ctx.writeJson)
         {
-            const std::string serialized = SerializeJson(*schema);
-            out->write(serialized.data(), static_cast<std::streamsize>(serialized.size()));
+            google::protobuf::util::JsonPrintOptions options;
+            options.add_whitespace = true;
+            options.preserve_proto_field_names = true;
+            std::string json;
+            google::protobuf::util::MessageToJsonString(*proto, &json, options);
+            out->write(json.data(), static_cast<std::streamsize>(json.size()));
         }
         else
         {
-            const std::vector<char> serialized = SerializeBinary(*schema);
-            out->write(serialized.data(), static_cast<std::streamsize>(serialized.size()));
+            if (!proto->SerializeToOstream(out))
+            {
+                fmt::println(stderr, "Internal error: serializing to output stream failed");
+                return 1;
+            }
         }
 
         out_file.close();

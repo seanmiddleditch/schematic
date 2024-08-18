@@ -143,6 +143,8 @@ namespace potato::schematic
         [[nodiscard]] inline T* Create(Args&&... args)
             requires std::is_constructible_v<T, Args...>;
 
+        inline void Clear();
+
     private:
         [[nodiscard]] static constexpr size_t AlignTo(size_t value, size_t align) noexcept;
 
@@ -150,7 +152,8 @@ namespace potato::schematic
 
         struct BlockHeader
         {
-            void* previous = nullptr;
+            BlockHeader* previous = nullptr;
+            BlockHeader* next = nullptr;
             size_t size = 0;
         };
 
@@ -158,6 +161,7 @@ namespace potato::schematic
         void* block_ = nullptr;
         size_t head_ = 0;
         size_t capacity_ = 0;
+        BlockHeader* first_ = nullptr;
     };
 
     template <typename T>
@@ -199,12 +203,12 @@ namespace potato::schematic
 
     ArenaAllocator::~ArenaAllocator()
     {
-        void* block = block_;
+        BlockHeader* block = static_cast<BlockHeader*>(block_);
         while (block != nullptr)
         {
-            void* const previous = static_cast<const BlockHeader*>(block)->previous;
+            BlockHeader* const previous = block->previous;
             if (alloc_ != nullptr)
-                alloc_->Deallocate(block, static_cast<const BlockHeader*>(block)->size);
+                alloc_->Deallocate(block, block->size);
             else
                 ::operator delete(block);
             block = previous;
@@ -253,6 +257,13 @@ namespace potato::schematic
         return new (Allocate(sizeof(T), alignof(T))) T(std::forward<Args>(args)...);
     }
 
+    void ArenaAllocator::Clear()
+    {
+        block_ = first_;
+        head_ = 0;
+        capacity_ = block_ != nullptr ? static_cast<BlockHeader*>(block_)->size : 0;
+    }
+
     constexpr size_t ArenaAllocator::AlignTo(size_t value, size_t align) noexcept
     {
         size_t mask = align - 1;
@@ -269,13 +280,29 @@ namespace potato::schematic
         constexpr size_t block_size = 16ull * 1024ull;
         constexpr size_t block_capacity = block_size - sizeof(BlockHeader);
 
-        capacity_ = block_capacity >= minimum ? block_capacity : minimum;
-        void* const block = alloc_ != nullptr
-            ? alloc_->Allocate(sizeof(BlockHeader) + capacity_)
-            : ::operator new(sizeof(BlockHeader) + capacity_);
-        head_ = sizeof(BlockHeader);
+        const bool is_large = minimum > block_capacity;
 
-        new (block) BlockHeader{ .previous = block_, .size = capacity_ };
+        void* block = nullptr;
+        if (block_ != nullptr && !is_large && static_cast<BlockHeader*>(block_)->next != nullptr)
+        {
+            block = static_cast<BlockHeader*>(block_)->next;
+        }
+        else
+        {
+            capacity_ = block_capacity >= minimum ? block_capacity : minimum;
+            block = alloc_ != nullptr
+                ? alloc_->Allocate(sizeof(BlockHeader) + capacity_)
+                : ::operator new(sizeof(BlockHeader) + capacity_);
+            head_ = sizeof(BlockHeader);
+        }
+
+        BlockHeader* const header = new (block) BlockHeader{ .previous = static_cast<BlockHeader*>(block_), .size = capacity_ };
+
+        if (block_ != nullptr)
+            static_cast<BlockHeader*>(block_)->next = header;
+        if (first_ == nullptr)
+            first_ = header;
+
         block_ = block;
     }
 } // namespace potato::schematic
