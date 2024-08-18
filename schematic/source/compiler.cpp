@@ -232,7 +232,7 @@ const AstNodeModule* potato::schematic::Compiler::Impl::HandleImport(const AstNo
     state->mod->filename = arena.NewString(ctx.GetFileName(file));
 
     stack.PushBack(arena, state);
-    const bool success = Compile();
+    const bool success = Compile() != nullptr;
     stack.PopBack();
 
     if (success)
@@ -315,7 +315,7 @@ void potato::schematic::Compiler::Impl::BuildAggregate(const AstNodeAggregateDec
     {
         Field& field = fields.EmplaceBack(arena);
         field.owner = type;
-        if (ast_field->name.name)
+        if (ast_field->name.name != nullptr)
             field.name = ast_field->name.name;
         field.type = Resolve(ast_field->type);
         if (ast_field->value != nullptr)
@@ -340,7 +340,7 @@ void potato::schematic::Compiler::Impl::BuildAttribute(const AstNodeAttributeDec
     {
         Field& field = fields.EmplaceBack(arena);
         field.owner = type;
-        if (ast_field->name.name)
+        if (ast_field->name.name != nullptr)
             field.name = ast_field->name.name;
         field.type = Resolve(ast_field->type);
         if (ast_field->value != nullptr)
