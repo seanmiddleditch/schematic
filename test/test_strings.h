@@ -68,13 +68,13 @@ std::string Catch::StringMaker<const potato::schematic::Value*>::convert(const p
     switch (value->kind)
     {
         using enum ValueKind;
-        case Bool: return std::format("{}", CastTo<ValueBool>(value)->value);
-        case Null: return std::format("nullptr");
-        case Int: return std::format("{}", CastTo<ValueInt>(value)->value);
+        case Bool: return fmt::format("{}", CastTo<ValueBool>(value)->value);
+        case Null: return fmt::format("nullptr");
+        case Int: return fmt::format("{}", CastTo<ValueInt>(value)->value);
         case Enum: return Catch::StringMaker<const EnumItem*>::convert(CastTo<ValueEnum>(value)->item);
-        case Object: return std::format("object");
-        case Array: return std::format("array");
-        case Type: return std::format("type");
+        case Object: return fmt::format("object");
+        case Array: return fmt::format("array");
+        case Type: return fmt::format("type");
     }
 
     return fmt::format("unknown(kind={})", std::to_underlying(value->kind));
