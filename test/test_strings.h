@@ -14,6 +14,7 @@
 #include <fmt/core.h>
 
 #include <span>
+#include <utility>
 
 namespace potato::schematic::test
 {
