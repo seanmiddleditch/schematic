@@ -40,7 +40,7 @@ namespace potato::schematic
     struct ValueFloat;
     struct ValueType;
 
-    enum class TypeKind
+    enum class TypeKind : std::uint8_t
     {
         Bool,
         Int,
@@ -54,7 +54,7 @@ namespace potato::schematic
         Type,
     };
 
-    enum class ValueKind
+    enum class ValueKind : std::uint8_t
     {
         Bool,
         Null,

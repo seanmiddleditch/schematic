@@ -18,7 +18,7 @@ using namespace potato::schematic;
 
 namespace
 {
-    enum class Command
+    enum class Command : unsigned char
     {
         Compile,
         Help
@@ -140,7 +140,7 @@ static bool StartsWithOption(std::string_view arg, std::string_view option)
 
 bool ParseArguments(MainContext& ctx, std::span<char*> args)
 {
-    enum class NextArg
+    enum class NextArg : unsigned char
     {
         Unknown,
         Search,

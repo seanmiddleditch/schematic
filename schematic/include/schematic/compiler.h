@@ -21,10 +21,11 @@ namespace potato::schematic
         virtual void* Allocate(std::size_t size) = 0;
         virtual void Deallocate(void* memory, std::size_t size) = 0;
 
+        Allocator(const Allocator&) = delete;
+        Allocator& operator=(const Allocator&) = delete;
+
     protected:
         Allocator() = default;
-        Allocator(const Allocator&) = default;
-        Allocator& operator=(const Allocator&) = default;
         ~Allocator() = default;
     };
 
@@ -37,11 +38,11 @@ namespace potato::schematic
         virtual std::string_view GetFileName(FileId id) = 0;
         virtual FileId ResolveModule(std::string_view name, FileId referrer) = 0;
 
+        CompileContext(const CompileContext&) = delete;
+        CompileContext& operator=(const CompileContext&) = delete;
+
     protected:
         CompileContext() = default;
-        CompileContext(const CompileContext&) = default;
-        CompileContext& operator=(const CompileContext&) = default;
-
         ~CompileContext() = default;
     };
 

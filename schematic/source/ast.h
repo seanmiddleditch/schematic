@@ -11,7 +11,7 @@
 
 namespace potato::schematic::compiler
 {
-    enum class AstNodeKind
+    enum class AstNodeKind : std::uint8_t
     {
         None,
         Module,
