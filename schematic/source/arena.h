@@ -170,7 +170,7 @@ namespace potato::schematic
 
         *this = alloc.NewArray<T>(capacity);
         for (const T* item = previous.first_; item != previous.last_; ++item)
-            new (static_cast<void*>(last_++)) T(*item);
+            new (static_cast<void*>(last_++)) T(*item); // NOLINT(bugprone-multi-level-implicit-pointer-conversion)
     }
 
     template <typename T>
@@ -181,7 +181,7 @@ namespace potato::schematic
         if (last_ == sentinel_)
             Reserve(alloc, first_ == sentinel_ ? 32 : (sentinel_ - first_) * 2);
 
-        new (static_cast<void*>(last_)) T(value);
+        new (static_cast<void*>(last_)) T(value); // NOLINT(bugprone-multi-level-implicit-pointer-conversion)
         return *last_++;
     }
 
@@ -193,7 +193,7 @@ namespace potato::schematic
         if (last_ == sentinel_)
             Reserve(alloc, first_ == sentinel_ ? 32 : (sentinel_ - first_) * 2);
 
-        new (static_cast<void*>(last_)) T(std::forward<Args>(args)...);
+        new (static_cast<void*>(last_)) T(std::forward<Args>(args)...); // NOLINT(bugprone-multi-level-implicit-pointer-conversion)
         return *last_++;
     }
 
