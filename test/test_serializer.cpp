@@ -37,6 +37,8 @@ TEST_CASE("Serialize", "[potato][schematic]")
 {
     TestContext ctx;
     NewDeleteAllocator alloc;
+    ArenaAllocator arena(alloc);
+    google::protobuf::Arena pb_arena;
     Compiler compiler(ctx, alloc);
     compiler.SetUseBuiltins(true);
 
@@ -47,14 +49,14 @@ TEST_CASE("Serialize", "[potato][schematic]")
     const Schema* const original = compiler.GetSchema();
     REQUIRE(original != nullptr);
 
-    google::protobuf::Arena arena;
-    const proto::Schema* const proto = Serialize(arena, original);
+    
+    const proto::Schema* const proto = Serialize(pb_arena, original);
     REQUIRE(proto != nullptr);
 
-    const Schema* const deserialized = Deserialize(alloc, proto);
+    const Schema* const deserialized = Deserialize(arena, proto);
     REQUIRE(deserialized != nullptr);
 
-    const proto::Schema* const proto2 = Serialize(arena, deserialized);
+    const proto::Schema* const proto2 = Serialize(pb_arena, deserialized);
     REQUIRE(proto2 != nullptr);
 
     CHECK(proto->ShortDebugString() == proto2->ShortDebugString());

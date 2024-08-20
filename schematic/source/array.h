@@ -4,6 +4,7 @@
 
 #include "schematic/allocator.h"
 
+#include <cassert>
 #include <span>
 
 namespace potato::schematic
@@ -28,6 +29,9 @@ namespace potato::schematic
 
         [[nodiscard]] const T* begin() const noexcept { return first_; }
         [[nodiscard]] const T* end() const noexcept { return last_; }
+
+        [[nodiscard]] T* begin() noexcept { return first_; }
+        [[nodiscard]] T* end() noexcept { return last_; }
 
         [[nodiscard]] bool IsEmpty() const noexcept { return first_ == last_; }
         [[nodiscard]] explicit operator bool() const noexcept { return first_ != last_; }
@@ -84,7 +88,13 @@ namespace potato::schematic
             return *(last_ - 1);
         }
 
-        const T& operator[](size_t index) const noexcept
+        [[nodiscard]] const T& operator[](size_t index) const noexcept
+        {
+            assert(index < (last_ - first_));
+            return first_[index];
+        }
+
+        [[nodiscard]] T& operator[](size_t index) noexcept
         {
             assert(index < (last_ - first_));
             return first_[index];

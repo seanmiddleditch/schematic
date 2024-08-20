@@ -13,5 +13,5 @@ namespace potato::schematic
     struct Schema;
 
     const proto::Schema* Serialize(google::protobuf::Arena& arena, const Schema* schema);
-    const Schema* Deserialize(Allocator& alloc, const proto::Schema* proto);
+    const Schema* Deserialize(ArenaAllocator& arena, const proto::Schema* proto);
 } // namespace potato::schematic

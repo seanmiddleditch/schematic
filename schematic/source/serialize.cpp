@@ -2,6 +2,8 @@
 
 #include "schematic/serialize.h"
 
+#include "array.h"
+
 #include "schematic/schema.h"
 #include "schematic/schematic.pb.h"
 #include "schematic/utility.h"
@@ -60,9 +62,9 @@ namespace
     class Deserializer
     {
     public:
-        explicit Deserializer(const proto::Schema& proto, Allocator& alloc)
+        explicit Deserializer(const proto::Schema& proto, ArenaAllocator& arena)
             : proto_(proto)
-            , alloc_(alloc)
+            , arena_(arena)
         {
         }
 
@@ -98,9 +100,9 @@ namespace
         void Deserialize(Annotation& out, const proto::Annotation& in);
 
         const proto::Schema& proto_;
-        Allocator& alloc_;
-        std::span<Module*> modules_;
-        std::span<Type*> types_;
+        ArenaAllocator& arena_;
+        Array<Module*> modules_;
+        Array<Type*> types_;
     };
 } // namespace
 
@@ -114,12 +116,12 @@ const proto::Schema* potato::schematic::Serialize(google::protobuf::Arena& arena
     return proto;
 }
 
-const Schema* potato::schematic::Deserialize(Allocator& allocator, const proto::Schema* proto)
+const Schema* potato::schematic::Deserialize(ArenaAllocator& arena, const proto::Schema* proto)
 {
     if (proto == nullptr)
         return nullptr;
-    Schema* const schema = allocator.New<Schema>();
-    Deserializer serializer(*proto, allocator);
+    Schema* const schema = arena.New<Schema>();
+    Deserializer serializer(*proto, arena);
     serializer.Deserialize(*schema);
     return schema;
 }
@@ -445,75 +447,73 @@ void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
 void Deserializer::Deserialize(Schema& out)
 {
     // Deserialize modules, excluding their child types (we haven't deserialized those yet)
-    modules_ = alloc_.NewArray<Module*>(proto_.modules_size());
-    for (Module*& mod : modules_)
-        mod = alloc_.New<Module>();
+    modules_ = arena_.NewArray<Module*>(proto_.modules_size());
+    for (std::size_t index = 0; index != modules_.Capacity(); ++index)
+        modules_.PushBack(arena_, arena_.New<Module>());
 
     const std::size_t root_index = proto_.root_module();
-    if (root_index < modules_.size())
+    if (root_index < modules_.Size())
         out.root = modules_[root_index];
 
     std::size_t module_index = 0;
     for (const proto::Module& mod : proto_.modules())
     {
         Module& out_mod = *modules_[module_index++];
-        out_mod.filename = alloc_.NewString(mod.filename());
+        out_mod.filename = arena_.NewString(mod.filename());
 
-        const std::span<const Module*> imports = alloc_.NewArray<const Module*>(mod.imports_size());
-        std::size_t import_index = 0;
+        Array<const Module*> imports = arena_.NewArray<const Module*>(mod.imports_size());
         for (std::uint32_t target_index : mod.imports())
         {
-            if (target_index < modules_.size())
-                imports[import_index++] = modules_[target_index];
+            if (target_index < modules_.Size())
+                imports.EmplaceBack(arena_, modules_[target_index]);
         }
-        out_mod.imports = imports.subspan(0, import_index);
+        out_mod.imports = imports;
     }
-    out.modules = modules_.subspan(0, module_index);
+    out.modules = modules_;
 
     // Instantiate types
-    types_ = alloc_.NewArray<Type*>(proto_.types_size());
+    types_ = arena_.NewArray<Type*>(proto_.types_size());
 
-    std::size_t type_index = 0;
     for (const proto::Type& type : proto_.types())
     {
         switch (type.Types_case())
         {
             case proto::Type::kAggregate:
-                types_[type_index++] = alloc_.New<TypeAggregate>();
+                types_.PushBack(arena_, arena_.New<TypeAggregate>());
                 break;
             case proto::Type::kBool:
-                types_[type_index++] = alloc_.New<TypeBool>();
+                types_.PushBack(arena_, arena_.New<TypeBool>());
                 break;
             case proto::Type::kInt:
-                types_[type_index++] = alloc_.New<TypeInt>();
+                types_.PushBack(arena_, arena_.New<TypeInt>());
                 break;
             case proto::Type::kFloat:
-                types_[type_index++] = alloc_.New<TypeFloat>();
+                types_.PushBack(arena_, arena_.New<TypeFloat>());
                 break;
             case proto::Type::kArray:
-                types_[type_index++] = alloc_.New<TypeArray>();
+                types_.PushBack(arena_, arena_.New<TypeArray>());
                 break;
             case proto::Type::kString:
-                types_[type_index++] = alloc_.New<TypeString>();
+                types_.PushBack(arena_, arena_.New<TypeString>());
                 break;
             case proto::Type::kEnum:
-                types_[type_index++] = alloc_.New<TypeEnum>();
+                types_.PushBack(arena_, arena_.New<TypeEnum>());
                 break;
             case proto::Type::kType:
-                types_[type_index++] = alloc_.New<TypeType>();
+                types_.PushBack(arena_, arena_.New<TypeType>());
                 break;
             case proto::Type::kPolymorphic:
-                types_[type_index++] = alloc_.New<TypePolymorphic>();
+                types_.PushBack(arena_, arena_.New<TypePolymorphic>());
                 break;
             case proto::Type::kAttribute:
-                types_[type_index++] = alloc_.New<TypeAttribute>();
+                types_.PushBack(arena_, arena_.New<TypeAttribute>());
                 break;
         }
     }
-    out.types = types_.subspan(0, type_index);
+    out.types = types_;
 
     // Deserialize types
-    type_index = 0;
+    std::size_t type_index = 0;
     for (const proto::Type& type : proto_.types())
     {
         potato::schematic::Type& out_type = *types_[type_index++];
@@ -530,15 +530,12 @@ void Deserializer::Deserialize(Schema& out)
                 ++type_count;
         }
 
-        std::span<const Type*> mod_types = alloc_.NewArray<const Type*>(type_count);
-
-        type_index = 0;
+        Array<const Type*> mod_types = arena_.NewArray<const Type*>(type_count);
         for (const Type* const type : types_)
         {
             if (type->owner == mod)
-                mod_types[type_index++] = type;
+                mod_types.PushBack(arena_, type);
         }
-
         mod->types = mod_types;
     }
 }
@@ -586,7 +583,7 @@ void Deserializer::Deserialize(TypeAggregate& out, const proto::Type::Aggregate&
 
     if (in.has_base_type())
     {
-        if (in.base_type() < types_.size())
+        if (in.base_type() < types_.Size())
         {
             const Type* const base = types_[in.base_type()];
             if (base->kind == TypeKind::Aggregate)
@@ -594,14 +591,13 @@ void Deserializer::Deserialize(TypeAggregate& out, const proto::Type::Aggregate&
         }
     }
 
-    std::span<Field> fields = alloc_.NewArray<Field>(in.fields_size());
-    std::size_t field_index = 0;
+    Array<Field> fields = arena_.NewArray<Field>(in.fields_size());
     for (const proto::Field& field : in.fields())
     {
-        Field& out_field = fields[field_index++];
-        out_field.name = alloc_.NewString(field.name());
+        Field& out_field = fields.EmplaceBack(arena_);
+        out_field.name = arena_.NewString(field.name());
         out_field.owner = &out;
-        if (field.type() < types_.size())
+        if (field.type() < types_.Size())
             out_field.type = types_[field.type()];
         if (field.has_value())
             out_field.value = Deserialize(field.value());
@@ -636,7 +632,7 @@ void Deserializer::Deserialize(TypeArray& out, const proto::Type::Array& in)
         out.size = in.size();
     }
 
-    if (in.element_type() < types_.size())
+    if (in.element_type() < types_.Size())
         out.type = types_[in.element_type()];
 }
 
@@ -651,7 +647,7 @@ void Deserializer::Deserialize(TypeEnum& out, const proto::Type::Enum& in)
 
     if (in.has_base_type())
     {
-        if (in.base_type() < types_.size())
+        if (in.base_type() < types_.Size())
         {
             const Type* const base = types_[in.base_type()];
             if (base->kind == TypeKind::Int)
@@ -659,15 +655,14 @@ void Deserializer::Deserialize(TypeEnum& out, const proto::Type::Enum& in)
         }
     }
 
-    std::span<EnumItem> items = alloc_.NewArray<EnumItem>(in.items_size());
-    std::size_t item_index = 0;
+    Array<EnumItem> items = arena_.NewArray<EnumItem>(in.items_size());
     for (const proto::EnumItem& item : in.items())
     {
-        EnumItem& out_item = items[item_index++];
-        out_item.name = alloc_.NewString(item.name());
+        EnumItem& out_item = items.EmplaceBack(arena_);
+        out_item.name = arena_.NewString(item.name());
         out_item.owner = &out;
 
-        ValueInt* const value = alloc_.New<ValueInt>();
+        ValueInt* const value = arena_.New<ValueInt>();
         value->value = item.value();
         out_item.value = value;
     }
@@ -685,7 +680,7 @@ void Deserializer::Deserialize(TypePolymorphic& out, const proto::Type::Polymorp
 
     out.isNullable = in.nullable();
 
-    if (in.type() < types_.size())
+    if (in.type() < types_.Size())
         out.type = types_[in.type()];
 }
 
@@ -693,14 +688,13 @@ void Deserializer::Deserialize(TypeAttribute& out, const proto::Type::Attribute&
 {
     DeserializeTypeCommon(out, in);
 
-    std::span<Field> fields = alloc_.NewArray<Field>(in.fields_size());
-    std::size_t field_index = 0;
+    Array<Field> fields = arena_.NewArray<Field>(in.fields_size());
     for (const proto::Field& field : in.fields())
     {
-        Field& out_field = fields[field_index++];
-        out_field.name = alloc_.NewString(field.name());
+        Field& out_field = fields.EmplaceBack(arena_);
+        out_field.name = arena_.NewString(field.name());
         out_field.owner = &out;
-        if (field.type() < types_.size())
+        if (field.type() < types_.Size())
             out_field.type = types_[field.type()];
         if (field.has_value())
             out_field.value = Deserialize(field.value());
@@ -711,17 +705,16 @@ void Deserializer::Deserialize(TypeAttribute& out, const proto::Type::Attribute&
 template <typename T>
 void Deserializer::DeserializeTypeCommon(Type& out, const T& in)
 {
-    out.name = alloc_.NewString(in.name());
-    if (in.module() < modules_.size())
+    out.name = arena_.NewString(in.name());
+    if (in.module() < modules_.Size())
         out.owner = modules_[in.module()];
 
-    std::span<Annotation*> annotations = alloc_.NewArray<Annotation*>(in.annotations_size());
-    std::size_t annotation_index = 0;
+    Array<Annotation*> annotations = arena_.NewArray<Annotation*>(in.annotations_size());
     for (const proto::Annotation& anno : in.annotations())
     {
-        Annotation* const out_anno = alloc_.New<Annotation>();
+        Annotation* const out_anno = arena_.New<Annotation>();
         Deserialize(*out_anno, anno);
-        annotations[annotation_index++] = out_anno;
+        annotations.PushBack(arena_, out_anno);
     }
     out.annotations = annotations;
 }
@@ -744,55 +737,52 @@ Value* Deserializer::Deserialize(const proto::Value& in)
 
 ValueObject* Deserializer::Deserialize(const proto::Value::Object& in)
 {
-    ValueObject* const value = alloc_.New<ValueObject>();
+    ValueObject* const value = arena_.New<ValueObject>();
     return value;
 }
 
 ValueBool* Deserializer::Deserialize(const proto::Value::Bool& in)
 {
-    ValueBool* const value = alloc_.New<ValueBool>();
+    ValueBool* const value = arena_.New<ValueBool>();
     value->value = in.value();
     return value;
 }
 
 ValueInt* Deserializer::Deserialize(const proto::Value::Int& in)
 {
-    ValueInt* const value = alloc_.New<ValueInt>();
+    ValueInt* const value = arena_.New<ValueInt>();
     value->value = in.value();
     return value;
 }
 
 ValueFloat* Deserializer::Deserialize(const proto::Value::Float& in)
 {
-    ValueFloat* const value = alloc_.New<ValueFloat>();
+    ValueFloat* const value = arena_.New<ValueFloat>();
     value->value = in.value();
     return value;
 }
 
 ValueString* Deserializer::Deserialize(const proto::Value::String& in)
 {
-    ValueString* const value = alloc_.New<ValueString>();
-    value->value = alloc_.NewString(in.value());
+    ValueString* const value = arena_.New<ValueString>();
+    value->value = arena_.NewString(in.value());
     return value;
 }
 
 ValueArray* Deserializer::Deserialize(const proto::Value::Array& in)
 {
-    ValueArray* const value = alloc_.New<ValueArray>();
-    const std::span<Value*> elements = alloc_.NewArray<Value*>(in.elements_size());
-    std::size_t element_index = 0;
+    ValueArray* const value = arena_.New<ValueArray>();
+    Array<Value*> elements = arena_.NewArray<Value*>(in.elements_size());
     for (const proto::Value& element : in.elements())
-    {
-        elements[element_index++] = Deserialize(element);
-    }
+        elements.PushBack(arena_, Deserialize(element));
     value->elements = elements;
     return value;
 }
 
 ValueEnum* Deserializer::Deserialize(const proto::Value::Enum& in)
 {
-    ValueEnum* const value = alloc_.New<ValueEnum>();
-    if (in.type() < types_.size() && types_[in.type()]->kind == TypeKind::Enum)
+    ValueEnum* const value = arena_.New<ValueEnum>();
+    if (in.type() < types_.Size() && types_[in.type()]->kind == TypeKind::Enum)
     {
         const TypeEnum* const enum_ = static_cast<const TypeEnum*>(types_[in.type()]);
         if (in.item() < enum_->items.size())
@@ -803,25 +793,24 @@ ValueEnum* Deserializer::Deserialize(const proto::Value::Enum& in)
 
 ValueType* Deserializer::Deserialize(const proto::Value::Type& in)
 {
-    return alloc_.New<ValueType>();
+    return arena_.New<ValueType>();
 }
 
 ValueNull* Deserializer::Deserialize(const proto::Value::Null& in)
 {
-    return alloc_.New<ValueNull>();
+    return arena_.New<ValueNull>();
 }
 
 void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
 {
-    if (in.attribute_type() < types_.size())
+    if (in.attribute_type() < types_.Size())
         if (types_[in.attribute_type()]->kind == TypeKind::Attribute)
             out.attribute = static_cast<const TypeAttribute*>(types_[in.attribute_type()]);
 
-    std::span<Argument> args = alloc_.NewArray<Argument>(in.arguments_size());
-    std::size_t arg_index = 0;
+    Array<Argument> args = arena_.NewArray<Argument>(in.arguments_size());
     for (const proto::Argument& arg : in.arguments())
     {
-        Argument& out_arg = args[arg_index++];
+        Argument& out_arg = args.EmplaceBack(arena_);
         out_arg.field = FindField(out.attribute, arg.field_name());
         if (arg.has_value())
             out_arg.value = Deserialize(arg.value());
