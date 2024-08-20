@@ -66,7 +66,8 @@ int main(int argc, char** argv)
     const FileId root = ctx.TryLoadFile(ctx.input);
 
     NewDeleteAllocator alloc;
-    Compiler compiler(ctx, alloc);
+    ArenaAllocator arena(alloc);
+    Compiler compiler(ctx, arena);
     compiler.SetUseBuiltins(true);
     if (!compiler.Compile(root))
         return 1;
