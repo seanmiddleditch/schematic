@@ -29,7 +29,8 @@ using namespace potato::schematic::test;
 TEST_CASE("Compiler", "[potato][schematic]")
 {
     TestContext ctx;
-    Compiler compiler(ctx);
+    NewDeleteAllocator alloc;
+    Compiler compiler(ctx, alloc);
     compiler.SetUseBuiltins(true);
 
     SECTION("Lexer")
@@ -41,8 +42,9 @@ TEST_CASE("Compiler", "[potato][schematic]")
         // and another comment
 )--");
 
-        ArenaAllocator alloc;
-        Lexer lexer(ctx, alloc, FileId{ 0 });
+        NewDeleteAllocator alloc;
+        ArenaAllocator arena(alloc);
+        Lexer lexer(ctx, arena, FileId{ 0 });
         REQUIRE(!lexer.Tokenize().IsEmpty());
 
         CHECK_THAT("123", IsTokenType(TokenType::Integer));

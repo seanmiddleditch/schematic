@@ -91,11 +91,12 @@ namespace potato::schematic::test
             using namespace potato::schematic::compiler;
 
             TestContext ctx;
-            ArenaAllocator alloc;
+            NewDeleteAllocator alloc;
+            ArenaAllocator arena(alloc);
 
             ctx.AddFile("<test>", text);
 
-            Lexer lexer(ctx, alloc, FileId{ 0 });
+            Lexer lexer(ctx, arena, FileId{ 0 });
             Array<Token> tokens = lexer.Tokenize();
 
             if (tokens.IsEmpty())
@@ -226,12 +227,13 @@ namespace potato::schematic::test
             using namespace potato::schematic::compiler;
 
             TestContext ctx;
-            ArenaAllocator alloc;
+            NewDeleteAllocator alloc;
+            ArenaAllocator arena(alloc);
             Array<Token> tokens;
 
             ctx.AddFile("<test>", text);
 
-            Lexer lexer(ctx, alloc, FileId{ 0 });
+            Lexer lexer(ctx, arena, FileId{ 0 });
             tokens = lexer.Tokenize();
             return !tokens.IsEmpty();
         }

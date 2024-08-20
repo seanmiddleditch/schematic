@@ -37,10 +37,6 @@ namespace
 
 struct potato::schematic::Compiler::Impl final : ParseContext
 {
-    explicit Impl(CompileContext& ctx) noexcept
-        : ctx(ctx)
-    {
-    }
     explicit Impl(CompileContext& ctx, Allocator& allocator) noexcept
         : ctx(ctx)
         , arena(allocator)
@@ -102,11 +98,6 @@ struct potato::schematic::Compiler::Impl final : ParseContext
 potato::schematic::Compiler::Compiler(CompileContext& ctx, Allocator& allocator)
     : impl_(new(allocator.Allocate(sizeof(Impl))) Impl(ctx, allocator))
     , allocator_(&allocator)
-{
-}
-
-potato::schematic::Compiler::Compiler(CompileContext& ctx)
-    : impl_(new Impl(ctx))
 {
 }
 

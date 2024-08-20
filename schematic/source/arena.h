@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "schematic/compiler.h"
+#include "schematic/allocator.h"
 
 #include <cassert>
 #include <cstring>
@@ -116,12 +116,11 @@ namespace potato::schematic
     // ArenaAllocator provides efficient single-threaded allocation for
     // Trivial objects, arrays of Trivial objects, and strings.
     //
-    // ArenaAllocator uses the system allocator to allocate larger
+    // ArenaAllocator uses the provided allocator to allocate larger
     // blocks of memory, and will free them on destruction.
     class ArenaAllocator
     {
     public:
-        ArenaAllocator() noexcept = default;
         explicit ArenaAllocator(Allocator& alloc) noexcept
             : alloc_(&alloc)
         {
@@ -207,10 +206,7 @@ namespace potato::schematic
         while (block != nullptr)
         {
             BlockHeader* const previous = block->previous;
-            if (alloc_ != nullptr)
-                alloc_->Deallocate(block, block->size);
-            else
-                ::operator delete(block);
+            alloc_->Deallocate(block, block->size);
             block = previous;
         }
     }
@@ -290,9 +286,7 @@ namespace potato::schematic
         else
         {
             capacity_ = block_capacity >= minimum ? block_capacity : minimum;
-            block = alloc_ != nullptr
-                ? alloc_->Allocate(sizeof(BlockHeader) + capacity_)
-                : ::operator new(sizeof(BlockHeader) + capacity_);
+            block = alloc_->Allocate(sizeof(BlockHeader) + capacity_);
             head_ = sizeof(BlockHeader);
         }
 

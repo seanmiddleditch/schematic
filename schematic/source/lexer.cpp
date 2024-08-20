@@ -5,8 +5,6 @@
 #include "arena.h"
 #include "location.h"
 
-#include "schematic/compiler.h"
-
 #include <fmt/core.h>
 
 #include <cstdint>

@@ -65,7 +65,8 @@ int main(int argc, char** argv)
 
     const FileId root = ctx.TryLoadFile(ctx.input);
 
-    Compiler compiler(ctx);
+    NewDeleteAllocator alloc;
+    Compiler compiler(ctx, alloc);
     compiler.SetUseBuiltins(true);
     if (!compiler.Compile(root))
         return 1;
@@ -98,7 +99,7 @@ int main(int argc, char** argv)
         }
 
         google::protobuf::Arena arena;
-        const proto::Schema* const proto = SerializeBinary(arena, *schema);
+        const proto::Schema* const proto = Serialize(arena, schema);
         if (proto == nullptr)
         {
             fmt::println(stderr, "Internal error: serialization to protobuf failed");
