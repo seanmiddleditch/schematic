@@ -37,9 +37,9 @@ namespace
 
 struct potato::schematic::Compiler::Impl final : ParseContext
 {
-    explicit Impl(CompileContext& ctx, Allocator& allocator) noexcept
+    explicit Impl(CompileContext& ctx, ArenaAllocator& arena) noexcept
         : ctx(ctx)
-        , arena(allocator)
+        , arena(arena)
     {
     }
 
@@ -87,27 +87,22 @@ struct potato::schematic::Compiler::Impl final : ParseContext
     void VisitModules(const Module* mod, Array<const Module*>& visited);
 
     CompileContext& ctx;
-    ArenaAllocator arena;
+    ArenaAllocator& arena;
     bool useBuiltins = false;
+    bool result = true;
     const Module* builtins = nullptr;
     const Schema* schema = nullptr;
-    bool result = true;
     Array<State*> stack;
 };
 
-potato::schematic::Compiler::Compiler(CompileContext& ctx, Allocator& allocator)
-    : impl_(new(allocator.Allocate(sizeof(Impl))) Impl(ctx, allocator))
-    , allocator_(&allocator)
+potato::schematic::Compiler::Compiler(CompileContext& ctx, ArenaAllocator& arena)
+    : impl_(arena.New<Impl>(ctx, arena))
+    , arena_(arena)
 {
 }
 
 potato::schematic::Compiler::~Compiler()
 {
-    if (allocator_ != nullptr)
-        allocator_->Deallocate(impl_, sizeof(Impl));
-    else
-        delete impl_;
-    impl_ = nullptr;
 }
 
 void potato::schematic::Compiler::SetUseBuiltins(bool useBuiltins)
@@ -117,7 +112,6 @@ void potato::schematic::Compiler::SetUseBuiltins(bool useBuiltins)
 
 bool potato::schematic::Compiler::Compile(FileId file)
 {
-    impl_->arena.Clear();
     impl_->builtins = nullptr;
     impl_->schema = nullptr;
     impl_->result = true;

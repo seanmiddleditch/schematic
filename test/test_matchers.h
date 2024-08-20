@@ -91,8 +91,7 @@ namespace potato::schematic::test
             using namespace potato::schematic::compiler;
 
             TestContext ctx;
-            NewDeleteAllocator alloc;
-            ArenaAllocator arena(alloc);
+            ArenaAllocator arena;
 
             ctx.AddFile("<test>", text);
 
@@ -227,8 +226,7 @@ namespace potato::schematic::test
             using namespace potato::schematic::compiler;
 
             TestContext ctx;
-            NewDeleteAllocator alloc;
-            ArenaAllocator arena(alloc);
+            ArenaAllocator arena;
             Array<Token> tokens;
 
             ctx.AddFile("<test>", text);

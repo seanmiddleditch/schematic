@@ -37,7 +37,7 @@ namespace potato::schematic
     class Compiler final
     {
     public:
-        explicit Compiler(CompileContext& ctx, Allocator& allocator);
+        explicit Compiler(CompileContext& ctx, ArenaAllocator& arena);
         virtual ~Compiler();
 
         Compiler(const Compiler&) = delete;
@@ -52,7 +52,7 @@ namespace potato::schematic
     private:
         struct Impl;
         Impl* impl_ = nullptr;
-        Allocator* allocator_ = nullptr;
+        ArenaAllocator& arena_;
     };
 
     struct Location

@@ -29,8 +29,8 @@ using namespace potato::schematic::test;
 TEST_CASE("Compiler", "[potato][schematic]")
 {
     TestContext ctx;
-    NewDeleteAllocator alloc;
-    Compiler compiler(ctx, alloc);
+    ArenaAllocator arena;
+    Compiler compiler(ctx, arena);
     compiler.SetUseBuiltins(true);
 
     SECTION("Lexer")
@@ -42,8 +42,6 @@ TEST_CASE("Compiler", "[potato][schematic]")
         // and another comment
 )--");
 
-        NewDeleteAllocator alloc;
-        ArenaAllocator arena(alloc);
         Lexer lexer(ctx, arena, FileId{ 0 });
         REQUIRE(!lexer.Tokenize().IsEmpty());
 

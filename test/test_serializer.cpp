@@ -36,10 +36,9 @@ static constexpr char main_source[] = R"(
 TEST_CASE("Serialize", "[potato][schematic]")
 {
     TestContext ctx;
-    NewDeleteAllocator alloc;
-    ArenaAllocator arena(alloc);
+    ArenaAllocator arena;
     google::protobuf::Arena pb_arena;
-    Compiler compiler(ctx, alloc);
+    Compiler compiler(ctx, arena);
     compiler.SetUseBuiltins(true);
 
     ctx.AddFile("<main>", main_source);

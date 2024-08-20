@@ -2,6 +2,8 @@
 
 #include "schematic/allocator.h"
 
+static constinit potato::schematic::NewDeleteAllocator default_allocator;
+
 [[nodiscard]] static constexpr size_t AlignTo(size_t value, size_t align) noexcept
 {
     size_t mask = align - 1;
@@ -21,6 +23,11 @@ namespace potato::schematic
         BlockHeader* next = nullptr;
         size_t size = 0;
     };
+
+    ArenaAllocator::ArenaAllocator() noexcept
+        : ArenaAllocator(default_allocator)
+    {
+    }
 
     ArenaAllocator::~ArenaAllocator()
     {
