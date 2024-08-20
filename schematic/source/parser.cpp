@@ -2,9 +2,10 @@
 
 #include "parser.h"
 
-#include "arena.h"
 #include "ast.h"
 #include "location.h"
+
+#include "schematic/allocator.h"
 
 #include <fmt/core.h>
 
@@ -112,12 +113,12 @@ bool Parser::ParseAnnotations()
             if (Consume(TokenType::End))
                 break;
 
-            AstNodeAnnotation* const attr = alloc_.Create<AstNodeAnnotation>(Pos());
+            AstNodeAnnotation* const attr = arena_.New<AstNodeAnnotation>(Pos());
 
             if (!ExpectQualifiedName(attr->name))
                 return false;
 
-            annotations_.PushBack(alloc_, attr);
+            annotations_.PushBack(arena_, attr);
 
             if (Consume(TokenType::LParen) && !Consume(TokenType::RParen))
             {
@@ -127,7 +128,7 @@ bool Parser::ParseAnnotations()
                     if (arg == nullptr)
                         break;
 
-                    attr->arguments.PushBack(alloc_, arg);
+                    attr->arguments.PushBack(arena_, arg);
 
                     if (Match(TokenType::RParen))
                         break;
@@ -155,7 +156,7 @@ bool Parser::ParseAnnotations()
 
 bool Parser::ParseImport(const AstNodeImport*& imp)
 {
-    AstNodeImport* const local = alloc_.Create<AstNodeImport>(Pos());
+    AstNodeImport* const local = arena_.New<AstNodeImport>(Pos());
     imp = local;
 
     if (!ExpectIdent(local->target))
@@ -164,16 +165,16 @@ bool Parser::ParseImport(const AstNodeImport*& imp)
     if (!Expect(TokenType::SemiColon))
         return false;
 
-    mod->nodes.EmplaceBack(alloc_, local);
+    mod->nodes.EmplaceBack(arena_, local);
     return true;
 }
 
 bool Parser::ParseAggregateDecl()
 {
-    AstNodeAggregateDecl* const agg = alloc_.Create<AstNodeAggregateDecl>(Pos());
+    AstNodeAggregateDecl* const agg = arena_.New<AstNodeAggregateDecl>(Pos());
     agg->annotations = annotations_;
 
-    mod->nodes.EmplaceBack(alloc_, agg);
+    mod->nodes.EmplaceBack(arena_, agg);
 
     if (!ExpectIdent(agg->name))
         return false;
@@ -217,10 +218,10 @@ bool Parser::ParseAggregateDecl()
 
 bool Parser::ParseAttributeDecl()
 {
-    AstNodeAttributeDecl* const attr = alloc_.Create<AstNodeAttributeDecl>(Pos());
+    AstNodeAttributeDecl* const attr = arena_.New<AstNodeAttributeDecl>(Pos());
     attr->annotations = annotations_;
 
-    mod->nodes.EmplaceBack(alloc_, attr);
+    mod->nodes.EmplaceBack(arena_, attr);
 
     if (!ExpectIdent(attr->name))
         return false;
@@ -255,9 +256,9 @@ bool Parser::ParseAttributeDecl()
 
 const bool Parser::ParseField(Array<const AstNodeField*>& fields)
 {
-    AstNodeField* const field = alloc_.Create<AstNodeField>(Pos());
+    AstNodeField* const field = arena_.New<AstNodeField>(Pos());
     field->annotations = annotations_;
-    fields.PushBack(alloc_, field);
+    fields.PushBack(arena_, field);
 
     field->type = ParseType();
     if (field->type == nullptr)
@@ -277,10 +278,10 @@ const bool Parser::ParseField(Array<const AstNodeField*>& fields)
 
 bool Parser::ParseEnumDecl()
 {
-    AstNodeEnumDecl* const enum_ = alloc_.Create<AstNodeEnumDecl>(Pos());
+    AstNodeEnumDecl* const enum_ = arena_.New<AstNodeEnumDecl>(Pos());
     enum_->annotations = annotations_;
 
-    mod->nodes.EmplaceBack(alloc_, enum_);
+    mod->nodes.EmplaceBack(arena_, enum_);
 
     if (!ExpectIdent(enum_->name))
         return false;
@@ -305,10 +306,10 @@ bool Parser::ParseEnumDecl()
             if (!ParseAnnotations())
                 return false;
 
-            AstNodeEnumItem* const item = alloc_.Create<AstNodeEnumItem>(Pos());
+            AstNodeEnumItem* const item = arena_.New<AstNodeEnumItem>(Pos());
             item->annotations = annotations_;
 
-            enum_->items.EmplaceBack(alloc_, item);
+            enum_->items.EmplaceBack(arena_, item);
 
             if (!ExpectIdent(item->name))
                 return false;
@@ -339,20 +340,20 @@ const AstNodeExpression* Parser::ParseExpression()
 
     if (ConsumeKey("true"))
     {
-        AstNodeLiteralBool* const literal = alloc_.Create<AstNodeLiteralBool>(pos);
+        AstNodeLiteralBool* const literal = arena_.New<AstNodeLiteralBool>(pos);
         literal->value = true;
         return literal;
     }
 
     if (ConsumeKey("false"))
     {
-        AstNodeLiteralBool* const literal = alloc_.Create<AstNodeLiteralBool>(pos);
+        AstNodeLiteralBool* const literal = arena_.New<AstNodeLiteralBool>(pos);
         literal->value = false;
         return literal;
     }
 
     if (ConsumeKey("null"))
-        return alloc_.Create<AstNodeLiteralNull>(pos);
+        return arena_.New<AstNodeLiteralNull>(pos);
 
     if (const AstNodeLiteralInt* literal = nullptr; ConsumeInt(literal))
         return literal;
@@ -373,7 +374,7 @@ const AstNodeExpression* Parser::ParseExpression()
     if (Match(TokenType::LBrace))
         return ParseInitializer(qual);
 
-    AstNodeQualifiedId* const literal = alloc_.Create<AstNodeQualifiedId>(pos);
+    AstNodeQualifiedId* const literal = arena_.New<AstNodeQualifiedId>(pos);
     literal->id = qual;
     return literal;
 }
@@ -382,7 +383,7 @@ const AstNodeExpression* Parser::ParseInitializer(const AstQualifiedName& name)
 {
     const std::uint32_t tokenIndex = name.parts ? name.parts.Front().tokenIndex : next_;
 
-    AstNodeInitializerList* const list = alloc_.Create<AstNodeInitializerList>(tokenIndex);
+    AstNodeInitializerList* const list = arena_.New<AstNodeInitializerList>(tokenIndex);
     list->type = name;
 
     if (!Expect(TokenType::LBrace))
@@ -397,7 +398,7 @@ const AstNodeExpression* Parser::ParseInitializer(const AstQualifiedName& name)
         if (element == nullptr)
             return nullptr;
 
-        list->elements.PushBack(alloc_, element);
+        list->elements.PushBack(arena_, element);
 
         if (!Consume(TokenType::Comma))
             break;
@@ -416,7 +417,7 @@ const AstNode* Parser::ParseArgument()
     {
         if (Consume(TokenType::Equals))
         {
-            AstNodeNamedArgument* const named = alloc_.Create<AstNodeNamedArgument>(Pos());
+            AstNodeNamedArgument* const named = arena_.New<AstNodeNamedArgument>(Pos());
 
             named->name = ident;
             named->value = ParseExpression();
@@ -444,7 +445,7 @@ const AstNodeType* Parser::ParseType()
         if (!ExpectQualifiedName(name))
             return type;
 
-        AstNodeTypeQualified* qual = alloc_.Create<AstNodeTypeQualified>(name.parts.Front().tokenIndex);
+        AstNodeTypeQualified* qual = arena_.New<AstNodeTypeQualified>(name.parts.Front().tokenIndex);
         qual->name = name;
         type = qual;
     }
@@ -453,7 +454,7 @@ const AstNodeType* Parser::ParseType()
     {
         if (Consume(TokenType::LBracket))
         {
-            AstNodeTypeArray* const array = alloc_.Create<AstNodeTypeArray>(type->tokenIndex);
+            AstNodeTypeArray* const array = arena_.New<AstNodeTypeArray>(type->tokenIndex);
             array->type = type;
             type = array;
 
@@ -467,7 +468,7 @@ const AstNodeType* Parser::ParseType()
 
         if (Consume(TokenType::Star))
         {
-            AstNodeTypePolymorphic* const poly = alloc_.Create<AstNodeTypePolymorphic>(type->tokenIndex);
+            AstNodeTypePolymorphic* const poly = arena_.New<AstNodeTypePolymorphic>(type->tokenIndex);
             poly->type = type;
             type = poly;
 
@@ -476,7 +477,7 @@ const AstNodeType* Parser::ParseType()
 
         if (Consume(TokenType::Question))
         {
-            AstNodeTypeNullable* const nullable = alloc_.Create<AstNodeTypeNullable>(type->tokenIndex);
+            AstNodeTypeNullable* const nullable = arena_.New<AstNodeTypeNullable>(type->tokenIndex);
             nullable->type = type;
             type = nullable;
 
@@ -526,17 +527,17 @@ bool Parser::ConsumeInt(const AstNodeLiteralInt*& lit)
 
     if (Consume(TokenType::Integer))
     {
-        lit = result = alloc_.Create<AstNodeLiteralInt>(pos);
+        lit = result = arena_.New<AstNodeLiteralInt>(pos);
         result->base = 10;
     }
     else if (Consume(TokenType::HexInteger))
     {
-        lit = result = alloc_.Create<AstNodeLiteralInt>(pos);
+        lit = result = arena_.New<AstNodeLiteralInt>(pos);
         result->base = 16;
     }
     else if (Consume(TokenType::BinaryInteger))
     {
-        lit = result = alloc_.Create<AstNodeLiteralInt>(pos);
+        lit = result = arena_.New<AstNodeLiteralInt>(pos);
         result->base = 2;
     }
     else
@@ -585,7 +586,7 @@ bool Parser::ConsumeFloat(const AstNodeLiteralFloat*& lit)
         return false;
     }
 
-    AstNodeLiteralFloat* const result = alloc_.Create<AstNodeLiteralFloat>(pos);
+    AstNodeLiteralFloat* const result = arena_.New<AstNodeLiteralFloat>(pos);
     lit = result;
 
     const Token& token = tokens_[pos];
@@ -608,7 +609,7 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
 
     if (Consume(TokenType::String, &token))
     {
-        AstNodeLiteralString* const result = alloc_.Create<AstNodeLiteralString>(pos);
+        AstNodeLiteralString* const result = arena_.New<AstNodeLiteralString>(pos);
         lit = result;
 
         const std::string_view content = contents_.substr(token->offset + 1 /*"*/, token->length - 2 /*double "*/);
@@ -620,7 +621,7 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
                 ++length;
         }
 
-        char* out = static_cast<char*>(alloc_.Allocate(length + 1 /*NUL*/, 1));
+        char* out = static_cast<char*>(arena_.Allocate(length + 1 /*NUL*/, 1));
         const char* const string = out;
 
         for (const char* c = content.data(); c != content.data() + content.size(); ++c)
@@ -650,10 +651,10 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
 
     if (Consume(TokenType::MultilineString, &token))
     {
-        AstNodeLiteralString* const result = alloc_.Create<AstNodeLiteralString>(pos);
+        AstNodeLiteralString* const result = arena_.New<AstNodeLiteralString>(pos);
         lit = result;
 
-        result->value = alloc_.NewString(contents_.substr(token->offset + 3 /*"""*/, token->length - 6 /*double """*/));
+        result->value = arena_.NewString(contents_.substr(token->offset + 3 /*"""*/, token->length - 6 /*double """*/));
         return true;
     }
 
@@ -717,7 +718,7 @@ bool Parser::ConsumeIdent(AstIdentifier& out)
         return false;
 
     const std::string_view ident = contents_.substr(token->offset, token->length);
-    out.name = alloc_.NewString(ident);
+    out.name = arena_.NewString(ident);
     out.tokenIndex = pos;
     return true;
 }
@@ -737,14 +738,14 @@ bool Parser::ConsumeQualifiedName(AstQualifiedName& out)
     if (!ConsumeIdent(ident))
         return false;
 
-    out.parts.PushBack(alloc_, ident);
+    out.parts.PushBack(arena_, ident);
 
     while (Consume(TokenType::Dot))
     {
         if (!ExpectIdent(ident))
             break;
 
-        out.parts.PushBack(alloc_, ident);
+        out.parts.PushBack(arena_, ident);
     }
 
     return true;

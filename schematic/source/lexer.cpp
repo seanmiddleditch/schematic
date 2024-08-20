@@ -2,8 +2,9 @@
 
 #include "lexer.h"
 
-#include "arena.h"
 #include "location.h"
+
+#include "schematic/allocator.h"
 
 #include <fmt/core.h>
 
@@ -75,7 +76,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
 
     auto Push = [this, &in](TokenType type)
     {
-        tokens_.PushBack(alloc_, Token{ .type = type, .offset = in.Pos(), .length = 1 });
+        tokens_.PushBack(arena_, Token{ .type = type, .offset = in.Pos(), .length = 1 });
     };
 
     while (!in.IsEof())
@@ -182,7 +183,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
                         Error("Expected digits after 0x prefix");
                     while (in.Match(IsHexDigit))
                         ;
-                    tokens_.PushBack(alloc_, Token{ .type = TokenType::HexInteger, .offset = start, .length = in.Pos() - start });
+                    tokens_.PushBack(arena_, Token{ .type = TokenType::HexInteger, .offset = start, .length = in.Pos() - start });
                     continue;
                 }
 
@@ -193,7 +194,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
                         Error("Expected digits after 0b prefix");
                     while (in.Match(IsBinaryDigit))
                         ;
-                    tokens_.PushBack(alloc_, Token{ .type = TokenType::BinaryInteger, .offset = start, .length = in.Pos() - start });
+                    tokens_.PushBack(arena_, Token{ .type = TokenType::BinaryInteger, .offset = start, .length = in.Pos() - start });
                     continue;
                 }
 
@@ -204,7 +205,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
 
             if (isDot && !in.Match(IsDigit))
             {
-                tokens_.PushBack(alloc_, Token{ .type = TokenType::Dot, .offset = start, .length = 1 });
+                tokens_.PushBack(arena_, Token{ .type = TokenType::Dot, .offset = start, .length = 1 });
                 continue;
             }
 
@@ -234,7 +235,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
                     ;
             }
 
-            tokens_.PushBack(alloc_, Token{ .type = type, .offset = start, .length = in.Pos() - start });
+            tokens_.PushBack(arena_, Token{ .type = type, .offset = start, .length = in.Pos() - start });
             continue;
         }
 
@@ -244,7 +245,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
             while (in.Match(IsIdentBody))
                 ;
 
-            tokens_.PushBack(alloc_, Token{ .type = TokenType::Identifier, .offset = start, .length = in.Pos() - start });
+            tokens_.PushBack(arena_, Token{ .type = TokenType::Identifier, .offset = start, .length = in.Pos() - start });
             continue;
         }
 
@@ -262,7 +263,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
                 in.Advance();
             }
 
-            tokens_.PushBack(alloc_, Token{ .type = TokenType::MultilineString, .offset = start, .length = in.Pos() - start });
+            tokens_.PushBack(arena_, Token{ .type = TokenType::MultilineString, .offset = start, .length = in.Pos() - start });
             continue;
         }
         else if (in.Match('"'))
@@ -294,7 +295,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
                 break;
             }
 
-            tokens_.PushBack(alloc_, Token{ .type = TokenType::String, .offset = start, .length = in.Pos() - start });
+            tokens_.PushBack(arena_, Token{ .type = TokenType::String, .offset = start, .length = in.Pos() - start });
             continue;
         }
 
@@ -303,7 +304,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
         in.Advance();
     }
 
-    tokens_.PushBack(alloc_, Token{ .type = TokenType::End, .offset = in.Pos() });
+    tokens_.PushBack(arena_, Token{ .type = TokenType::End, .offset = in.Pos() });
     return tokens_;
 }
 

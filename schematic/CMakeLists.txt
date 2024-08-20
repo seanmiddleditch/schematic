@@ -8,6 +8,7 @@ target_compile_features(schematic_libschematic PUBLIC cxx_std_23)
 target_link_libraries(schematic_libschematic PRIVATE fmt::fmt protobuf::libprotobuf)
 target_include_directories(schematic_libschematic PUBLIC include)
 target_sources(schematic_libschematic PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
+    "include/schematic/allocator.h"
     "include/schematic/compiler.h"
     "include/schematic/schema.h"
     "include/schematic/serialize.h"
@@ -15,7 +16,8 @@ target_sources(schematic_libschematic PUBLIC FILE_SET HEADERS BASE_DIRS include 
 )
 target_sources(schematic_libschematic PRIVATE
     "schematic.natvis"
-    "source/arena.h"
+    "source/allocator.cpp"
+    "source/array.h"
     "source/ast.h"
     "source/compiler.cpp"
     "source/lexer.cpp"

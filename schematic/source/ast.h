@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "arena.h"
+#include "array.h"
+
+#include "schematic/allocator.h"
 
 #include <fmt/core.h>
 
