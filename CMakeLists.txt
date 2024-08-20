@@ -24,3 +24,5 @@ if(PROJECT_IS_TOP_LEVEL)
         add_subdirectory(test)
     endif()
 endif()
+
+install(EXPORT schematic DESTINATION lib/cmake)
