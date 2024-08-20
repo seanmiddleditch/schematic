@@ -48,7 +48,6 @@ TEST_CASE("Serialize", "[potato][schematic]")
     const Schema* const original = compiler.GetSchema();
     REQUIRE(original != nullptr);
 
-    
     const proto::Schema* const proto = Serialize(pb_arena, original);
     REQUIRE(proto != nullptr);
 
