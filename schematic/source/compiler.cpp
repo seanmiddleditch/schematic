@@ -2,13 +2,13 @@
 
 #include "schematic/compiler.h"
 
-#include "arena.h"
 #include "ast.h"
 #include "lexer.h"
 #include "location.h"
 #include "parser.h"
 #include "token.h"
 
+#include "schematic/allocator.h"
 #include "schematic/schema.h"
 #include "schematic/utility.h"
 
@@ -37,13 +37,9 @@ namespace
 
 struct potato::schematic::Compiler::Impl final : ParseContext
 {
-    explicit Impl(CompileContext& ctx) noexcept
+    explicit Impl(CompileContext& ctx, ArenaAllocator& arena) noexcept
         : ctx(ctx)
-    {
-    }
-    explicit Impl(CompileContext& ctx, Allocator& allocator) noexcept
-        : ctx(ctx)
-        , arena(allocator)
+        , arena(arena)
     {
     }
 
@@ -91,32 +87,22 @@ struct potato::schematic::Compiler::Impl final : ParseContext
     void VisitModules(const Module* mod, Array<const Module*>& visited);
 
     CompileContext& ctx;
-    ArenaAllocator arena;
+    ArenaAllocator& arena;
     bool useBuiltins = false;
+    bool result = true;
     const Module* builtins = nullptr;
     const Schema* schema = nullptr;
-    bool result = true;
     Array<State*> stack;
 };
 
-potato::schematic::Compiler::Compiler(CompileContext& ctx, Allocator& allocator)
-    : impl_(new(allocator.Allocate(sizeof(Impl))) Impl(ctx, allocator))
-    , allocator_(&allocator)
-{
-}
-
-potato::schematic::Compiler::Compiler(CompileContext& ctx)
-    : impl_(new Impl(ctx))
+potato::schematic::Compiler::Compiler(CompileContext& ctx, ArenaAllocator& arena)
+    : impl_(arena.New<Impl>(ctx, arena))
+    , arena_(arena)
 {
 }
 
 potato::schematic::Compiler::~Compiler()
 {
-    if (allocator_ != nullptr)
-        allocator_->Deallocate(impl_, sizeof(Impl));
-    else
-        delete impl_;
-    impl_ = nullptr;
 }
 
 void potato::schematic::Compiler::SetUseBuiltins(bool useBuiltins)
@@ -126,7 +112,6 @@ void potato::schematic::Compiler::SetUseBuiltins(bool useBuiltins)
 
 bool potato::schematic::Compiler::Compile(FileId file)
 {
-    impl_->arena.Clear();
     impl_->builtins = nullptr;
     impl_->schema = nullptr;
     impl_->result = true;
@@ -195,11 +180,11 @@ const Schema* potato::schematic::Compiler::Impl::Compile(FileId file)
     if (useBuiltins && builtins == nullptr)
         CreateBuiltins();
 
-    State* const state = arena.Create<State>();
+    State* const state = arena.New<State>();
     stack.PushBack(arena, state);
 
     state->file = file;
-    state->mod = arena.Create<Module>();
+    state->mod = arena.New<Module>();
     state->mod->filename = arena.NewString(ctx.GetFileName(file));
 
     if (useBuiltins)
@@ -211,7 +196,7 @@ const Schema* potato::schematic::Compiler::Impl::Compile(FileId file)
     stack.PopBack();
     assert(stack.IsEmpty());
 
-    Schema* const schema = arena.Create<Schema>();
+    Schema* const schema = arena.New<Schema>();
     schema->root = state->mod;
 
     {
@@ -239,9 +224,9 @@ const AstNodeModule* potato::schematic::Compiler::Impl::HandleImport(const AstNo
         return nullptr;
     }
 
-    State* const state = arena.Create<State>();
+    State* const state = arena.New<State>();
     state->file = file;
-    state->mod = arena.Create<Module>();
+    state->mod = arena.New<Module>();
     state->mod->filename = arena.NewString(ctx.GetFileName(file));
 
     stack.PushBack(arena, state);
@@ -266,7 +251,7 @@ const Module* potato::schematic::Compiler::Impl::CreateBuiltins()
     if (builtins != nullptr)
         return builtins;
 
-    Module* const mod = arena.Create<Module>();
+    Module* const mod = arena.New<Module>();
     builtins = mod;
 
     mod->filename = arena.NewString("$builtins");
@@ -391,7 +376,7 @@ void potato::schematic::Compiler::Impl::BuildEnum(const AstNodeEnumDecl& ast)
         }
         else
         {
-            ValueInt* const value = arena.Create<ValueInt>();
+            ValueInt* const value = arena.New<ValueInt>();
             value->value = next++;
             item.value = value;
         }
@@ -417,7 +402,7 @@ void potato::schematic::Compiler::Impl::BuildAnnotations(std::span<const Annotat
             continue;
         }
 
-        Annotation* const attr = arena.Create<Annotation>();
+        Annotation* const attr = arena.New<Annotation>();
         temp.PushBack(arena, attr);
 
         attr->attribute = attrType;
@@ -507,28 +492,28 @@ void potato::schematic::Compiler::Impl::BuildArguments(std::span<const Argument>
 
 const ValueBool* potato::schematic::Compiler::Impl::BuildBool(const AstNodeLiteralBool& lit)
 {
-    ValueBool* const value = arena.Create<ValueBool>();
+    ValueBool* const value = arena.New<ValueBool>();
     value->value = lit.value;
     return value;
 }
 
 const ValueInt* potato::schematic::Compiler::Impl::BuildInteger(const AstNodeLiteralInt& lit)
 {
-    ValueInt* const value = arena.Create<ValueInt>();
+    ValueInt* const value = arena.New<ValueInt>();
     value->value = lit.value;
     return value;
 }
 
 const ValueFloat* potato::schematic::Compiler::Impl::BuildFloat(const AstNodeLiteralFloat& lit)
 {
-    ValueFloat* const value = arena.Create<ValueFloat>();
+    ValueFloat* const value = arena.New<ValueFloat>();
     value->value = lit.value;
     return value;
 }
 
 const ValueString* potato::schematic::Compiler::Impl::BuildString(const AstNodeLiteralString& lit)
 {
-    ValueString* const value = arena.Create<ValueString>();
+    ValueString* const value = arena.New<ValueString>();
     value->value = lit.value;
     return value;
 }
@@ -546,7 +531,7 @@ const Value* potato::schematic::Compiler::Impl::BuildExpression(const Type* type
         case AstNodeKind::LiteralString:
             return BuildString(*expr.CastTo<AstNodeLiteralString>());
         case AstNodeKind::LiteralNull:
-            return arena.Create<ValueNull>();
+            return arena.New<ValueNull>();
         case AstNodeKind::QualifiedId:
             return BuildQualifiedId(*expr.CastTo<AstNodeQualifiedId>());
         case AstNodeKind::InitializerList:
@@ -568,7 +553,7 @@ const Value* potato::schematic::Compiler::Impl::BuildQualifiedId(const AstNodeQu
         const Type* type = Resolve(id.id);
         if (type != nullptr)
         {
-            ValueType* value = arena.Create<ValueType>();
+            ValueType* value = arena.New<ValueType>();
             value->type = type;
             return value;
         }
@@ -604,14 +589,14 @@ const Value* potato::schematic::Compiler::Impl::BuildQualifiedId(const AstNodeQu
         return nullptr;
     }
 
-    ValueEnum* enumValue = arena.Create<ValueEnum>();
+    ValueEnum* enumValue = arena.New<ValueEnum>();
     enumValue->item = enumItem;
     return enumValue;
 }
 
 const ValueArray* potato::schematic::Compiler::Impl::BuildArray(const Type* type, const AstNodeInitializerList& expr)
 {
-    ValueArray* const value = arena.Create<ValueArray>();
+    ValueArray* const value = arena.New<ValueArray>();
     value->type = type;
 
     Array elements = arena.NewArray<const Value*>(expr.elements.Size());
@@ -630,7 +615,7 @@ const ValueArray* potato::schematic::Compiler::Impl::BuildArray(const Type* type
 
 const ValueObject* potato::schematic::Compiler::Impl::BuildObject(const TypeAggregate* type, const AstNodeInitializerList& expr)
 {
-    ValueObject* const obj = arena.Create<ValueObject>();
+    ValueObject* const obj = arena.New<ValueObject>();
     obj->type = type;
 
     if (expr.type.parts)
@@ -757,7 +742,7 @@ T* potato::schematic::Compiler::Impl::AddType(std::uint32_t tokenIndex, const ch
         return nullptr;
     }
 
-    T* const type = arena.Create<T>();
+    T* const type = arena.New<T>();
     State* const state = stack.Back();
     state->types.PushBack(arena, type);
     state->mod->types = state->types;

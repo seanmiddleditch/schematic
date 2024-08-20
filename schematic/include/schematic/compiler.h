@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "schematic/allocator.h"
+
 #include <string_view>
 
 namespace potato::schematic
@@ -13,20 +15,6 @@ namespace potato::schematic
     {
         static constexpr std::size_t InvalidValue = ~0;
         std::size_t value = InvalidValue;
-    };
-
-    class Allocator
-    {
-    public:
-        virtual void* Allocate(std::size_t size) = 0;
-        virtual void Deallocate(void* memory, std::size_t size) = 0;
-
-        Allocator(const Allocator&) = delete;
-        Allocator& operator=(const Allocator&) = delete;
-
-    protected:
-        Allocator() = default;
-        ~Allocator() = default;
     };
 
     class CompileContext
@@ -49,8 +37,7 @@ namespace potato::schematic
     class Compiler final
     {
     public:
-        explicit Compiler(CompileContext& ctx, Allocator& allocator);
-        explicit Compiler(CompileContext& ctx);
+        explicit Compiler(CompileContext& ctx, ArenaAllocator& arena);
         virtual ~Compiler();
 
         Compiler(const Compiler&) = delete;
@@ -65,7 +52,7 @@ namespace potato::schematic
     private:
         struct Impl;
         Impl* impl_ = nullptr;
-        Allocator* allocator_ = nullptr;
+        ArenaAllocator& arena_;
     };
 
     struct Location

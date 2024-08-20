@@ -10,6 +10,7 @@ target_sources(schematic_test PRIVATE
     "schematic_test.cpp"
     "test_context.h"
     "test_matchers.h"
+    "test_serializer.cpp"
     "test_strings.h"
 )
 catch_discover_tests(schematic_test)

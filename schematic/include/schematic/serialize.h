@@ -2,14 +2,13 @@
 
 #pragma once
 
+#include "schematic/allocator.h"
 #include "schematic/schematic.pb.h"
-
-#include <string>
-#include <vector>
 
 namespace potato::schematic
 {
     struct Schema;
 
-    const proto::Schema* SerializeBinary(google::protobuf::Arena& arena, const Schema& schema);
+    [[nodiscard]] const proto::Schema* Serialize(google::protobuf::Arena& arena, const Schema* schema);
+    [[nodiscard]] const Schema* Deserialize(ArenaAllocator& arena, const proto::Schema* proto);
 } // namespace potato::schematic

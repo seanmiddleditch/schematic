@@ -2,8 +2,11 @@
 
 #include "schematic/serialize.h"
 
+#include "array.h"
+
 #include "schematic/schema.h"
 #include "schematic/schematic.pb.h"
+#include "schematic/utility.h"
 
 #include <google/protobuf/util/json_util.h>
 
@@ -55,15 +58,75 @@ namespace
 
         const Schema& schema_;
     };
+
+    class Deserializer
+    {
+    public:
+        explicit Deserializer(const proto::Schema& proto, ArenaAllocator& arena)
+            : proto_(proto)
+            , arena_(arena)
+        {
+        }
+
+        void Deserialize(Schema& out);
+
+    private:
+        void Deserialize(Type& out, const proto::Type& in);
+        void Deserialize(TypeAggregate& out, const proto::Type::Aggregate& in);
+        void Deserialize(TypeBool& out, const proto::Type::Bool& in);
+        void Deserialize(TypeInt& out, const proto::Type::Int& in);
+        void Deserialize(TypeFloat& out, const proto::Type::Float& in);
+        void Deserialize(TypeArray& out, const proto::Type::Array& in);
+        void Deserialize(TypeString& out, const proto::Type::String& in);
+        void Deserialize(TypeEnum& out, const proto::Type::Enum& in);
+        void Deserialize(TypeType& out, const proto::Type::TypeRef& in);
+        void Deserialize(TypePolymorphic& out, const proto::Type::Polymorphic& in);
+        void Deserialize(TypeAttribute& out, const proto::Type::Attribute& in);
+
+        template <typename T>
+        void DeserializeTypeCommon(Type& out, const T& in);
+
+        Value* Deserialize(const proto::Value& in);
+        ValueObject* Deserialize(const proto::Value::Object& in);
+        ValueBool* Deserialize(const proto::Value::Bool& in);
+        ValueInt* Deserialize(const proto::Value::Int& in);
+        ValueFloat* Deserialize(const proto::Value::Float& in);
+        ValueString* Deserialize(const proto::Value::String& in);
+        ValueArray* Deserialize(const proto::Value::Array& in);
+        ValueEnum* Deserialize(const proto::Value::Enum& in);
+        ValueType* Deserialize(const proto::Value::Type& in);
+        ValueNull* Deserialize(const proto::Value::Null& in);
+
+        void Deserialize(Annotation& out, const proto::Annotation& in);
+
+        const proto::Schema& proto_;
+        ArenaAllocator& arena_;
+        Array<Module*> modules_;
+        Array<Type*> types_;
+    };
 } // namespace
 
-const proto::Schema* potato::schematic::SerializeBinary(google::protobuf::Arena& arena, const Schema& schema)
+const proto::Schema* potato::schematic::Serialize(google::protobuf::Arena& arena, const Schema* schema)
 {
-    proto::Schema* const result = google::protobuf::Arena::Create<proto::Schema>(&arena);
-    Serializer serializer(schema);
-    serializer.Serialize(*result);
-    return result;
+    if (schema == nullptr)
+        return nullptr;
+    proto::Schema* const proto = google::protobuf::Arena::Create<proto::Schema>(&arena);
+    Serializer serializer(*schema);
+    serializer.Serialize(*proto);
+    return proto;
 }
+
+const Schema* potato::schematic::Deserialize(ArenaAllocator& arena, const proto::Schema* proto)
+{
+    if (proto == nullptr)
+        return nullptr;
+    Schema* const schema = arena.New<Schema>();
+    Deserializer serializer(*proto, arena);
+    serializer.Deserialize(*schema);
+    return schema;
+}
+
+// --- Serializer ---
 
 void Serializer::Serialize(proto::Schema& out)
 {
@@ -71,6 +134,8 @@ void Serializer::Serialize(proto::Schema& out)
     {
         proto::Module* const pmod = out.add_modules();
         pmod->set_filename(mod->filename);
+        for (const Module* const import : mod->imports)
+            pmod->add_imports(IndexOfModule(import));
     }
 
     for (const Type* const type : schema_.types)
@@ -375,4 +440,380 @@ void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
         if (arg.value != nullptr)
             Serialize(*out_arg.mutable_value(), *arg.value);
     }
+}
+
+// --- Deserializer ---
+
+void Deserializer::Deserialize(Schema& out)
+{
+    // Deserialize modules, excluding their child types (we haven't deserialized those yet)
+    modules_ = arena_.NewArray<Module*>(proto_.modules_size());
+    for (std::size_t index = 0; index != modules_.Capacity(); ++index)
+        modules_.PushBack(arena_, arena_.New<Module>());
+
+    const std::size_t root_index = proto_.root_module();
+    if (root_index < modules_.Size())
+        out.root = modules_[root_index];
+
+    std::size_t module_index = 0;
+    for (const proto::Module& mod : proto_.modules())
+    {
+        Module& out_mod = *modules_[module_index++];
+        out_mod.filename = arena_.NewString(mod.filename());
+
+        Array<const Module*> imports = arena_.NewArray<const Module*>(mod.imports_size());
+        for (std::uint32_t target_index : mod.imports())
+        {
+            if (target_index < modules_.Size())
+                imports.EmplaceBack(arena_, modules_[target_index]);
+        }
+        out_mod.imports = imports;
+    }
+    out.modules = modules_;
+
+    // Instantiate types
+    types_ = arena_.NewArray<Type*>(proto_.types_size());
+
+    for (const proto::Type& type : proto_.types())
+    {
+        switch (type.Types_case())
+        {
+            case proto::Type::kAggregate:
+                types_.PushBack(arena_, arena_.New<TypeAggregate>());
+                break;
+            case proto::Type::kBool:
+                types_.PushBack(arena_, arena_.New<TypeBool>());
+                break;
+            case proto::Type::kInt:
+                types_.PushBack(arena_, arena_.New<TypeInt>());
+                break;
+            case proto::Type::kFloat:
+                types_.PushBack(arena_, arena_.New<TypeFloat>());
+                break;
+            case proto::Type::kArray:
+                types_.PushBack(arena_, arena_.New<TypeArray>());
+                break;
+            case proto::Type::kString:
+                types_.PushBack(arena_, arena_.New<TypeString>());
+                break;
+            case proto::Type::kEnum:
+                types_.PushBack(arena_, arena_.New<TypeEnum>());
+                break;
+            case proto::Type::kType:
+                types_.PushBack(arena_, arena_.New<TypeType>());
+                break;
+            case proto::Type::kPolymorphic:
+                types_.PushBack(arena_, arena_.New<TypePolymorphic>());
+                break;
+            case proto::Type::kAttribute:
+                types_.PushBack(arena_, arena_.New<TypeAttribute>());
+                break;
+        }
+    }
+    out.types = types_;
+
+    // Deserialize types
+    std::size_t type_index = 0;
+    for (const proto::Type& type : proto_.types())
+    {
+        potato::schematic::Type& out_type = *types_[type_index++];
+        Deserialize(out_type, type);
+    }
+
+    // Link types to modules (could be way less... bad)
+    for (Module* const mod : modules_)
+    {
+        std::size_t type_count = 0;
+        for (const Type* const type : types_)
+        {
+            if (type->owner == mod)
+                ++type_count;
+        }
+
+        Array<const Type*> mod_types = arena_.NewArray<const Type*>(type_count);
+        for (const Type* const type : types_)
+        {
+            if (type->owner == mod)
+                mod_types.PushBack(arena_, type);
+        }
+        mod->types = mod_types;
+    }
+}
+
+void Deserializer::Deserialize(Type& out, const proto::Type& in)
+{
+    switch (out.kind)
+    {
+        case TypeKind::Aggregate:
+            Deserialize(static_cast<TypeAggregate&>(out), in.aggregate());
+            break;
+        case TypeKind::Bool:
+            Deserialize(static_cast<TypeBool&>(out), in.bool_());
+            break;
+        case TypeKind::Int:
+            Deserialize(static_cast<TypeInt&>(out), in.int_());
+            break;
+        case TypeKind::Float:
+            Deserialize(static_cast<TypeFloat&>(out), in.float_());
+            break;
+        case TypeKind::Array:
+            Deserialize(static_cast<TypeArray&>(out), in.array());
+            break;
+        case TypeKind::String:
+            Deserialize(static_cast<TypeString&>(out), in.string());
+            break;
+        case TypeKind::Enum:
+            Deserialize(static_cast<TypeEnum&>(out), in.enum_());
+            break;
+        case TypeKind::Type:
+            Deserialize(static_cast<TypeType&>(out), in.type());
+            break;
+        case TypeKind::Polymorphic:
+            Deserialize(static_cast<TypePolymorphic&>(out), in.polymorphic());
+            break;
+        case TypeKind::Attribute:
+            Deserialize(static_cast<TypeAttribute&>(out), in.attribute());
+            break;
+    }
+}
+
+void Deserializer::Deserialize(TypeAggregate& out, const proto::Type::Aggregate& in)
+{
+    DeserializeTypeCommon(out, in);
+
+    if (in.has_base_type())
+    {
+        if (in.base_type() < types_.Size())
+        {
+            const Type* const base = types_[in.base_type()];
+            if (base->kind == TypeKind::Aggregate)
+                out.base = static_cast<const TypeAggregate*>(base);
+        }
+    }
+
+    Array<Field> fields = arena_.NewArray<Field>(in.fields_size());
+    for (const proto::Field& field : in.fields())
+    {
+        Field& out_field = fields.EmplaceBack(arena_);
+        out_field.name = arena_.NewString(field.name());
+        out_field.owner = &out;
+        if (field.type() < types_.Size())
+            out_field.type = types_[field.type()];
+        if (field.has_value())
+            out_field.value = Deserialize(field.value());
+    }
+    out.fields = fields;
+}
+
+void Deserializer::Deserialize(TypeBool& out, const proto::Type::Bool& in)
+{
+    DeserializeTypeCommon(out, in);
+}
+
+void Deserializer::Deserialize(TypeInt& out, const proto::Type::Int& in)
+{
+    DeserializeTypeCommon(out, in);
+    out.bits = in.width();
+    out.isSigned = in.signed_();
+}
+
+void Deserializer::Deserialize(TypeFloat& out, const proto::Type::Float& in)
+{
+    DeserializeTypeCommon(out, in);
+    out.bits = in.width();
+}
+
+void Deserializer::Deserialize(TypeArray& out, const proto::Type::Array& in)
+{
+    DeserializeTypeCommon(out, in);
+    if (in.has_size())
+    {
+        out.isFixed = true;
+        out.size = in.size();
+    }
+
+    if (in.element_type() < types_.Size())
+        out.type = types_[in.element_type()];
+}
+
+void Deserializer::Deserialize(TypeString& out, const proto::Type::String& in)
+{
+    DeserializeTypeCommon(out, in);
+}
+
+void Deserializer::Deserialize(TypeEnum& out, const proto::Type::Enum& in)
+{
+    DeserializeTypeCommon(out, in);
+
+    if (in.has_base_type())
+    {
+        if (in.base_type() < types_.Size())
+        {
+            const Type* const base = types_[in.base_type()];
+            if (base->kind == TypeKind::Int)
+                out.base = base;
+        }
+    }
+
+    Array<EnumItem> items = arena_.NewArray<EnumItem>(in.items_size());
+    for (const proto::EnumItem& item : in.items())
+    {
+        EnumItem& out_item = items.EmplaceBack(arena_);
+        out_item.name = arena_.NewString(item.name());
+        out_item.owner = &out;
+
+        ValueInt* const value = arena_.New<ValueInt>();
+        value->value = item.value();
+        out_item.value = value;
+    }
+    out.items = items;
+}
+
+void Deserializer::Deserialize(TypeType& out, const proto::Type::TypeRef& in)
+{
+    DeserializeTypeCommon(out, in);
+}
+
+void Deserializer::Deserialize(TypePolymorphic& out, const proto::Type::Polymorphic& in)
+{
+    DeserializeTypeCommon(out, in);
+
+    out.isNullable = in.nullable();
+
+    if (in.type() < types_.Size())
+        out.type = types_[in.type()];
+}
+
+void Deserializer::Deserialize(TypeAttribute& out, const proto::Type::Attribute& in)
+{
+    DeserializeTypeCommon(out, in);
+
+    Array<Field> fields = arena_.NewArray<Field>(in.fields_size());
+    for (const proto::Field& field : in.fields())
+    {
+        Field& out_field = fields.EmplaceBack(arena_);
+        out_field.name = arena_.NewString(field.name());
+        out_field.owner = &out;
+        if (field.type() < types_.Size())
+            out_field.type = types_[field.type()];
+        if (field.has_value())
+            out_field.value = Deserialize(field.value());
+    }
+    out.fields = fields;
+}
+
+template <typename T>
+void Deserializer::DeserializeTypeCommon(Type& out, const T& in)
+{
+    out.name = arena_.NewString(in.name());
+    if (in.module() < modules_.Size())
+        out.owner = modules_[in.module()];
+
+    Array<Annotation*> annotations = arena_.NewArray<Annotation*>(in.annotations_size());
+    for (const proto::Annotation& anno : in.annotations())
+    {
+        Annotation* const out_anno = arena_.New<Annotation>();
+        Deserialize(*out_anno, anno);
+        annotations.PushBack(arena_, out_anno);
+    }
+    out.annotations = annotations;
+}
+
+Value* Deserializer::Deserialize(const proto::Value& in)
+{
+    switch (in.Values_case())
+    {
+        case proto::Value::kNull: return Deserialize(in.null());
+        case proto::Value::kBool: return Deserialize(in.bool_());
+        case proto::Value::kInt: return Deserialize(in.int_());
+        case proto::Value::kFloat: return Deserialize(in.float_());
+        case proto::Value::kString: return Deserialize(in.string());
+        case proto::Value::kEnum: return Deserialize(in.enum_());
+        case proto::Value::kArray: return Deserialize(in.array());
+        case proto::Value::kObject: return Deserialize(in.object());
+    }
+    return nullptr;
+}
+
+ValueObject* Deserializer::Deserialize(const proto::Value::Object& in)
+{
+    ValueObject* const value = arena_.New<ValueObject>();
+    return value;
+}
+
+ValueBool* Deserializer::Deserialize(const proto::Value::Bool& in)
+{
+    ValueBool* const value = arena_.New<ValueBool>();
+    value->value = in.value();
+    return value;
+}
+
+ValueInt* Deserializer::Deserialize(const proto::Value::Int& in)
+{
+    ValueInt* const value = arena_.New<ValueInt>();
+    value->value = in.value();
+    return value;
+}
+
+ValueFloat* Deserializer::Deserialize(const proto::Value::Float& in)
+{
+    ValueFloat* const value = arena_.New<ValueFloat>();
+    value->value = in.value();
+    return value;
+}
+
+ValueString* Deserializer::Deserialize(const proto::Value::String& in)
+{
+    ValueString* const value = arena_.New<ValueString>();
+    value->value = arena_.NewString(in.value());
+    return value;
+}
+
+ValueArray* Deserializer::Deserialize(const proto::Value::Array& in)
+{
+    ValueArray* const value = arena_.New<ValueArray>();
+    Array<Value*> elements = arena_.NewArray<Value*>(in.elements_size());
+    for (const proto::Value& element : in.elements())
+        elements.PushBack(arena_, Deserialize(element));
+    value->elements = elements;
+    return value;
+}
+
+ValueEnum* Deserializer::Deserialize(const proto::Value::Enum& in)
+{
+    ValueEnum* const value = arena_.New<ValueEnum>();
+    if (in.type() < types_.Size() && types_[in.type()]->kind == TypeKind::Enum)
+    {
+        const TypeEnum* const enum_ = static_cast<const TypeEnum*>(types_[in.type()]);
+        if (in.item() < enum_->items.size())
+            value->item = &enum_->items[in.item()];
+    }
+    return value;
+}
+
+ValueType* Deserializer::Deserialize(const proto::Value::Type& in)
+{
+    return arena_.New<ValueType>();
+}
+
+ValueNull* Deserializer::Deserialize(const proto::Value::Null& in)
+{
+    return arena_.New<ValueNull>();
+}
+
+void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
+{
+    if (in.attribute_type() < types_.Size())
+        if (types_[in.attribute_type()]->kind == TypeKind::Attribute)
+            out.attribute = static_cast<const TypeAttribute*>(types_[in.attribute_type()]);
+
+    Array<Argument> args = arena_.NewArray<Argument>(in.arguments_size());
+    for (const proto::Argument& arg : in.arguments())
+    {
+        Argument& out_arg = args.EmplaceBack(arena_);
+        out_arg.field = FindField(out.attribute, arg.field_name());
+        if (arg.has_value())
+            out_arg.value = Deserialize(arg.value());
+    }
+    out.arguments = args;
 }

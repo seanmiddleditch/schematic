@@ -45,4 +45,4 @@ namespace potato::schematic::compiler
     };
 
     const char* ToCStr(TokenType type) noexcept;
-} // namespace potato::schematic
+} // namespace potato::schematic::compiler

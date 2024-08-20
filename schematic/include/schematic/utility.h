@@ -24,6 +24,8 @@ namespace potato::schematic
 
     struct ValueObject;
 
+    class Visitor;
+
     const Field* FindField(const TypeAggregate* aggregate, std::string_view name) noexcept;
     const Field* FindField(const TypeAttribute* attribute, std::string_view name) noexcept;
 
@@ -78,4 +80,5 @@ namespace potato::schematic
             return static_cast<const T*>(value);
         return nullptr;
     }
+
 } // namespace potato::schematic

@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "arena.h"
 #include "ast.h"
 #include "token.h"
 
+#include "schematic/allocator.h"
 #include "schematic/compiler.h"
 
 #include <span>
@@ -24,13 +24,13 @@ namespace potato::schematic::compiler
     class Parser final
     {
     public:
-        Parser(ParseContext& pctx, CompileContext& cctx, ArenaAllocator& alloc, FileId file, const Array<Token>& tokens) noexcept
+        Parser(ParseContext& pctx, CompileContext& cctx, ArenaAllocator& arena, FileId file, const Array<Token>& tokens) noexcept
             : pctx_(pctx)
             , cctx_(cctx)
-            , alloc_(alloc)
+            , arena_(arena)
             , file_(file)
             , tokens_(tokens)
-            , mod(alloc.Create<AstNodeModule>(0))
+            , mod(arena.New<AstNodeModule>(0))
         {
         }
 
@@ -88,7 +88,7 @@ namespace potato::schematic::compiler
 
         ParseContext& pctx_;
         CompileContext& cctx_;
-        ArenaAllocator& alloc_;
+        ArenaAllocator& arena_;
         FileId file_;
         std::string_view contents_;
         std::span<const Token> tokens_;
