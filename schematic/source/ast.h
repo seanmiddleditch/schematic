@@ -22,7 +22,7 @@ namespace potato::schematic::compiler
         EnumItem,
         TypeQualified,
         TypeArray,
-        TypePolymorphic,
+        TypePointer,
         TypeNullable,
         Annotation,
         LiteralBool,
@@ -47,7 +47,7 @@ namespace potato::schematic::compiler
     struct AstNodeType;
     struct AstNodeTypeQualified;
     struct AstNodeTypeArray;
-    struct AstNodeTypePolymorphic;
+    struct AstNodeTypePointer;
     struct AstNodeTypeNullable;
     struct AstNodeAnnotation;
     struct AstNodeExpression;
@@ -176,9 +176,9 @@ namespace potato::schematic::compiler
         const AstNodeLiteralInt* size = nullptr;
     };
 
-    struct AstNodeTypePolymorphic : AstNodeType
+    struct AstNodeTypePointer : AstNodeType
     {
-        AST_NODE(AstNodeTypePolymorphic, AstNodeType, AstNodeKind::TypePolymorphic);
+        AST_NODE(AstNodeTypePointer, AstNodeType, AstNodeKind::TypePointer);
 
         const AstNodeType* type = nullptr;
     };

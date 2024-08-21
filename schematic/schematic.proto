@@ -113,7 +113,7 @@ message Type
         repeated Annotation annotations = 3;
     }
 
-    message Polymorphic
+    message Pointer
     {
         string name = 1;
         uint32 module = 2;
@@ -142,7 +142,7 @@ message Type
         String string = 6;
         Enum enum = 7;
         TypeRef type = 8;
-        Polymorphic polymorphic = 9;
+        Pointer pointer = 9;
         Attribute attribute = 10;
     }
 }

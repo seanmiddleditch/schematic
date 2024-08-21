@@ -461,9 +461,9 @@ const AstNodeType* Parser::ParseType()
     }
     else if (Consume(TokenType::Star))
     {
-        AstNodeTypePolymorphic* const poly = arena_.New<AstNodeTypePolymorphic>(type->tokenIndex);
-        poly->type = type;
-        type = poly;
+        AstNodeTypePointer* const pointer = arena_.New<AstNodeTypePointer>(type->tokenIndex);
+        pointer->type = type;
+        type = pointer;
     }
 
     if (Consume(TokenType::Question))

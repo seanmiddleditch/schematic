@@ -28,7 +28,7 @@ namespace potato::schematic
     struct TypeEnum;
     struct TypeFloat;
     struct TypeInt;
-    struct TypePolymorphic;
+    struct TypePointer;
     struct TypeString;
     struct TypeType;
 
@@ -55,7 +55,7 @@ namespace potato::schematic
         Attribute,
         Enum,
         Array,
-        Polymorphic,
+        Pointer,
         Type,
     };
 
@@ -189,9 +189,9 @@ namespace potato::schematic
         std::uint32_t size = 0; // only non-zero if isFixed is true
     };
 
-    struct TypePolymorphic : Type
+    struct TypePointer : Type
     {
-        SCHEMATIC_TYPE(Polymorphic);
+        SCHEMATIC_TYPE(Pointer);
 
         const Type* type = nullptr;
         bool isNullable = false;

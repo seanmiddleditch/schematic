@@ -35,7 +35,7 @@ namespace
         void Serialize(proto::Type::String& out, const TypeString& in);
         void Serialize(proto::Type::Enum& out, const TypeEnum& in);
         void Serialize(proto::Type::TypeRef& out, const TypeType& in);
-        void Serialize(proto::Type::Polymorphic& out, const TypePolymorphic& in);
+        void Serialize(proto::Type::Pointer& out, const TypePointer& in);
         void Serialize(proto::Type::Attribute& out, const TypeAttribute& in);
 
         template <typename T>
@@ -78,7 +78,7 @@ namespace
         void Deserialize(TypeString& out, const proto::Type::String& in);
         void Deserialize(TypeEnum& out, const proto::Type::Enum& in);
         void Deserialize(TypeType& out, const proto::Type::TypeRef& in);
-        void Deserialize(TypePolymorphic& out, const proto::Type::Polymorphic& in);
+        void Deserialize(TypePointer& out, const proto::Type::Pointer& in);
         void Deserialize(TypeAttribute& out, const proto::Type::Attribute& in);
 
         template <typename T>
@@ -193,8 +193,8 @@ void Serializer::Serialize(proto::Type& out, const Type& in)
         case Enum:
             Serialize(*out.mutable_enum_(), static_cast<const TypeEnum&>(in));
             break;
-        case Polymorphic:
-            Serialize(*out.mutable_polymorphic(), static_cast<const TypePolymorphic&>(in));
+        case Pointer:
+            Serialize(*out.mutable_pointer(), static_cast<const TypePointer&>(in));
             break;
         case Type:
             Serialize(*out.mutable_type(), static_cast<const TypeType&>(in));
@@ -284,7 +284,7 @@ void Serializer::Serialize(proto::Type::TypeRef& out, const TypeType& in)
     SerializeTypeCommon(out, in);
 }
 
-void Serializer::Serialize(proto::Type::Polymorphic& out, const TypePolymorphic& in)
+void Serializer::Serialize(proto::Type::Pointer& out, const TypePointer& in)
 {
     SerializeTypeCommon(out, in);
 
@@ -500,8 +500,8 @@ void Deserializer::Deserialize(Schema& out)
             case proto::Type::kType:
                 types_.PushBack(arena_, arena_.New<TypeType>());
                 break;
-            case proto::Type::kPolymorphic:
-                types_.PushBack(arena_, arena_.New<TypePolymorphic>());
+            case proto::Type::kPointer:
+                types_.PushBack(arena_, arena_.New<TypePointer>());
                 break;
             case proto::Type::kAttribute:
                 types_.PushBack(arena_, arena_.New<TypeAttribute>());
@@ -566,8 +566,8 @@ void Deserializer::Deserialize(Type& out, const proto::Type& in)
         case TypeKind::Type:
             Deserialize(static_cast<TypeType&>(out), in.type());
             break;
-        case TypeKind::Polymorphic:
-            Deserialize(static_cast<TypePolymorphic&>(out), in.polymorphic());
+        case TypeKind::Pointer:
+            Deserialize(static_cast<TypePointer&>(out), in.pointer());
             break;
         case TypeKind::Attribute:
             Deserialize(static_cast<TypeAttribute&>(out), in.attribute());
@@ -672,7 +672,7 @@ void Deserializer::Deserialize(TypeType& out, const proto::Type::TypeRef& in)
     DeserializeTypeCommon(out, in);
 }
 
-void Deserializer::Deserialize(TypePolymorphic& out, const proto::Type::Polymorphic& in)
+void Deserializer::Deserialize(TypePointer& out, const proto::Type::Pointer& in)
 {
     DeserializeTypeCommon(out, in);
 
