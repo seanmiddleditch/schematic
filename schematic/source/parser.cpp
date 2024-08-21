@@ -51,7 +51,7 @@ struct fmt::formatter<PrintToken> : fmt::formatter<const char*>
 
 const AstNodeModule* Parser::Parse()
 {
-    contents_ = cctx_.ReadFileContents(file_);
+    contents_ = cctx_.ReadFileContents(moduleId_);
 
     while (!Consume(TokenType::End))
     {
@@ -664,7 +664,7 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
 void Parser::Error(std::string_view message)
 {
     const Token& token = tokens_[next_];
-    cctx_.Error(file_, FindRange(contents_, token.offset, token.length), message);
+    cctx_.Error(moduleId_, FindRange(contents_, token.offset, token.length), message);
     failed_ = true;
 }
 

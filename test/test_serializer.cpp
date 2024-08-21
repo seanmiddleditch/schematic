@@ -43,7 +43,7 @@ TEST_CASE("Serialize", "[potato][schematic]")
 
     ctx.AddFile("<main>", main_source);
     ctx.AddFile("imported", imported_source);
-    REQUIRE(compiler.Compile(FileId{ 0 }));
+    REQUIRE(compiler.Compile(ModuleId{ 0 }));
 
     const Schema* const original = compiler.GetSchema();
     REQUIRE(original != nullptr);

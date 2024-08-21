@@ -17,9 +17,9 @@ using namespace potato::schematic::test;
 
 #define CompileTest(NAME) \
     ([&](auto name) { \
-        const FileId file = ctx.ResolveModule(name, FileId{}); \
-        REQUIRE(file.value != FileId::InvalidValue); \
-        REQUIRE(compiler.Compile(file)); \
+        const ModuleId moduleId = ctx.ResolveModule(name, ModuleId{}); \
+        REQUIRE(moduleId.value != ModuleId::InvalidValue); \
+        REQUIRE(compiler.Compile(moduleId)); \
         const Schema* const schema = compiler.GetSchema(); \
         REQUIRE(schema != nullptr); \
         REQUIRE(schema->root != nullptr); \
@@ -42,7 +42,7 @@ TEST_CASE("Compiler", "[potato][schematic]")
         // and another comment
 )--");
 
-        Lexer lexer(ctx, arena, FileId{ 0 });
+        Lexer lexer(ctx, arena, ModuleId{ 0 });
         REQUIRE(!lexer.Tokenize().IsEmpty());
 
         CHECK_THAT("123", IsTokenType(TokenType::Integer));

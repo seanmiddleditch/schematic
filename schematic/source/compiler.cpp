@@ -26,7 +26,7 @@ namespace
 {
     struct State
     {
-        FileId file;
+        ModuleId moduleId;
         const AstNodeModule* ast = nullptr;
         Module* mod = nullptr;
         Array<const Module*> imports;
@@ -48,7 +48,7 @@ struct potato::schematic::Compiler::Impl final : ParseContext
         return HandleImport(imp);
     }
 
-    const Schema* Compile(FileId file);
+    const Schema* Compile(ModuleId moduleId);
     const Module* CompileModule();
 
     const AstNodeModule* HandleImport(const AstNodeImport& imp);
@@ -110,13 +110,13 @@ void potato::schematic::Compiler::SetUseBuiltins(bool useBuiltins)
     impl_->useBuiltins = useBuiltins;
 }
 
-bool potato::schematic::Compiler::Compile(FileId file)
+bool potato::schematic::Compiler::Compile(ModuleId moduleId)
 {
     impl_->builtins = nullptr;
     impl_->schema = nullptr;
     impl_->result = true;
     impl_->stack = Array<State*>{};
-    return impl_->Compile(file) != nullptr;
+    return impl_->Compile(moduleId) != nullptr;
 }
 
 const Schema* potato::schematic::Compiler::GetSchema()
@@ -128,12 +128,12 @@ const Module* potato::schematic::Compiler::Impl::CompileModule()
 {
     State& state = *stack.Back();
 
-    Lexer lexer(ctx, arena, state.file);
+    Lexer lexer(ctx, arena, state.moduleId);
     state.tokens = lexer.Tokenize();
     if (state.tokens.IsEmpty())
         return nullptr;
 
-    Parser parser(*this, ctx, arena, state.file, state.tokens);
+    Parser parser(*this, ctx, arena, state.moduleId, state.tokens);
     state.ast = parser.Parse();
 
     if (state.ast == nullptr)
@@ -172,9 +172,9 @@ const Module* potato::schematic::Compiler::Impl::CompileModule()
     return state.mod;
 }
 
-const Schema* potato::schematic::Compiler::Impl::Compile(FileId file)
+const Schema* potato::schematic::Compiler::Impl::Compile(ModuleId moduleId)
 {
-    if (file.value == FileId::InvalidValue)
+    if (moduleId.value == ModuleId::InvalidValue)
         return nullptr;
 
     if (useBuiltins && builtins == nullptr)
@@ -183,9 +183,9 @@ const Schema* potato::schematic::Compiler::Impl::Compile(FileId file)
     State* const state = arena.New<State>();
     stack.PushBack(arena, state);
 
-    state->file = file;
+    state->moduleId = moduleId;
     state->mod = arena.New<Module>();
-    state->mod->filename = arena.NewString(ctx.GetFileName(file));
+    state->mod->filename = arena.NewString(ctx.GetFileName(moduleId));
 
     if (useBuiltins)
         state->imports.EmplaceBack(arena, builtins);
@@ -217,17 +217,17 @@ const Schema* potato::schematic::Compiler::Impl::Compile(FileId file)
 
 const AstNodeModule* potato::schematic::Compiler::Impl::HandleImport(const AstNodeImport& imp)
 {
-    const FileId file = ctx.ResolveModule(imp.target.name, stack.Back()->file);
-    if (file.value == FileId::InvalidValue)
+    const ModuleId moduleId = ctx.ResolveModule(imp.target.name, stack.Back()->moduleId);
+    if (moduleId.value == ModuleId::InvalidValue)
     {
         Error(imp.tokenIndex, "Module not found: {}", imp.target.name);
         return nullptr;
     }
 
     State* const state = arena.New<State>();
-    state->file = file;
+    state->moduleId = moduleId;
     state->mod = arena.New<Module>();
-    state->mod->filename = arena.NewString(ctx.GetFileName(file));
+    state->mod->filename = arena.NewString(ctx.GetFileName(moduleId));
 
     stack.PushBack(arena, state);
     const bool success = CompileModule() != nullptr;
@@ -724,12 +724,12 @@ void potato::schematic::Compiler::Impl::Error(std::uint32_t tokenIndex, fmt::for
     {
         const Token& token = stack.Back()->tokens[tokenIndex];
 
-        const std::string_view source = ctx.ReadFileContents(stack.Back()->file);
-        ctx.Error(stack.Back()->file, FindRange(source, token.offset, token.length), fmt::vformat(format, fmt::make_format_args(args...)));
+        const std::string_view source = ctx.ReadFileContents(stack.Back()->moduleId);
+        ctx.Error(stack.Back()->moduleId, FindRange(source, token.offset, token.length), fmt::vformat(format, fmt::make_format_args(args...)));
     }
     else
     {
-        ctx.Error(stack.Back()->file, {}, fmt::vformat(format, fmt::make_format_args(args...)));
+        ctx.Error(stack.Back()->moduleId, {}, fmt::vformat(format, fmt::make_format_args(args...)));
     }
 }
 

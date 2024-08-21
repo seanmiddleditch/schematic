@@ -25,27 +25,27 @@ namespace potato::schematic::test
 
     struct TestContext final : potato::schematic::CompileContext
     {
-        inline void Error(FileId file, const Range& range, std::string_view message) override;
+        inline void Error(ModuleId moduleId, const Range& range, std::string_view message) override;
 
-        inline std::string_view ReadFileContents(FileId id) override;
-        inline std::string_view GetFileName(FileId id) override;
-        inline FileId ResolveModule(std::string_view name, FileId referrer) override;
+        inline std::string_view ReadFileContents(ModuleId id) override;
+        inline std::string_view GetFileName(ModuleId id) override;
+        inline ModuleId ResolveModule(std::string_view name, ModuleId referrer) override;
 
         inline void AddFile(std::string name, std::string source);
 
         std::vector<TestSource> files;
     };
 
-    void TestContext::Error(FileId file, const Range& range, std::string_view message)
+    void TestContext::Error(ModuleId moduleId, const Range& range, std::string_view message)
     {
         UNSCOPED_INFO(message);
-        if (file.value == FileId::InvalidValue)
+        if (moduleId.value == ModuleId::InvalidValue)
             return;
 
-        std::string_view source = ReadFileContents(file);
+        std::string_view source = ReadFileContents(moduleId);
         std::string_view line = potato::schematic::compiler::ExtractLine(source, range.start.line);
         std::string buffer;
-        fmt::format_to(std::back_inserter(buffer), "{}({}): ", GetFileName(file), range.start.line);
+        fmt::format_to(std::back_inserter(buffer), "{}({}): ", GetFileName(moduleId), range.start.line);
         const auto prefix = buffer.size();
         buffer.append(line);
         UNSCOPED_INFO(buffer);
@@ -78,7 +78,7 @@ namespace potato::schematic::test
         UNSCOPED_INFO(buffer);
     }
 
-    std::string_view TestContext::ReadFileContents(FileId id)
+    std::string_view TestContext::ReadFileContents(ModuleId id)
     {
         if (id.value >= files.size())
             return {};
@@ -86,7 +86,7 @@ namespace potato::schematic::test
         return files[id.value].data;
     }
 
-    std::string_view TestContext::GetFileName(FileId id)
+    std::string_view TestContext::GetFileName(ModuleId id)
     {
         if (id.value >= files.size())
             return {};
@@ -94,12 +94,12 @@ namespace potato::schematic::test
         return files[id.value].name;
     }
 
-    FileId TestContext::ResolveModule(std::string_view name, FileId referrer)
+    ModuleId TestContext::ResolveModule(std::string_view name, ModuleId referrer)
     {
         for (std::size_t i = 0; i != files.size(); ++i)
             if (files[i].name == name)
-                return FileId{ i };
-        return FileId{};
+                return ModuleId{ i };
+        return ModuleId{};
     }
 
     void TestContext::AddFile(std::string name, std::string source)

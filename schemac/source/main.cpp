@@ -35,13 +35,13 @@ namespace
 
     struct MainContext final : potato::schematic::CompileContext
     {
-        void Error(FileId file, const Range& range, std::string_view message) override;
+        void Error(ModuleId moduleId, const Range& range, std::string_view message) override;
 
-        std::string_view ReadFileContents(FileId id) override;
-        std::string_view GetFileName(FileId id) override;
-        FileId ResolveModule(std::string_view name, FileId referrer) override;
+        std::string_view ReadFileContents(ModuleId id) override;
+        std::string_view GetFileName(ModuleId id) override;
+        ModuleId ResolveModule(std::string_view name, ModuleId referrer) override;
 
-        FileId TryLoadFile(const std::filesystem::path& filename);
+        ModuleId TryLoadFile(const std::filesystem::path& filename);
 
         std::filesystem::path input;
         std::filesystem::path output;
@@ -63,7 +63,7 @@ int main(int argc, char** argv)
     if (!ParseArguments(ctx, std::span{ &argv[1], &argv[argc] }))
         return 1;
 
-    const FileId root = ctx.TryLoadFile(ctx.input);
+    const ModuleId root = ctx.TryLoadFile(ctx.input);
 
     NewDeleteAllocator alloc;
     ArenaAllocator arena(alloc);
@@ -284,9 +284,9 @@ bool ParseArguments(MainContext& ctx, std::span<char*> args)
     return true;
 }
 
-void MainContext::Error(FileId file, const Range& range, std::string_view message)
+void MainContext::Error(ModuleId moduleId, const Range& range, std::string_view message)
 {
-    if (file.value == FileId::InvalidValue)
+    if (moduleId.value == ModuleId::InvalidValue)
     {
         fmt::println(stderr, "<unknown>: {}", message);
         return;
@@ -294,14 +294,14 @@ void MainContext::Error(FileId file, const Range& range, std::string_view messag
 
     if (range.start.line == 0)
     {
-        fmt::println(stderr, "{}: {}", files[file.value].filename, message);
+        fmt::println(stderr, "{}: {}", files[moduleId.value].filename, message);
         return;
     }
 
-    fmt::println(stderr, "{}({},{}): {}", files[file.value].filename, range.start.line, range.start.column, message);
+    fmt::println(stderr, "{}({},{}): {}", files[moduleId.value].filename, range.start.line, range.start.column, message);
 }
 
-std::string_view MainContext::ReadFileContents(FileId id)
+std::string_view MainContext::ReadFileContents(ModuleId id)
 {
     if (id.value >= files.size())
         return {};
@@ -309,7 +309,7 @@ std::string_view MainContext::ReadFileContents(FileId id)
     return files[id.value].source;
 }
 
-std::string_view MainContext::GetFileName(FileId id)
+std::string_view MainContext::GetFileName(ModuleId id)
 {
     if (id.value >= files.size())
         return {};
@@ -317,7 +317,7 @@ std::string_view MainContext::GetFileName(FileId id)
     return files[id.value].name;
 }
 
-FileId MainContext::ResolveModule(std::string_view name, FileId referrer)
+ModuleId MainContext::ResolveModule(std::string_view name, ModuleId referrer)
 {
     std::filesystem::path filename;
 
@@ -330,32 +330,32 @@ FileId MainContext::ResolveModule(std::string_view name, FileId referrer)
 
     for (std::size_t i = 0; i != files.size(); ++i)
         if (files[i].filename == filename)
-            return FileId{ i };
+            return ModuleId{ i };
 
-    if (const FileId file = TryLoadFile(filename); file.value != FileId::InvalidValue)
-        return file;
+    if (const ModuleId moduleId = TryLoadFile(filename); moduleId.value != ModuleId::InvalidValue)
+        return moduleId;
 
     for (const std::filesystem::path& s : search)
     {
         filename = s / name;
         filename.replace_extension("sat");
-        if (const FileId file = TryLoadFile(filename); file.value != FileId::InvalidValue)
-            return file;
+        if (const ModuleId moduleId = TryLoadFile(filename); moduleId.value != ModuleId::InvalidValue)
+            return moduleId;
     }
 
     return {};
 }
 
-FileId MainContext::TryLoadFile(const std::filesystem::path& filename)
+ModuleId MainContext::TryLoadFile(const std::filesystem::path& filename)
 {
     std::ifstream input(filename);
     if (!input)
-        return FileId{};
+        return ModuleId{};
 
     File& file = files.emplace_back();
     file.filename = filename;
     file.name = file.filename.generic_string();
     file.source = std::string(std::istreambuf_iterator<char>(input), {});
 
-    return FileId{ files.size() - 1 };
+    return ModuleId{ files.size() - 1 };
 }
