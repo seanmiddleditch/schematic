@@ -12,21 +12,11 @@
 
 namespace potato::schematic::compiler
 {
-    class ParseContext
-    {
-    public:
-        virtual const AstNodeModule* LoadImport(const AstNodeImport& imp) = 0;
-
-    protected:
-        ~ParseContext() = default;
-    };
-
     class Parser final
     {
     public:
-        Parser(ParseContext& pctx, CompileContext& cctx, ArenaAllocator& arena, ModuleId moduleId, const Array<Token>& tokens) noexcept
-            : pctx_(pctx)
-            , cctx_(cctx)
+        Parser(CompileContext& ctx, ArenaAllocator& arena, ModuleId moduleId, const Array<Token>& tokens) noexcept
+            : ctx_(ctx)
             , arena_(arena)
             , moduleId_(moduleId)
             , tokens_(tokens)
@@ -49,7 +39,7 @@ namespace potato::schematic::compiler
 
         bool ParseAnnotations();
 
-        bool ParseImport(const AstNodeImport*& imp);
+        bool ParseImport();
         bool ParseAggregateDecl();
         bool ParseAttributeDecl();
         bool ParseEnumDecl();
@@ -86,8 +76,7 @@ namespace potato::schematic::compiler
 
         std::uint32_t Pos(const Token* token = nullptr) const;
 
-        ParseContext& pctx_;
-        CompileContext& cctx_;
+        CompileContext& ctx_;
         ArenaAllocator& arena_;
         ModuleId moduleId_;
         std::string_view contents_;

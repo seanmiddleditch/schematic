@@ -35,7 +35,7 @@ namespace
     };
 } // namespace
 
-struct potato::schematic::Compiler::Impl final : ParseContext
+struct potato::schematic::Compiler::Impl final
 {
     explicit Impl(CompileContext& ctx, ArenaAllocator& arena) noexcept
         : ctx(ctx)
@@ -43,15 +43,10 @@ struct potato::schematic::Compiler::Impl final : ParseContext
     {
     }
 
-    const AstNodeModule* LoadImport(const AstNodeImport& imp) override
-    {
-        return HandleImport(imp);
-    }
-
     const Schema* Compile(ModuleId moduleId);
     const Module* CompileModule();
 
-    const AstNodeModule* HandleImport(const AstNodeImport& imp);
+    bool HandleImport(const AstNodeImport& imp);
 
     const Module* CreateBuiltins();
 
@@ -152,10 +147,23 @@ const Module* potato::schematic::Compiler::Impl::CompileModule()
     if (state.tokens.IsEmpty())
         return nullptr;
 
-    Parser parser(*this, ctx, arena, state.moduleId, state.tokens);
+    Parser parser(ctx, arena, state.moduleId, state.tokens);
     state.ast = parser.Parse();
 
     if (state.ast == nullptr)
+        return nullptr;
+
+    bool importFailed = false;
+    for (const AstNode* adecl : state.ast->nodes)
+    {
+        if (const AstNodeImport* const imp = adecl->CastTo<AstNodeImport>())
+        {
+            if (!HandleImport(*imp))
+                importFailed = true;
+        }
+    }
+
+    if (importFailed)
         return nullptr;
 
     for (const AstNode* adecl : state.ast->nodes)
@@ -234,13 +242,13 @@ const Schema* potato::schematic::Compiler::Impl::Compile(ModuleId moduleId)
     return schema;
 }
 
-const AstNodeModule* potato::schematic::Compiler::Impl::HandleImport(const AstNodeImport& imp)
+bool potato::schematic::Compiler::Impl::HandleImport(const AstNodeImport& imp)
 {
     const ModuleId moduleId = ctx.ResolveModule(imp.target.name, stack.Back()->moduleId);
     if (moduleId.value == ModuleId::InvalidValue)
     {
         Error(imp.tokenIndex, "Module not found: {}", imp.target.name);
-        return nullptr;
+        return false;
     }
 
     State* const state = arena.New<State>();
@@ -259,10 +267,7 @@ const AstNodeModule* potato::schematic::Compiler::Impl::HandleImport(const AstNo
         parent->mod->imports = parent->imports;
     }
 
-    if (!success)
-        return nullptr;
-
-    return state->ast;
+    return success;
 }
 
 const Module* potato::schematic::Compiler::Impl::CreateBuiltins()

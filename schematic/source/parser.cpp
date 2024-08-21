@@ -51,20 +51,14 @@ struct fmt::formatter<PrintToken> : fmt::formatter<const char*>
 
 const AstNodeModule* Parser::Parse()
 {
-    contents_ = cctx_.ReadFileContents(moduleId_);
+    contents_ = ctx_.ReadFileContents(moduleId_);
 
     while (!Consume(TokenType::End))
     {
         if (ConsumeKey("import"))
         {
-            const AstNodeImport* imp = nullptr;
-            if (!ParseImport(imp))
-            {
+            if (!ParseImport())
                 Recover(RecoverType::Declaration);
-                continue;
-            }
-
-            pctx_.LoadImport(*imp);
             continue;
         }
 
@@ -154,10 +148,9 @@ bool Parser::ParseAnnotations()
     return true;
 }
 
-bool Parser::ParseImport(const AstNodeImport*& imp)
+bool Parser::ParseImport()
 {
     AstNodeImport* const local = arena_.New<AstNodeImport>(Pos());
-    imp = local;
 
     if (!ExpectIdent(local->target))
         return false;
@@ -664,7 +657,7 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
 void Parser::Error(std::string_view message)
 {
     const Token& token = tokens_[next_];
-    cctx_.Error(moduleId_, FindRange(contents_, token.offset, token.length), message);
+    ctx_.Error(moduleId_, FindRange(contents_, token.offset, token.length), message);
     failed_ = true;
 }
 
