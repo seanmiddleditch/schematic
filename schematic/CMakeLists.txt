@@ -12,9 +12,7 @@ target_include_directories(schematic_core PUBLIC
 )
 target_sources(schematic_core PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
     "include/schematic/allocator.h"
-    "include/schematic/compiler.h"
     "include/schematic/schema.h"
-    "include/schematic/serialize.h"
     "include/schematic/utility.h"
 )
 target_sources(schematic_core PRIVATE
@@ -57,10 +55,10 @@ target_include_directories(schematic_protobuf PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 target_sources(schematic_protobuf PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
-    "include/schematic/serialize.h"
+    "include/schematic/protobuf.h"
 )
 target_sources(schematic_protobuf PRIVATE
-    "source/serialize.cpp"
+    "source/protobuf.cpp"
 )
 
 add_library(schematic INTERFACE)

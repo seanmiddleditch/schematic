@@ -1,14 +1,12 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
-#include "schematic/serialize.h"
+#include "schematic/protobuf.h"
 
 #include "array.h"
 
 #include "schematic/schema.h"
 #include "schematic/schematic.pb.h"
 #include "schematic/utility.h"
-
-#include <google/protobuf/util/json_util.h>
 
 using namespace potato::schematic;
 
@@ -106,7 +104,7 @@ namespace
     };
 } // namespace
 
-const proto::Schema* potato::schematic::Serialize(google::protobuf::Arena& arena, const Schema* schema)
+const proto::Schema* potato::schematic::SerializeSchemaProto(google::protobuf::Arena& arena, const Schema* schema)
 {
     if (schema == nullptr)
         return nullptr;
@@ -116,7 +114,7 @@ const proto::Schema* potato::schematic::Serialize(google::protobuf::Arena& arena
     return proto;
 }
 
-const Schema* potato::schematic::Deserialize(ArenaAllocator& arena, const proto::Schema* proto)
+const Schema* potato::schematic::ParseSchemaProto(ArenaAllocator& arena, const proto::Schema* proto)
 {
     if (proto == nullptr)
         return nullptr;

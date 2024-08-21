@@ -53,10 +53,6 @@ namespace
     };
 } // namespace
 
-// FIXME: this assumes that input text is NUL-terminated, but the interface relies on std::string_view which
-//  provides no such guarantee. Either the interface needs to change, or the code here needs to be updated
-//  and deeply audited.
-
 Array<Token> potato::schematic::compiler::Lexer::Tokenize()
 {
     if (moduleId_.value == ModuleId::InvalidValue)

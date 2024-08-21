@@ -1,7 +1,7 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
 #include "schematic/compiler.h"
-#include "schematic/serialize.h"
+#include "schematic/protobuf.h"
 
 #include <fmt/core.h>
 #include <fmt/std.h>
@@ -100,7 +100,7 @@ int main(int argc, char** argv)
         }
 
         google::protobuf::Arena arena;
-        const proto::Schema* const proto = Serialize(arena, schema);
+        const proto::Schema* const proto = SerializeSchemaProto(arena, schema);
         if (proto == nullptr)
         {
             fmt::println(stderr, "Internal error: serialization to protobuf failed");

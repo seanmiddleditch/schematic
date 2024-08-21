@@ -9,6 +9,6 @@ namespace potato::schematic
 {
     struct Schema;
 
-    [[nodiscard]] const proto::Schema* Serialize(google::protobuf::Arena& arena, const Schema* schema);
-    [[nodiscard]] const Schema* Deserialize(ArenaAllocator& arena, const proto::Schema* proto);
+    [[nodiscard]] const proto::Schema* SerializeSchemaProto(google::protobuf::Arena& arena, const Schema* schema);
+    [[nodiscard]] const Schema* ParseSchemaProto(ArenaAllocator& arena, const proto::Schema* proto);
 } // namespace potato::schematic
