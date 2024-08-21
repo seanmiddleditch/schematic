@@ -443,9 +443,10 @@ const AstNodeType* Parser::ParseType()
         type = qual;
     }
 
-    for (;;)
+    // Types can then either be arrays OR they can be pointers.
+    if (Consume(TokenType::LBracket))
     {
-        if (Consume(TokenType::LBracket))
+        do
         {
             AstNodeTypeArray* const array = arena_.New<AstNodeTypeArray>(type->tokenIndex);
             array->type = type;
@@ -455,29 +456,21 @@ const AstNodeType* Parser::ParseType()
 
             if (!Expect(TokenType::RBracket))
                 return nullptr;
-
-            continue;
         }
+        while (Consume(TokenType::LBracket));
+    }
+    else if (Consume(TokenType::Star))
+    {
+        AstNodeTypePolymorphic* const poly = arena_.New<AstNodeTypePolymorphic>(type->tokenIndex);
+        poly->type = type;
+        type = poly;
+    }
 
-        if (Consume(TokenType::Star))
-        {
-            AstNodeTypePolymorphic* const poly = arena_.New<AstNodeTypePolymorphic>(type->tokenIndex);
-            poly->type = type;
-            type = poly;
-
-            continue;
-        }
-
-        if (Consume(TokenType::Question))
-        {
-            AstNodeTypeNullable* const nullable = arena_.New<AstNodeTypeNullable>(type->tokenIndex);
-            nullable->type = type;
-            type = nullable;
-
-            continue;
-        }
-
-        break;
+    if (Consume(TokenType::Question))
+    {
+        AstNodeTypeNullable* const nullable = arena_.New<AstNodeTypeNullable>(type->tokenIndex);
+        nullable->type = type;
+        type = nullable;
     }
 
     return type;
