@@ -1,5 +1,7 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
+#ifndef SCHEMATIC_COMPILER_H
+#define SCHEMATIC_COMPILER_H 1
 #pragma once
 
 #include "schematic/allocator.h"
@@ -67,3 +69,5 @@ namespace potato::schematic
         Location end;
     };
 } // namespace potato::schematic
+
+#endif // SCHEMATIC_COMPILER_H

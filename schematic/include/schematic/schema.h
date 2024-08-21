@@ -1,5 +1,7 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
+#ifndef SCHEMATIC_SCHEMA_H
+#define SCHEMATIC_SCHEMA_H 1
 #pragma once
 
 #include <cstdint>
@@ -272,3 +274,5 @@ namespace potato::schematic
 #undef SCHEMATIC_VALUE
 
 } // namespace potato::schematic
+
+#endif // SCHEMATIC_SCHEMA_H
