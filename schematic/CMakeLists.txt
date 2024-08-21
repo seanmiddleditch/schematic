@@ -69,7 +69,11 @@ add_library(schematic_libschematic INTERFACE)
 add_library(schematic::libschematic ALIAS schematic_libschematic)
 target_link_libraries(schematic_libschematic INTERFACE schematic_libschematic_core schematic_libschematic_compiler schematic_libschematic_protobuf)
 
-install(TARGETS schematic_libschematic_core schematic_libschematic_compiler schematic_libschematic_protobuf EXPORT schematic FILE_SET HEADERS)
+install(
+    TARGETS schematic_libschematic_core schematic_libschematic_compiler schematic_libschematic_protobuf
+    EXPORT SchematicTargets
+    FILE_SET HEADERS
+)
 
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic")
 target_include_directories(schematic_libschematic_protobuf PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/protobuf>)

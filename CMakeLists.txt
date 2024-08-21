@@ -25,4 +25,18 @@ if(PROJECT_IS_TOP_LEVEL)
     endif()
 endif()
 
-install(EXPORT schematic DESTINATION lib/cmake)
+install(EXPORT SchematicTargets
+    DESTINATION lib/cmake/schematic
+    NAMESPACE Upstream::
+)
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(SchematicConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/SchematicConfig.cmake
+  INSTALL_DESTINATION lib/cmake/schematic
+  NO_SET_AND_CHECK_MACRO
+  NO_CHECK_REQUIRED_COMPONENTS_MACRO
+)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/SchematicConfig.cmake
+  DESTINATION lib/cmake/schematic
+)

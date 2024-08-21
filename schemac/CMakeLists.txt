@@ -11,4 +11,4 @@ target_sources(schematic_schemac PRIVATE
     "source/main.cpp"
 )
 
-install(TARGETS schematic_schemac EXPORT schematic)
+install(TARGETS schematic_schemac EXPORT SchematicTargets)
