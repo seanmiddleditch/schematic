@@ -263,12 +263,12 @@ const Module* potato::schematic::Compiler::Impl::CreateBuiltins()
     {
         TypeInt* const type = AddType<TypeInt>(0, arena.NewString(name));
         type->isSigned = std::is_signed_v<T>;
-        type->bits = CHAR_BIT * sizeof(T);
+        type->width = CHAR_BIT * sizeof(T);
     };
     auto AddFloat = [this]<typename T>(const char* name, T)
     {
         TypeFloat* const type = AddType<TypeFloat>(0, arena.NewString(name));
-        type->bits = CHAR_BIT * sizeof(T);
+        type->width = CHAR_BIT * sizeof(T);
     };
 
     AddType<TypeType>(0, arena.NewString("$type"));

@@ -212,7 +212,7 @@ void Serializer::Serialize(proto::Type::Aggregate& out, const TypeAggregate& in)
     SerializeTypeCommon(out, in);
 
     if (in.base != nullptr)
-        out.set_base_type(IndexOfType(in.base));
+        out.set_base(IndexOfType(in.base));
 
     for (const Field& field : in.fields)
     {
@@ -221,7 +221,7 @@ void Serializer::Serialize(proto::Type::Aggregate& out, const TypeAggregate& in)
         out_field.set_type(IndexOfType(field.type));
 
         if (field.value != nullptr)
-            Serialize(*out_field.mutable_value(), *field.value);
+            Serialize(*out_field.mutable_default_(), *field.value);
 
         for (const Annotation* const annotation : field.annotations)
             Serialize(*out_field.add_annotations(), *annotation);
@@ -237,7 +237,7 @@ void Serializer::Serialize(proto::Type::Int& out, const TypeInt& in)
 {
     SerializeTypeCommon(out, in);
 
-    out.set_width(in.bits);
+    out.set_width(in.width);
     out.set_signed_(in.isSigned);
 }
 
@@ -245,14 +245,14 @@ void Serializer::Serialize(proto::Type::Float& out, const TypeFloat& in)
 {
     SerializeTypeCommon(out, in);
 
-    out.set_width(in.bits);
+    out.set_width(in.width);
 }
 
 void Serializer::Serialize(proto::Type::Array& out, const TypeArray& in)
 {
     SerializeTypeCommon(out, in);
 
-    out.set_element_type(IndexOfType(in.type));
+    out.set_element(IndexOfType(in.type));
     if (in.isFixed)
         out.set_size(in.size);
 }
@@ -267,7 +267,7 @@ void Serializer::Serialize(proto::Type::Enum& out, const TypeEnum& in)
     SerializeTypeCommon(out, in);
 
     if (in.base != nullptr)
-        out.set_base_type(IndexOfType(in.base));
+        out.set_base(IndexOfType(in.base));
 
     for (const EnumItem& item : in.items)
     {
@@ -306,7 +306,7 @@ void Serializer::Serialize(proto::Type::Attribute& out, const TypeAttribute& in)
         out_field.set_name(field.name);
         out_field.set_type(IndexOfType(field.type));
         if (field.value != nullptr)
-            Serialize(*out_field.mutable_value(), *field.value);
+            Serialize(*out_field.mutable_default_(), *field.value);
 
         for (const Annotation* const annotation : field.annotations)
             Serialize(*out_field.add_annotations(), *annotation);
@@ -365,7 +365,7 @@ void Serializer::Serialize(proto::Value::Object& out, const ValueObject& in)
     for (const Argument& arg : in.fields)
     {
         proto::Argument& out_arg = *out.add_arguments();
-        out_arg.set_field_name(arg.field->name);
+        out_arg.set_field(arg.field->name);
 
         if (arg.value != nullptr)
             Serialize(*out_arg.mutable_value(), *arg.value);
@@ -430,12 +430,12 @@ void Serializer::Serialize(proto::Value::Null& out, const ValueNull& in)
 
 void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
 {
-    out.set_attribute_type(IndexOfType(in.attribute));
+    out.set_attribute(IndexOfType(in.attribute));
 
     for (const Argument& arg : in.arguments)
     {
         proto::Argument& out_arg = *out.add_arguments();
-        out_arg.set_field_name(arg.field->name);
+        out_arg.set_field(arg.field->name);
 
         if (arg.value != nullptr)
             Serialize(*out_arg.mutable_value(), *arg.value);
@@ -581,11 +581,11 @@ void Deserializer::Deserialize(TypeAggregate& out, const proto::Type::Aggregate&
 {
     DeserializeTypeCommon(out, in);
 
-    if (in.has_base_type())
+    if (in.has_base())
     {
-        if (in.base_type() < types_.Size())
+        if (in.base() < types_.Size())
         {
-            const Type* const base = types_[in.base_type()];
+            const Type* const base = types_[in.base()];
             if (base->kind == TypeKind::Aggregate)
                 out.base = static_cast<const TypeAggregate*>(base);
         }
@@ -599,8 +599,8 @@ void Deserializer::Deserialize(TypeAggregate& out, const proto::Type::Aggregate&
         out_field.owner = &out;
         if (field.type() < types_.Size())
             out_field.type = types_[field.type()];
-        if (field.has_value())
-            out_field.value = Deserialize(field.value());
+        if (field.has_default_())
+            out_field.value = Deserialize(field.default_());
     }
     out.fields = fields;
 }
@@ -613,14 +613,14 @@ void Deserializer::Deserialize(TypeBool& out, const proto::Type::Bool& in)
 void Deserializer::Deserialize(TypeInt& out, const proto::Type::Int& in)
 {
     DeserializeTypeCommon(out, in);
-    out.bits = in.width();
+    out.width = in.width();
     out.isSigned = in.signed_();
 }
 
 void Deserializer::Deserialize(TypeFloat& out, const proto::Type::Float& in)
 {
     DeserializeTypeCommon(out, in);
-    out.bits = in.width();
+    out.width = in.width();
 }
 
 void Deserializer::Deserialize(TypeArray& out, const proto::Type::Array& in)
@@ -632,8 +632,8 @@ void Deserializer::Deserialize(TypeArray& out, const proto::Type::Array& in)
         out.size = in.size();
     }
 
-    if (in.element_type() < types_.Size())
-        out.type = types_[in.element_type()];
+    if (in.element() < types_.Size())
+        out.type = types_[in.element()];
 }
 
 void Deserializer::Deserialize(TypeString& out, const proto::Type::String& in)
@@ -645,11 +645,11 @@ void Deserializer::Deserialize(TypeEnum& out, const proto::Type::Enum& in)
 {
     DeserializeTypeCommon(out, in);
 
-    if (in.has_base_type())
+    if (in.has_base())
     {
-        if (in.base_type() < types_.Size())
+        if (in.base() < types_.Size())
         {
-            const Type* const base = types_[in.base_type()];
+            const Type* const base = types_[in.base()];
             if (base->kind == TypeKind::Int)
                 out.base = base;
         }
@@ -696,8 +696,8 @@ void Deserializer::Deserialize(TypeAttribute& out, const proto::Type::Attribute&
         out_field.owner = &out;
         if (field.type() < types_.Size())
             out_field.type = types_[field.type()];
-        if (field.has_value())
-            out_field.value = Deserialize(field.value());
+        if (field.has_default_())
+            out_field.value = Deserialize(field.default_());
     }
     out.fields = fields;
 }
@@ -803,15 +803,15 @@ ValueNull* Deserializer::Deserialize(const proto::Value::Null& in)
 
 void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
 {
-    if (in.attribute_type() < types_.Size())
-        if (types_[in.attribute_type()]->kind == TypeKind::Attribute)
-            out.attribute = static_cast<const TypeAttribute*>(types_[in.attribute_type()]);
+    if (in.attribute() < types_.Size())
+        if (types_[in.attribute()]->kind == TypeKind::Attribute)
+            out.attribute = static_cast<const TypeAttribute*>(types_[in.attribute()]);
 
     Array<Argument> args = arena_.NewArray<Argument>(in.arguments_size());
     for (const proto::Argument& arg : in.arguments())
     {
         Argument& out_arg = args.EmplaceBack(arena_);
-        out_arg.field = FindField(out.attribute, arg.field_name());
+        out_arg.field = FindField(out.attribute, arg.field());
         if (arg.has_value())
             out_arg.value = Deserialize(arg.value());
     }

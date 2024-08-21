@@ -40,6 +40,9 @@ namespace potato::schematic
     struct ValueFloat;
     struct ValueType;
 
+    template <typename T>
+    using Span = std::span<const T>;
+
     enum class TypeKind : std::uint8_t
     {
         Bool,
@@ -56,8 +59,8 @@ namespace potato::schematic
 
     enum class ValueKind : std::uint8_t
     {
-        Bool,
         Null,
+        Bool,
         Int,
         Float,
         Enum,
@@ -76,7 +79,7 @@ namespace potato::schematic
     struct Annotation
     {
         const TypeAttribute* attribute = nullptr;
-        std::span<const Argument> arguments;
+        Span<Argument> arguments;
     };
 
     struct EnumItem
@@ -84,7 +87,7 @@ namespace potato::schematic
         const char* name = nullptr;
         const TypeEnum* owner = nullptr;
         const ValueInt* value = nullptr;
-        std::span<const Annotation* const> annotations;
+        Span<const Annotation*> annotations;
     };
 
     struct Field
@@ -93,21 +96,21 @@ namespace potato::schematic
         const Type* owner = nullptr;
         const Type* type = nullptr;
         const Value* value = nullptr;
-        std::span<const Annotation* const> annotations;
+        Span<const Annotation*> annotations;
     };
 
     struct Module
     {
         const char* filename = nullptr;
-        std::span<const Module* const> imports;
-        std::span<const Type* const> types;
+        Span<const Module*> imports;
+        Span<const Type*> types;
     };
 
     struct Schema
     {
         const Module* root = nullptr;
-        std::span<const Module* const> modules;
-        std::span<const Type* const> types;
+        Span<const Module*> modules;
+        Span<const Type*> types;
     };
 
     struct Type
@@ -115,12 +118,12 @@ namespace potato::schematic
         TypeKind kind = TypeKind::Aggregate;
         const char* name = nullptr;
         const Module* owner = nullptr;
-        std::span<const Annotation* const> annotations;
+        Span<const Annotation*> annotations;
     };
 
     struct Value
     {
-        ValueKind kind = ValueKind::Int;
+        ValueKind kind = ValueKind::Null;
     };
 
 #define SCHEMATIC_TYPE(KIND) \
@@ -142,14 +145,14 @@ namespace potato::schematic
         SCHEMATIC_TYPE(Int);
 
         bool isSigned = true;
-        std::uint32_t bits = 32;
+        std::uint32_t width = 32;
     };
 
     struct TypeFloat : Type
     {
         SCHEMATIC_TYPE(Float);
 
-        std::uint32_t bits = 32;
+        std::uint32_t width = 32;
     };
 
     struct TypeAggregate : Type
@@ -157,14 +160,14 @@ namespace potato::schematic
         SCHEMATIC_TYPE(Aggregate);
 
         const TypeAggregate* base = nullptr;
-        std::span<const Field> fields;
+        Span<Field> fields;
     };
 
     struct TypeAttribute : Type
     {
         SCHEMATIC_TYPE(Attribute);
 
-        std::span<const Field> fields;
+        Span<Field> fields;
     };
 
     struct TypeEnum : Type
@@ -172,7 +175,7 @@ namespace potato::schematic
         SCHEMATIC_TYPE(Enum);
 
         const Type* base = nullptr;
-        std::span<const EnumItem> items;
+        Span<EnumItem> items;
     };
 
     struct TypeArray : Type
@@ -248,7 +251,7 @@ namespace potato::schematic
         SCHEMATIC_VALUE(Object);
 
         const Type* type = nullptr;
-        std::span<const Argument> fields;
+        Span<Argument> fields;
     };
 
     struct ValueArray : Value
@@ -256,7 +259,7 @@ namespace potato::schematic
         SCHEMATIC_VALUE(Array);
 
         const Type* type = nullptr;
-        std::span<const Value* const> elements;
+        Span<const Value*> elements;
     };
 
     struct ValueType : Value
