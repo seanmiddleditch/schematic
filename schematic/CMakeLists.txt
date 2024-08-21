@@ -77,7 +77,7 @@ add_custom_command(
     OUTPUT
         "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic/schematic.pb.h"
         "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic/schematic.pb.cc"
-    COMMAND protobuf::protoc "--error_format=$<IF:${MSVC},msvs,gcc>" "--cpp_out=${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic" "--proto_path=${CMAKE_CURRENT_SOURCE_DIR}" schematic.proto
+    COMMAND protobuf::protoc "--error_format=$<IF:$<BOOL:${MSVC}>,msvs,gcc>" "--cpp_out=${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic" "--proto_path=${CMAKE_CURRENT_SOURCE_DIR}" schematic.proto
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     MAIN_DEPENDENCY schematic.proto
 )
