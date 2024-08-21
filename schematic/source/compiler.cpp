@@ -95,6 +95,25 @@ struct potato::schematic::Compiler::Impl final : ParseContext
     Array<State*> stack;
 };
 
+template <>
+struct fmt::formatter<potato::schematic::compiler::AstQualifiedName> : fmt::formatter<const char*>
+{
+    template <typename FormatContext>
+    FMT_CONSTEXPR auto format(const potato::schematic::compiler::AstQualifiedName& name, FormatContext& ctx) const
+        -> decltype(ctx.out())
+    {
+        bool first = true;
+        for (const auto& part : name.parts)
+        {
+            if (!first)
+                fmt::format_to(ctx.out(), ".");
+            first = false;
+            fmt::format_to(ctx.out(), "{}", part.name);
+        }
+        return ctx.out();
+    }
+};
+
 potato::schematic::Compiler::Compiler(CompileContext& ctx, ArenaAllocator& arena)
     : impl_(arena.New<Impl>(ctx, arena))
     , arena_(arena)
