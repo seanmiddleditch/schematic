@@ -3,8 +3,8 @@
 #include "test_context.h"
 
 #include "schematic/compiler.h"
+#include "schematic/protobuf.h"
 #include "schematic/schema.h"
-#include "schematic/serialize.h"
 #include "schematic/utility.h"
 
 #include <catch2/catch_test_macros.hpp>
@@ -43,18 +43,18 @@ TEST_CASE("Serialize", "[potato][schematic]")
 
     ctx.AddFile("<main>", main_source);
     ctx.AddFile("imported", imported_source);
-    REQUIRE(compiler.Compile(FileId{ 0 }));
+    REQUIRE(compiler.Compile(ModuleId{ 0 }));
 
     const Schema* const original = compiler.GetSchema();
     REQUIRE(original != nullptr);
 
-    const proto::Schema* const proto = Serialize(pb_arena, original);
+    const proto::Schema* const proto = SerializeSchemaProto(pb_arena, original);
     REQUIRE(proto != nullptr);
 
-    const Schema* const deserialized = Deserialize(arena, proto);
+    const Schema* const deserialized = ParseSchemaProto(arena, proto);
     REQUIRE(deserialized != nullptr);
 
-    const proto::Schema* const proto2 = Serialize(pb_arena, deserialized);
+    const proto::Schema* const proto2 = SerializeSchemaProto(pb_arena, deserialized);
     REQUIRE(proto2 != nullptr);
 
     CHECK(proto->ShortDebugString() == proto2->ShortDebugString());

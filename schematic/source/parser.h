@@ -24,11 +24,11 @@ namespace potato::schematic::compiler
     class Parser final
     {
     public:
-        Parser(ParseContext& pctx, CompileContext& cctx, ArenaAllocator& arena, FileId file, const Array<Token>& tokens) noexcept
+        Parser(ParseContext& pctx, CompileContext& cctx, ArenaAllocator& arena, ModuleId moduleId, const Array<Token>& tokens) noexcept
             : pctx_(pctx)
             , cctx_(cctx)
             , arena_(arena)
-            , file_(file)
+            , moduleId_(moduleId)
             , tokens_(tokens)
             , mod(arena.New<AstNodeModule>(0))
         {
@@ -89,7 +89,7 @@ namespace potato::schematic::compiler
         ParseContext& pctx_;
         CompileContext& cctx_;
         ArenaAllocator& arena_;
-        FileId file_;
+        ModuleId moduleId_;
         std::string_view contents_;
         std::span<const Token> tokens_;
         AstNodeModule* mod = nullptr;

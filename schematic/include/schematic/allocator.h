@@ -1,5 +1,7 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
+#ifndef SCHEMATIC_ALLOCATOR_H
+#define SCHEMATIC_ALLOCATOR_H 1
 #pragma once
 
 #include <cstdlib>
@@ -107,3 +109,5 @@ namespace potato::schematic
         return new (Allocate(sizeof(T), alignof(T))) T(std::forward<Args>(args)...);
     }
 } // namespace potato::schematic
+
+#endif // SCHEMATIC_ALLOCATOR_H

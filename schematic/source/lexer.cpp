@@ -53,24 +53,20 @@ namespace
     };
 } // namespace
 
-// FIXME: this assumes that input text is NUL-terminated, but the interface relies on std::string_view which
-//  provides no such guarantee. Either the interface needs to change, or the code here needs to be updated
-//  and deeply audited.
-
 Array<Token> potato::schematic::compiler::Lexer::Tokenize()
 {
-    if (file_.value == FileId::InvalidValue)
+    if (moduleId_.value == ModuleId::InvalidValue)
         return {};
 
     tokens_.Clear();
 
-    const std::string_view data = ctx_.ReadFileContents(file_);
+    const std::string_view data = ctx_.ReadFileContents(moduleId_);
     Input in(data.data(), data.size());
     bool result = true;
 
     auto Error = [this, &data, &in, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
     {
-        ctx_.Error(file_, FindRange(data, in.Pos(), 1), fmt::vformat(format, fmt::make_format_args(args...)));
+        ctx_.Error(moduleId_, FindRange(data, in.Pos(), 1), fmt::vformat(format, fmt::make_format_args(args...)));
         result = false;
     };
 

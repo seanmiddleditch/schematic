@@ -6,9 +6,6 @@
 
 #include "schematic/allocator.h"
 
-#include <fmt/core.h>
-
-#include <cassert>
 #include <cstdint>
 
 namespace potato::schematic::compiler
@@ -265,22 +262,3 @@ namespace potato::schematic::compiler
 
 #undef AST_NODE
 } // namespace potato::schematic::compiler
-
-template <>
-struct fmt::formatter<potato::schematic::compiler::AstQualifiedName> : fmt::formatter<const char*>
-{
-    template <typename FormatContext>
-    FMT_CONSTEXPR auto format(const potato::schematic::compiler::AstQualifiedName& name, FormatContext& ctx) const
-        -> decltype(ctx.out())
-    {
-        bool first = true;
-        for (const auto& part : name.parts)
-        {
-            if (!first)
-                fmt::format_to(ctx.out(), ".");
-            first = false;
-            fmt::format_to(ctx.out(), "{}", part.name);
-        }
-        return ctx.out();
-    }
-};
