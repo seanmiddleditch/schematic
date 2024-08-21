@@ -1,0 +1,11 @@
+@PACKAGE_INIT@
+
+find_dependency(fmt CONFIG REQUIRED)
+find_dependency(Protobuf CONFIG REQUIRED)
+
+include("${CMAKE_CURRENT_LIST_DIR}/SchematicTargets.cmake")
+
+set_and_check(schematic_INCLUDE_DIR ${PACKAGE_PREFIX_DIR}/include)
+set(schematic_LIBRARIES schematic::schematic)
+
+check_required_components(schematic)

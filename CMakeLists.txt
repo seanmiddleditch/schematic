@@ -24,3 +24,23 @@ if(PROJECT_IS_TOP_LEVEL)
         add_subdirectory(test)
     endif()
 endif()
+
+install(EXPORT SchematicTargets
+    DESTINATION lib/cmake/schematic
+    NAMESPACE schematic::
+)
+
+export(EXPORT SchematicTargets
+    FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/SchematicTargets.cmake"
+    NAMESPACE schematic::
+)
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(SchematicConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/SchematicConfig.cmake
+    INSTALL_DESTINATION lib/cmake/schematic
+)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/SchematicConfig.cmake
+    DESTINATION lib/cmake/schematic
+)
+
