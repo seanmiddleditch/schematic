@@ -6,7 +6,10 @@ add_library(schematic::libschematic_core ALIAS schematic_libschematic_core)
 set_target_properties(schematic_libschematic_core PROPERTIES OUTPUT_NAME libschematic)
 target_compile_features(schematic_libschematic_core PUBLIC cxx_std_23)
 target_link_libraries(schematic_libschematic_core PRIVATE fmt::fmt)
-target_include_directories(schematic_libschematic_core PUBLIC include)
+target_include_directories(schematic_libschematic_core PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 target_sources(schematic_libschematic_core PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
     "include/schematic/allocator.h"
     "include/schematic/compiler.h"
@@ -26,7 +29,10 @@ add_library(schematic::libschematic_compiler ALIAS schematic_libschematic_compil
 set_target_properties(schematic_libschematic_compiler PROPERTIES OUTPUT_NAME libschematic_compiler)
 target_compile_features(schematic_libschematic_compiler PUBLIC cxx_std_23)
 target_link_libraries(schematic_libschematic_compiler PUBLIC schematic_libschematic_core PRIVATE fmt::fmt protobuf::libprotobuf)
-target_include_directories(schematic_libschematic_compiler PUBLIC include)
+target_include_directories(schematic_libschematic_compiler PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 target_sources(schematic_libschematic_compiler PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
     "include/schematic/compiler.h"
 )
@@ -48,7 +54,10 @@ add_library(schematic::libschematic_protobuf ALIAS schematic_libschematic_protob
 set_target_properties(schematic_libschematic_protobuf PROPERTIES OUTPUT_NAME libschematic_protobuf)
 target_compile_features(schematic_libschematic_protobuf PUBLIC cxx_std_23)
 target_link_libraries(schematic_libschematic_protobuf PUBLIC schematic_libschematic_core PRIVATE protobuf::libprotobuf)
-target_include_directories(schematic_libschematic_protobuf PUBLIC include)
+target_include_directories(schematic_libschematic_protobuf PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 target_sources(schematic_libschematic_protobuf PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
     "include/schematic/serialize.h"
 )
@@ -61,10 +70,9 @@ add_library(schematic::libschematic ALIAS schematic_libschematic)
 target_link_libraries(schematic_libschematic INTERFACE schematic_libschematic_core schematic_libschematic_compiler schematic_libschematic_protobuf)
 
 install(TARGETS schematic_libschematic_core schematic_libschematic_compiler schematic_libschematic_protobuf EXPORT schematic FILE_SET HEADERS)
-install(TARGETS schematic_libschematic_core schematic_libschematic_compiler schematic_libschematic_protobuf EXPORT schematic)
 
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic")
-target_include_directories(schematic_libschematic_protobuf PUBLIC "${PROTO_INCLUDE_DIR}")
+target_include_directories(schematic_libschematic_protobuf PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/protobuf>)
 add_custom_command(
     OUTPUT
         "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic/schematic.pb.h"
@@ -79,4 +87,3 @@ target_sources(schematic_libschematic_protobuf PUBLIC FILE_SET HEADERS BASE_DIRS
 target_sources(schematic_libschematic_protobuf PRIVATE
     "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic/schematic.pb.cc"
 )
-target_include_directories(schematic_libschematic_protobuf PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
