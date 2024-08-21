@@ -718,7 +718,6 @@ const Type* potato::schematic::Compiler::Impl::Resolve(const AstNodeType* type)
         const char* const name = arena.NewString(fmt::format("{}*", inner->name));
         TypePointer* const type = AddType<TypePointer>(pointer->tokenIndex, name);
         type->type = inner;
-        type->isNullable = false;
 
         return type;
     }
@@ -730,9 +729,8 @@ const Type* potato::schematic::Compiler::Impl::Resolve(const AstNodeType* type)
             return nullptr;
 
         const char* const name = arena.NewString(fmt::format("{}?", inner->name));
-        TypePointer* const type = AddType<TypePointer>(nullable->tokenIndex, name);
+        TypeNullable* const type = AddType<TypeNullable>(nullable->tokenIndex, name);
         type->type = inner;
-        type->isNullable = true;
 
         return type;
     }
