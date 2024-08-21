@@ -35,22 +35,23 @@ namespace
         void Serialize(proto::Type::String& out, const TypeString& in);
         void Serialize(proto::Type::Enum& out, const TypeEnum& in);
         void Serialize(proto::Type::TypeRef& out, const TypeType& in);
-        void Serialize(proto::Type::Polymorphic& out, const TypePolymorphic& in);
+        void Serialize(proto::Type::Pointer& out, const TypePointer& in);
+        void Serialize(proto::Type::Nullable& out, const TypeNullable& in);
         void Serialize(proto::Type::Attribute& out, const TypeAttribute& in);
 
         template <typename T>
         void SerializeTypeCommon(T& out, const Type& in);
 
         void Serialize(proto::Value& out, const Value& in);
-        void Serialize(proto::Value::Object& out, const ValueObject& in);
-        void Serialize(proto::Value::Bool& out, const ValueBool& in);
-        void Serialize(proto::Value::Int& out, const ValueInt& in);
-        void Serialize(proto::Value::Float& out, const ValueFloat& in);
-        void Serialize(proto::Value::String& out, const ValueString& in);
         void Serialize(proto::Value::Array& out, const ValueArray& in);
+        void Serialize(proto::Value::Bool& out, const ValueBool& in);
         void Serialize(proto::Value::Enum& out, const ValueEnum& in);
-        void Serialize(proto::Value::Type& out, const ValueType& in);
+        void Serialize(proto::Value::Float& out, const ValueFloat& in);
+        void Serialize(proto::Value::Int& out, const ValueInt& in);
         void Serialize(proto::Value::Null& out, const ValueNull& in);
+        void Serialize(proto::Value::Object& out, const ValueObject& in);
+        void Serialize(proto::Value::String& out, const ValueString& in);
+        void Serialize(proto::Value::Type& out, const ValueType& in);
 
         void Serialize(proto::Annotation& out, const Annotation& in);
 
@@ -78,7 +79,8 @@ namespace
         void Deserialize(TypeString& out, const proto::Type::String& in);
         void Deserialize(TypeEnum& out, const proto::Type::Enum& in);
         void Deserialize(TypeType& out, const proto::Type::TypeRef& in);
-        void Deserialize(TypePolymorphic& out, const proto::Type::Polymorphic& in);
+        void Deserialize(TypeNullable& out, const proto::Type::Nullable& in);
+        void Deserialize(TypePointer& out, const proto::Type::Pointer& in);
         void Deserialize(TypeAttribute& out, const proto::Type::Attribute& in);
 
         template <typename T>
@@ -193,8 +195,11 @@ void Serializer::Serialize(proto::Type& out, const Type& in)
         case Enum:
             Serialize(*out.mutable_enum_(), static_cast<const TypeEnum&>(in));
             break;
-        case Polymorphic:
-            Serialize(*out.mutable_polymorphic(), static_cast<const TypePolymorphic&>(in));
+        case Nullable:
+            Serialize(*out.mutable_nullable(), static_cast<const TypeNullable&>(in));
+            break;
+        case Pointer:
+            Serialize(*out.mutable_pointer(), static_cast<const TypePointer&>(in));
             break;
         case Type:
             Serialize(*out.mutable_type(), static_cast<const TypeType&>(in));
@@ -284,14 +289,20 @@ void Serializer::Serialize(proto::Type::TypeRef& out, const TypeType& in)
     SerializeTypeCommon(out, in);
 }
 
-void Serializer::Serialize(proto::Type::Polymorphic& out, const TypePolymorphic& in)
+void Serializer::Serialize(proto::Type::Nullable& out, const TypeNullable& in)
 {
     SerializeTypeCommon(out, in);
 
     if (in.type != nullptr)
         out.set_type(IndexOfType(in.type));
+}
 
-    out.set_nullable(in.isNullable);
+void Serializer::Serialize(proto::Type::Pointer& out, const TypePointer& in)
+{
+    SerializeTypeCommon(out, in);
+
+    if (in.type != nullptr)
+        out.set_type(IndexOfType(in.type));
 }
 
 void Serializer::Serialize(proto::Type::Attribute& out, const TypeAttribute& in)
@@ -500,8 +511,8 @@ void Deserializer::Deserialize(Schema& out)
             case proto::Type::kType:
                 types_.PushBack(arena_, arena_.New<TypeType>());
                 break;
-            case proto::Type::kPolymorphic:
-                types_.PushBack(arena_, arena_.New<TypePolymorphic>());
+            case proto::Type::kPointer:
+                types_.PushBack(arena_, arena_.New<TypePointer>());
                 break;
             case proto::Type::kAttribute:
                 types_.PushBack(arena_, arena_.New<TypeAttribute>());
@@ -545,32 +556,35 @@ void Deserializer::Deserialize(Type& out, const proto::Type& in)
         case TypeKind::Aggregate:
             Deserialize(static_cast<TypeAggregate&>(out), in.aggregate());
             break;
-        case TypeKind::Bool:
-            Deserialize(static_cast<TypeBool&>(out), in.bool_());
-            break;
-        case TypeKind::Int:
-            Deserialize(static_cast<TypeInt&>(out), in.int_());
-            break;
-        case TypeKind::Float:
-            Deserialize(static_cast<TypeFloat&>(out), in.float_());
-            break;
         case TypeKind::Array:
             Deserialize(static_cast<TypeArray&>(out), in.array());
             break;
-        case TypeKind::String:
-            Deserialize(static_cast<TypeString&>(out), in.string());
+        case TypeKind::Attribute:
+            Deserialize(static_cast<TypeAttribute&>(out), in.attribute());
+            break;
+        case TypeKind::Bool:
+            Deserialize(static_cast<TypeBool&>(out), in.bool_());
             break;
         case TypeKind::Enum:
             Deserialize(static_cast<TypeEnum&>(out), in.enum_());
             break;
+        case TypeKind::Float:
+            Deserialize(static_cast<TypeFloat&>(out), in.float_());
+            break;
+        case TypeKind::Int:
+            Deserialize(static_cast<TypeInt&>(out), in.int_());
+            break;
+        case TypeKind::Nullable:
+            Deserialize(static_cast<TypeNullable&>(out), in.nullable());
+            break;
+        case TypeKind::Pointer:
+            Deserialize(static_cast<TypePointer&>(out), in.pointer());
+            break;
+        case TypeKind::String:
+            Deserialize(static_cast<TypeString&>(out), in.string());
+            break;
         case TypeKind::Type:
             Deserialize(static_cast<TypeType&>(out), in.type());
-            break;
-        case TypeKind::Polymorphic:
-            Deserialize(static_cast<TypePolymorphic&>(out), in.polymorphic());
-            break;
-        case TypeKind::Attribute:
-            Deserialize(static_cast<TypeAttribute&>(out), in.attribute());
             break;
     }
 }
@@ -672,11 +686,17 @@ void Deserializer::Deserialize(TypeType& out, const proto::Type::TypeRef& in)
     DeserializeTypeCommon(out, in);
 }
 
-void Deserializer::Deserialize(TypePolymorphic& out, const proto::Type::Polymorphic& in)
+void Deserializer::Deserialize(TypeNullable& out, const proto::Type::Nullable& in)
 {
     DeserializeTypeCommon(out, in);
 
-    out.isNullable = in.nullable();
+    if (in.type() < types_.Size())
+        out.type = types_[in.type()];
+}
+
+void Deserializer::Deserialize(TypePointer& out, const proto::Type::Pointer& in)
+{
+    DeserializeTypeCommon(out, in);
 
     if (in.type() < types_.Size())
         out.type = types_[in.type()];

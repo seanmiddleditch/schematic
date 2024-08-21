@@ -709,16 +709,15 @@ const Type* potato::schematic::Compiler::Impl::Resolve(const AstNodeType* type)
         return type;
     }
 
-    if (const AstNodeTypePolymorphic* poly = type->CastTo<AstNodeTypePolymorphic>(); poly != nullptr)
+    if (const AstNodeTypePointer* pointer = type->CastTo<AstNodeTypePointer>(); pointer != nullptr)
     {
-        const Type* inner = Resolve(poly->type);
+        const Type* inner = Resolve(pointer->type);
         if (inner == nullptr)
             return nullptr;
 
         const char* const name = arena.NewString(fmt::format("{}*", inner->name));
-        TypePolymorphic* const type = AddType<TypePolymorphic>(poly->tokenIndex, name);
+        TypePointer* const type = AddType<TypePointer>(pointer->tokenIndex, name);
         type->type = inner;
-        type->isNullable = false;
 
         return type;
     }
@@ -730,9 +729,8 @@ const Type* potato::schematic::Compiler::Impl::Resolve(const AstNodeType* type)
             return nullptr;
 
         const char* const name = arena.NewString(fmt::format("{}?", inner->name));
-        TypePolymorphic* const type = AddType<TypePolymorphic>(nullable->tokenIndex, name);
+        TypeNullable* const type = AddType<TypeNullable>(nullable->tokenIndex, name);
         type->type = inner;
-        type->isNullable = true;
 
         return type;
     }
@@ -831,9 +829,9 @@ void potato::schematic::Compiler::Impl::VisitTypes(const Type* type, Array<const
                 VisitTypes(annotation, visited);
         }
     }
-    else if (const TypePolymorphic* const poly = CastTo<TypePolymorphic>(type); poly != nullptr)
+    else if (const TypePointer* const pointer = CastTo<TypePointer>(type); pointer != nullptr)
     {
-        VisitTypes(poly->type, visited);
+        VisitTypes(pointer->type, visited);
     }
     else if (const TypeArray* const array = CastTo<TypeArray>(type); array != nullptr)
     {

@@ -53,33 +53,26 @@ message Type
         repeated Field fields = 11;
     }
 
+    message Array
+    {
+        string name = 1;
+        uint32 module = 2;
+        repeated Annotation annotations = 3;
+
+        uint32 element = 10;
+        optional uint32 size = 11;
+    }
+
+    message Attribute
+    {
+        string name = 1;
+        uint32 module = 2;
+        repeated Annotation annotations = 3;
+
+        repeated Field fields = 10;
+    }
+
     message Bool
-    {
-        string name = 1;
-        uint32 module = 2;
-        repeated Annotation annotations = 3;
-    }
-
-    message Int
-    {
-        string name = 1;
-        uint32 module = 2;
-        repeated Annotation annotations = 3;
-
-        uint32 width = 10;
-        bool signed = 11;
-    }
-
-    message Float
-    {
-        string name = 1;
-        uint32 module = 2;
-        repeated Annotation annotations = 3;
-
-        uint32 width = 10;
-    }
-
-    message String
     {
         string name = 1;
         uint32 module = 2;
@@ -96,14 +89,48 @@ message Type
         repeated EnumItem items = 11;
     }
 
-    message Array
+    message Float
     {
         string name = 1;
         uint32 module = 2;
         repeated Annotation annotations = 3;
 
-        uint32 element = 10;
-        optional uint32 size = 11;
+        uint32 width = 10;
+    }
+
+    message Int
+    {
+        string name = 1;
+        uint32 module = 2;
+        repeated Annotation annotations = 3;
+
+        uint32 width = 10;
+        bool signed = 11;
+    }
+    
+    message Nullable
+    {
+        string name = 1;
+        uint32 module = 2;
+        repeated Annotation annotations = 3;
+
+        uint32 type = 10;
+    }
+
+    message Pointer
+    {
+        string name = 1;
+        uint32 module = 2;
+        repeated Annotation annotations = 3;
+
+        uint32 type = 10;
+    }
+
+    message String
+    {
+        string name = 1;
+        uint32 module = 2;
+        repeated Annotation annotations = 3;
     }
 
     message TypeRef
@@ -113,37 +140,19 @@ message Type
         repeated Annotation annotations = 3;
     }
 
-    message Polymorphic
-    {
-        string name = 1;
-        uint32 module = 2;
-        repeated Annotation annotations = 3;
-
-        uint32 type = 10;
-        bool nullable = 11;
-    }
-
-    message Attribute
-    {
-        string name = 1;
-        uint32 module = 2;
-        repeated Annotation annotations = 3;
-
-        repeated Field fields = 10;
-    }
-
     oneof Types
     {
         Aggregate aggregate = 1;
-        Bool bool = 2;
-        Int int = 3;
-        Float float = 4;
-        Array array = 5;
-        String string = 6;
-        Enum enum = 7;
-        TypeRef type = 8;
-        Polymorphic polymorphic = 9;
-        Attribute attribute = 10;
+        Array array = 2;
+        Attribute attribute = 3;
+        Bool bool = 4;
+        Int int = 5;
+        Enum enum = 6;
+        Float float = 7;
+        Nullable nullable = 8;
+        Pointer pointer = 9;
+        String string = 10;
+        TypeRef type = 11;
     }
 }
 
@@ -166,14 +175,14 @@ message Value
         uint32 item = 2;
     }
 
+    message Float
+    {
+        double value = 1;
+    }
+
     message Int
     {
         int64 value = 1;
-    }
-
-    message String
-    {
-        string value = 1;
     }
 
     message Null
@@ -186,9 +195,9 @@ message Value
         repeated Argument arguments = 2;
     }
 
-    message Float
+    message String
     {
-        double value = 1;
+        string value = 1;
     }
 
     message Type
@@ -200,12 +209,12 @@ message Value
     {
         Array array = 1;
         Bool bool = 2;
-        Int int = 3;
+        Enum enum = 3;
         Float float = 4;
-        Null null = 5;
-        Enum enum = 6;
-        Type type = 7;
-        Object object = 8;
-        String string = 9;
+        Int int = 5;
+        Null null = 6;
+        Object object = 7;
+        String string = 8;
+        Type type = 9;
     }
 }
