@@ -67,7 +67,7 @@ const AstNodeModule* Parser::Parse()
 
         if (ConsumeKey("struct"))
         {
-            if (!ParseAggregateDecl())
+            if (!ParseStructDecl())
                 Recover(RecoverType::Declaration);
             continue;
         }
@@ -162,19 +162,19 @@ bool Parser::ParseImport()
     return true;
 }
 
-bool Parser::ParseAggregateDecl()
+bool Parser::ParseStructDecl()
 {
-    AstNodeAggregateDecl* const agg = arena_.New<AstNodeAggregateDecl>(Pos());
-    agg->annotations = annotations_;
+    AstNodeStructDecl* const struct_ = arena_.New<AstNodeStructDecl>(Pos());
+    struct_->annotations = annotations_;
 
-    mod->nodes.EmplaceBack(arena_, agg);
+    mod->nodes.EmplaceBack(arena_, struct_);
 
-    if (!ExpectIdent(agg->name))
+    if (!ExpectIdent(struct_->name))
         return false;
 
     if (Consume(TokenType::Colon))
     {
-        if (!ExpectQualifiedName(agg->base))
+        if (!ExpectQualifiedName(struct_->base))
             return false;
     }
 
@@ -192,7 +192,7 @@ bool Parser::ParseAggregateDecl()
             if (!ParseAnnotations())
                 return false;
 
-            if (!ParseField(agg->fields))
+            if (!ParseField(struct_->fields))
                 return false;
 
             if (!Expect(TokenType::SemiColon))

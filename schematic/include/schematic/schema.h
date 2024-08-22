@@ -21,7 +21,7 @@ namespace potato::schematic
     struct Type;
     struct Value;
 
-    struct TypeAggregate;
+    struct TypeStruct;
     struct TypeAttribute;
     struct TypeArray;
     struct TypeBool;
@@ -48,7 +48,6 @@ namespace potato::schematic
 
     enum class TypeKind : std::uint8_t
     {
-        Aggregate,
         Array,
         Attribute,
         Bool,
@@ -58,6 +57,7 @@ namespace potato::schematic
         Nullable,
         Pointer,
         String,
+        Struct,
         Type,
     };
 
@@ -119,7 +119,7 @@ namespace potato::schematic
 
     struct Type
     {
-        TypeKind kind = TypeKind::Aggregate;
+        TypeKind kind = TypeKind::Bool;
         const char* name = nullptr;
         const Module* owner = nullptr;
         Span<const Annotation*> annotations;
@@ -133,14 +133,6 @@ namespace potato::schematic
 #define SCHEMATIC_TYPE(KIND) \
     static constexpr TypeKind Kind = (TypeKind::KIND); \
     Type##KIND() noexcept { kind = Kind; }
-
-    struct TypeAggregate : Type
-    {
-        SCHEMATIC_TYPE(Aggregate);
-
-        const TypeAggregate* base = nullptr;
-        Span<Field> fields;
-    };
 
     struct TypeArray : Type
     {
@@ -203,6 +195,14 @@ namespace potato::schematic
     struct TypeString : Type
     {
         SCHEMATIC_TYPE(String);
+    };
+
+    struct TypeStruct : Type
+    {
+        SCHEMATIC_TYPE(Struct);
+
+        const TypeStruct* base = nullptr;
+        Span<Field> fields;
     };
 
     struct TypeType : Type

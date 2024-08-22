@@ -6,29 +6,29 @@
 
 using namespace potato::schematic;
 
-const Field* potato::schematic::FindField(const TypeAggregate* aggregate, std::string_view name) noexcept
+const Field* potato::schematic::FindField(const TypeStruct* type, std::string_view name) noexcept
 {
-    if (aggregate == nullptr)
+    if (type == nullptr)
         return nullptr;
 
-    for (auto& field : aggregate->fields)
+    for (auto& field : type->fields)
     {
         if (field.name == name)
             return &field;
     }
 
-    if (aggregate->base != nullptr)
-        return FindField(aggregate->base, name);
+    if (type->base != nullptr)
+        return FindField(type->base, name);
 
     return nullptr;
 }
 
-const Field* potato::schematic::FindField(const TypeAttribute* attribute, std::string_view name) noexcept
+const Field* potato::schematic::FindField(const TypeAttribute* type, std::string_view name) noexcept
 {
-    if (attribute == nullptr)
+    if (type == nullptr)
         return nullptr;
 
-    for (auto& field : attribute->fields)
+    for (auto& field : type->fields)
     {
         if (field.name == name)
             return &field;
@@ -37,12 +37,12 @@ const Field* potato::schematic::FindField(const TypeAttribute* attribute, std::s
     return nullptr;
 }
 
-const EnumItem* potato::schematic::FindItem(const TypeEnum* enumeration, std::string_view name) noexcept
+const EnumItem* potato::schematic::FindItem(const TypeEnum* type, std::string_view name) noexcept
 {
-    if (enumeration == nullptr)
+    if (type == nullptr)
         return nullptr;
 
-    for (auto& item : enumeration->items)
+    for (auto& item : type->items)
     {
         if (item.name == name)
             return &item;
@@ -83,8 +83,8 @@ const Annotation* potato::schematic::FindAnnotation(const Type* type, const Type
     if (const Annotation* const annotation = ::FindAnnotation(type->annotations, attribute); annotation != nullptr)
         return annotation;
 
-    if (const TypeAggregate* const agg = CastTo<TypeAggregate>(type); agg != nullptr)
-        return FindAnnotation(agg->base, attribute);
+    if (const TypeStruct* const struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
+        return FindAnnotation(struct_->base, attribute);
 
     return nullptr;
 }
@@ -99,8 +99,8 @@ const Annotation* potato::schematic::FindAnnotation(const Type* type, std::strin
     if (const Annotation* const annotation = ::FindAnnotation(type->annotations, name); annotation != nullptr)
         return annotation;
 
-    if (const TypeAggregate* const agg = CastTo<TypeAggregate>(type); agg != nullptr)
-        return FindAnnotation(agg->base, name);
+    if (const TypeStruct* const struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
+        return FindAnnotation(struct_->base, name);
 
     return nullptr;
 }
@@ -228,7 +228,7 @@ const Value* potato::schematic::FindArgument(const ValueObject* object, std::str
     if (object == nullptr)
         return nullptr;
 
-    return FindArgument(object, FindField(CastTo<TypeAggregate>(object->type), name));
+    return FindArgument(object, FindField(CastTo<TypeStruct>(object->type), name));
 }
 
 const Value* potato::schematic::FindArgument(const Annotation* annotation, const Field* field) noexcept
@@ -257,7 +257,7 @@ bool potato::schematic::IsA(const Type* type, const Type* parent) noexcept
         if (type == parent)
             return true;
 
-        if (const TypeAggregate* const agg = CastTo<TypeAggregate>(type))
+        if (const TypeStruct* const agg = CastTo<TypeStruct>(type))
             type = agg->base;
         else
             break;

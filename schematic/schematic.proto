@@ -43,16 +43,6 @@ message Annotation
 
 message Type
 {
-    message Aggregate
-    {
-        string name = 1;
-        uint32 module = 2;
-        repeated Annotation annotations = 3;
-
-        optional uint32 base = 10;
-        repeated Field fields = 11;
-    }
-
     message Array
     {
         string name = 1;
@@ -133,6 +123,16 @@ message Type
         repeated Annotation annotations = 3;
     }
 
+    message Struct
+    {
+        string name = 1;
+        uint32 module = 2;
+        repeated Annotation annotations = 3;
+
+        optional uint32 base = 10;
+        repeated Field fields = 11;
+    }
+
     message TypeRef
     {
         string name = 1;
@@ -142,16 +142,16 @@ message Type
 
     oneof Types
     {
-        Aggregate aggregate = 1;
-        Array array = 2;
-        Attribute attribute = 3;
-        Bool bool = 4;
-        Int int = 5;
-        Enum enum = 6;
-        Float float = 7;
-        Nullable nullable = 8;
-        Pointer pointer = 9;
-        String string = 10;
+        Array array = 1;
+        Attribute attribute = 2;
+        Bool bool = 3;
+        Int int = 4;
+        Enum enum = 5;
+        Float float = 6;
+        Nullable nullable = 7;
+        Pointer pointer = 8;
+        String string = 9;
+        Struct struct = 10;
         TypeRef type = 11;
     }
 }

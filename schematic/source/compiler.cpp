@@ -50,12 +50,12 @@ struct potato::schematic::Compiler::Impl final
 
     const Module* CreateBuiltins();
 
-    void BuildAggregate(const AstNodeAggregateDecl& ast);
+    void BuildStruct(const AstNodeStructDecl& ast);
     void BuildAttribute(const AstNodeAttributeDecl& ast);
     void BuildEnum(const AstNodeEnumDecl& ast);
 
     void BuildAnnotations(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast);
-    void BuildArguments(std::span<const Argument>& out, const Type* type, const std::span<const Field>& fields, const TypeAggregate* baseType, Array<const AstNode*> ast);
+    void BuildArguments(std::span<const Argument>& out, const Type* type, const std::span<const Field>& fields, const TypeStruct* baseType, Array<const AstNode*> ast);
 
     const ValueBool* BuildBool(const AstNodeLiteralBool& lit);
     const ValueInt* BuildInteger(const AstNodeLiteralInt& lit);
@@ -64,7 +64,7 @@ struct potato::schematic::Compiler::Impl final
     const Value* BuildExpression(const Type* type, const AstNode& expr);
     const Value* BuildQualifiedId(const AstNodeQualifiedId& id);
     const ValueArray* BuildArray(const Type* type, const AstNodeInitializerList& expr);
-    const ValueObject* BuildObject(const TypeAggregate* type, const AstNodeInitializerList& expr);
+    const ValueObject* BuildObject(const TypeStruct* type, const AstNodeInitializerList& expr);
 
     const Type* Resolve(const AstQualifiedName& name);
     const Type* Resolve(const AstNodeType* type);
@@ -168,9 +168,9 @@ const Module* potato::schematic::Compiler::Impl::CompileModule()
 
     for (const AstNode* adecl : state.ast->nodes)
     {
-        if (const AstNodeAggregateDecl* const agg = adecl->CastTo<AstNodeAggregateDecl>())
+        if (const AstNodeStructDecl* const struct_ = adecl->CastTo<AstNodeStructDecl>())
         {
-            BuildAggregate(*agg);
+            BuildStruct(*struct_);
             continue;
         }
 
@@ -315,9 +315,9 @@ const Module* potato::schematic::Compiler::Impl::CreateBuiltins()
     return builtins;
 }
 
-void potato::schematic::Compiler::Impl::BuildAggregate(const AstNodeAggregateDecl& ast)
+void potato::schematic::Compiler::Impl::BuildStruct(const AstNodeStructDecl& ast)
 {
-    TypeAggregate* const type = AddType<TypeAggregate>(ast.tokenIndex, ast.name.name);
+    TypeStruct* const type = AddType<TypeStruct>(ast.tokenIndex, ast.name.name);
     if (type == nullptr)
         return;
 
@@ -325,9 +325,9 @@ void potato::schematic::Compiler::Impl::BuildAggregate(const AstNodeAggregateDec
     const Type* const baseType = Resolve(ast.base);
     if (baseType != nullptr)
     {
-        type->base = CastTo<TypeAggregate>(baseType);
+        type->base = CastTo<TypeStruct>(baseType);
         if (type->base == nullptr)
-            Error(ast.base.parts.Front().tokenIndex, "Base type is not an aggregate: {}", baseType->name);
+            Error(ast.base.parts.Front().tokenIndex, "Base type is not a struct: {}", baseType->name);
     }
 
     BuildAnnotations(type->annotations, ast.annotations);
@@ -437,13 +437,13 @@ void potato::schematic::Compiler::Impl::BuildAnnotations(std::span<const Annotat
     out = temp;
 }
 
-void potato::schematic::Compiler::Impl::BuildArguments(std::span<const Argument>& out, const Type* type, const std::span<const Field>& fields, const TypeAggregate* baseType, Array<const AstNode*> ast)
+void potato::schematic::Compiler::Impl::BuildArguments(std::span<const Argument>& out, const Type* type, const std::span<const Field>& fields, const TypeStruct* baseType, Array<const AstNode*> ast)
 {
     bool hasNamed = false;
     size_t index = 0;
 
-    bool hasUnnamedAfterNamedError = false;
-    bool hasUnnamedWithBaseError = false;
+    bool hasPositionalAfterNamedError = false;
+    bool hasPositionalWithBaseError = false;
 
     Array<Argument> temp;
 
@@ -483,18 +483,18 @@ void potato::schematic::Compiler::Impl::BuildArguments(std::span<const Argument>
         }
         else if (hasNamed)
         {
-            if (!hasUnnamedAfterNamedError)
+            if (!hasPositionalAfterNamedError)
             {
-                hasUnnamedAfterNamedError = true;
-                Error(elem->tokenIndex, "Unnamed initializers cannot follow named initializers");
+                hasPositionalAfterNamedError = true;
+                Error(elem->tokenIndex, "Positional initializers cannot follow named initializers");
             }
         }
         else if (baseType != nullptr)
         {
-            if (!hasUnnamedWithBaseError)
+            if (!hasPositionalWithBaseError)
             {
-                hasUnnamedWithBaseError = true;
-                Error(elem->tokenIndex, "Unnamed initializers may not be used on aggregate with base types");
+                hasPositionalWithBaseError = true;
+                Error(elem->tokenIndex, "Positional initializers may not be used for types with base types");
             }
             continue;
         }
@@ -559,8 +559,8 @@ const Value* potato::schematic::Compiler::Impl::BuildExpression(const Type* type
         case AstNodeKind::QualifiedId:
             return BuildQualifiedId(*expr.CastTo<AstNodeQualifiedId>());
         case AstNodeKind::InitializerList:
-            if (const TypeAggregate* agg = CastTo<TypeAggregate>(type); agg != nullptr)
-                return BuildObject(agg, *expr.CastTo<AstNodeInitializerList>());
+            if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
+                return BuildObject(struct_, *expr.CastTo<AstNodeInitializerList>());
             if (const TypeArray* array = CastTo<TypeArray>(type); array != nullptr)
                 return BuildArray(array, *expr.CastTo<AstNodeInitializerList>());
             Error(expr.tokenIndex, "Not implemented");
@@ -637,7 +637,7 @@ const ValueArray* potato::schematic::Compiler::Impl::BuildArray(const Type* type
     return value;
 }
 
-const ValueObject* potato::schematic::Compiler::Impl::BuildObject(const TypeAggregate* type, const AstNodeInitializerList& expr)
+const ValueObject* potato::schematic::Compiler::Impl::BuildObject(const TypeStruct* type, const AstNodeInitializerList& expr)
 {
     ValueObject* const obj = arena.New<ValueObject>();
     obj->type = type;
@@ -795,11 +795,11 @@ void potato::schematic::Compiler::Impl::VisitTypes(const Type* type, Array<const
     for (const Annotation* const annotation : type->annotations)
         VisitTypes(annotation, visited);
 
-    if (const TypeAggregate* const agg = CastTo<TypeAggregate>(type); agg != nullptr)
+    if (const TypeStruct* const struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
     {
-        VisitTypes(agg->base, visited);
+        VisitTypes(struct_->base, visited);
 
-        for (const Field& field : agg->fields)
+        for (const Field& field : struct_->fields)
         {
             VisitTypes(field.type, visited);
             VisitTypes(field.value, visited);

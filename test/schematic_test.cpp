@@ -100,7 +100,7 @@ World!""")",
         CHECK_THAT(green, IsValue<ValueInt>(255));
         CHECK_THAT(FindItem(color, "blue"), IsValue<ValueInt>(256));
 
-        const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&schema, "test"));
+        const TypeStruct* const test = CastTo<TypeStruct>(FindType(&schema, "test"));
         CHECK_THAT(FindField(test, "c"), IsEnumValue(color, green));
     }
 
@@ -128,9 +128,9 @@ World!""")",
         const Type* const base = FindType(&schema, "base");
         CHECK(base != nullptr);
 
-        const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&schema, "test"));
+        const TypeStruct* const test = CastTo<TypeStruct>(FindType(&schema, "test"));
         REQUIRE(test != nullptr);
-        CHECK(test->kind == TypeKind::Aggregate);
+        CHECK(test->kind == TypeKind::Struct);
         CHECK(test->base == base);
         CHECK(test->fields.size() == 4);
 
@@ -171,10 +171,10 @@ World!""")",
 )--");
         const Schema& schema = CompileTest("initializer");
 
-        const TypeAggregate* const embed = CastTo<TypeAggregate>(FindType(&schema, "embed"));
+        const TypeStruct* const embed = CastTo<TypeStruct>(FindType(&schema, "embed"));
         REQUIRE(embed != nullptr);
 
-        const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&schema, "test"));
+        const TypeStruct* const test = CastTo<TypeStruct>(FindType(&schema, "test"));
         CHECK(test != nullptr);
 
         {
@@ -238,7 +238,7 @@ World!""")",
         CHECK(CastTo<TypeAttribute>(FindType(&schema, "More")) != nullptr);
         CHECK(CastTo<TypeAttribute>(FindType(&schema, "Reference")) != nullptr);
 
-        const TypeAggregate* const test = CastTo<TypeAggregate>(FindType(&schema, "test"));
+        const TypeStruct* const test = CastTo<TypeStruct>(FindType(&schema, "test"));
         CHECK(HasAttribute(test, "More"));
 
         const Field* const field = FindField(test, "field");

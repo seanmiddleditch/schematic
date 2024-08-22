@@ -20,7 +20,7 @@ namespace potato::schematic
     struct Type;
     struct Value;
 
-    struct TypeAggregate;
+    struct TypeStruct;
     struct TypeAttribute;
     struct TypeEnum;
 
@@ -28,10 +28,10 @@ namespace potato::schematic
 
     class Visitor;
 
-    const Field* FindField(const TypeAggregate* aggregate, std::string_view name) noexcept;
-    const Field* FindField(const TypeAttribute* attribute, std::string_view name) noexcept;
+    const Field* FindField(const TypeStruct* type, std::string_view name) noexcept;
+    const Field* FindField(const TypeAttribute* type, std::string_view name) noexcept;
 
-    const EnumItem* FindItem(const TypeEnum* enumeration, std::string_view name) noexcept;
+    const EnumItem* FindItem(const TypeEnum* type, std::string_view name) noexcept;
 
     const Annotation* FindAnnotation(const Type* type, const TypeAttribute* attribute) noexcept;
     const Annotation* FindAnnotation(const Type* type, std::string_view name) noexcept;

@@ -27,7 +27,7 @@ namespace
         std::uint32_t IndexOfModule(const Module* mod) const noexcept;
 
         void Serialize(proto::Type& out, const Type& in);
-        void Serialize(proto::Type::Aggregate& out, const TypeAggregate& in);
+        void Serialize(proto::Type::Struct& out, const TypeStruct& in);
         void Serialize(proto::Type::Bool& out, const TypeBool& in);
         void Serialize(proto::Type::Int& out, const TypeInt& in);
         void Serialize(proto::Type::Float& out, const TypeFloat& in);
@@ -71,7 +71,7 @@ namespace
 
     private:
         void Deserialize(Type& out, const proto::Type& in);
-        void Deserialize(TypeAggregate& out, const proto::Type::Aggregate& in);
+        void Deserialize(TypeStruct& out, const proto::Type::Struct& in);
         void Deserialize(TypeBool& out, const proto::Type::Bool& in);
         void Deserialize(TypeInt& out, const proto::Type::Int& in);
         void Deserialize(TypeFloat& out, const proto::Type::Float& in);
@@ -174,26 +174,23 @@ void Serializer::Serialize(proto::Type& out, const Type& in)
     switch (in.kind)
     {
         using enum TypeKind;
-        case Aggregate:
-            Serialize(*out.mutable_aggregate(), static_cast<const TypeAggregate&>(in));
+        case Array:
+            Serialize(*out.mutable_array(), static_cast<const TypeArray&>(in));
+            break;
+        case Attribute:
+            Serialize(*out.mutable_attribute(), static_cast<const TypeAttribute&>(in));
             break;
         case Bool:
             Serialize(*out.mutable_bool_(), static_cast<const TypeBool&>(in));
             break;
-        case Int:
-            Serialize(*out.mutable_int_(), static_cast<const TypeInt&>(in));
+        case Enum:
+            Serialize(*out.mutable_enum_(), static_cast<const TypeEnum&>(in));
             break;
         case Float:
             Serialize(*out.mutable_float_(), static_cast<const TypeFloat&>(in));
             break;
-        case Array:
-            Serialize(*out.mutable_array(), static_cast<const TypeArray&>(in));
-            break;
-        case String:
-            Serialize(*out.mutable_string(), static_cast<const TypeString&>(in));
-            break;
-        case Enum:
-            Serialize(*out.mutable_enum_(), static_cast<const TypeEnum&>(in));
+        case Int:
+            Serialize(*out.mutable_int_(), static_cast<const TypeInt&>(in));
             break;
         case Nullable:
             Serialize(*out.mutable_nullable(), static_cast<const TypeNullable&>(in));
@@ -201,16 +198,19 @@ void Serializer::Serialize(proto::Type& out, const Type& in)
         case Pointer:
             Serialize(*out.mutable_pointer(), static_cast<const TypePointer&>(in));
             break;
+        case String:
+            Serialize(*out.mutable_string(), static_cast<const TypeString&>(in));
+            break;
+        case Struct:
+            Serialize(*out.mutable_struct_(), static_cast<const TypeStruct&>(in));
+            break;
         case Type:
             Serialize(*out.mutable_type(), static_cast<const TypeType&>(in));
-            break;
-        case Attribute:
-            Serialize(*out.mutable_attribute(), static_cast<const TypeAttribute&>(in));
             break;
     }
 }
 
-void Serializer::Serialize(proto::Type::Aggregate& out, const TypeAggregate& in)
+void Serializer::Serialize(proto::Type::Struct& out, const TypeStruct& in)
 {
     SerializeTypeCommon(out, in);
 
@@ -487,8 +487,8 @@ void Deserializer::Deserialize(Schema& out)
     {
         switch (type.Types_case())
         {
-            case proto::Type::kAggregate:
-                types_.PushBack(arena_, arena_.New<TypeAggregate>());
+            case proto::Type::kStruct:
+                types_.PushBack(arena_, arena_.New<TypeStruct>());
                 break;
             case proto::Type::kBool:
                 types_.PushBack(arena_, arena_.New<TypeBool>());
@@ -553,8 +553,8 @@ void Deserializer::Deserialize(Type& out, const proto::Type& in)
 {
     switch (out.kind)
     {
-        case TypeKind::Aggregate:
-            Deserialize(static_cast<TypeAggregate&>(out), in.aggregate());
+        case TypeKind::Struct:
+            Deserialize(static_cast<TypeStruct&>(out), in.struct_());
             break;
         case TypeKind::Array:
             Deserialize(static_cast<TypeArray&>(out), in.array());
@@ -589,7 +589,7 @@ void Deserializer::Deserialize(Type& out, const proto::Type& in)
     }
 }
 
-void Deserializer::Deserialize(TypeAggregate& out, const proto::Type::Aggregate& in)
+void Deserializer::Deserialize(TypeStruct& out, const proto::Type::Struct& in)
 {
     DeserializeTypeCommon(out, in);
 
@@ -598,8 +598,8 @@ void Deserializer::Deserialize(TypeAggregate& out, const proto::Type::Aggregate&
         if (in.base() < types_.Size())
         {
             const Type* const base = types_[in.base()];
-            if (base->kind == TypeKind::Aggregate)
-                out.base = static_cast<const TypeAggregate*>(base);
+            if (base->kind == TypeKind::Struct)
+                out.base = static_cast<const TypeStruct*>(base);
         }
     }
 

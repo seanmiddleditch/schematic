@@ -27,7 +27,7 @@ function(test_output EXPECTED ACTUAL)
     cmake_path(CONVERT "${EXPECTED}" TO_NATIVE_PATH_LIST EXPECTED_NATIVE NORMALIZE)
     cmake_path(CONVERT "${ACTUAL}" TO_NATIVE_PATH_LIST ACTUAL_NATIVE NORMALIZE)
     if(NOT EXISTS "${ACTUAL}")
-        message(FATAL_ERROR "${TEST} failed: deps file ${ACTUAL} missing")
+        message(FATAL_ERROR "${TEST} failed: file ${ACTUAL} missing")
     endif()
     execute_process(COMMAND
         ${CMAKE_COMMAND} -E compare_files --ignore-eol "${ACTUAL_NATIVE}" "${EXPECTED_NATIVE}"
@@ -40,8 +40,8 @@ function(test_output EXPECTED ACTUAL)
             file(READ "${EXPECTED}" EXPECTED_CONTENTS)
             file(READ "${ACTUAL}" ACTUAL_CONTENTS) 
             message("Expected:\n${EXPECTED_CONTENTS}\nGot:\n${ACTUAL_CONTENTS}")
-            message(FATAL_ERROR "Deps output does not match acceptance test")
         endif()
+        message(FATAL_ERROR "Output does not match acceptance test")
     endif()
 endfunction()
 
