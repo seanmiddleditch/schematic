@@ -82,14 +82,20 @@ if(SCHEMATIC_PROTOBUF)
     )
 
     set(LIBS "${LIBS};schematic_protobuf")
+
+    if(SCHEMATIC_INSTALL)
+        install(FILES schematic.proto DESTINATION share)
+    endif()
 endif()
 
 add_library(schematic INTERFACE)
 add_library(schematic::schematic ALIAS schematic)
 target_link_libraries(schematic INTERFACE ${LIBS})
 
-install(
-    TARGETS ${LIBS}
-    EXPORT SchematicTargets
-    FILE_SET HEADERS
-)
+if(SCHEMATIC_INSTALL)
+    install(
+        TARGETS ${LIBS}
+        EXPORT SchematicTargets
+        FILE_SET HEADERS
+    )
+endif()
