@@ -10,7 +10,7 @@ endif()
 if(NOT IS_DIRECTORY ${ACCEPT})
     message(FATAL_ERROR "ACCEPT must be a valid directory")
 endif()
-if(NOT TEST)
+if(NOT ${TEST})
     message(FATAL_ERROR "TEST must be a schema file")
 endif()
 
