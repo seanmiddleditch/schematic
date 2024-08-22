@@ -59,8 +59,8 @@ function(test_output EXPECTED ACTUAL)
     if(NOT COMPARE EQUAL 0)
         if(DIFF)
             execute_process(
-                COMMAND "${DIFF}" "${EXPECTED_NATIVE}" "${ACTUAL_NATIVE}" || exit 0
-                COMMAND_ECHO STDOUT
+                COMMAND "${DIFF}" "${EXPECTED_NATIVE}" "${ACTUAL_NATIVE}"
+                RESULT_VARIABLE DIFF_RESULT
             )
         endif()
         message(STATUS "Output does not match acceptance test")
