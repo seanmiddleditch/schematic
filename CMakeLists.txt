@@ -7,6 +7,25 @@ endif()
 
 project("schematic")
 
+include(CTest)
+
+if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)
+    set(TESTS_DEFAULT ON)
+else()
+    set(TEST_DEFAULT OFF)
+endif()
+
+option(SCHEMATIC_PROTOBUF "Whether protobuf serialization is enabled" ON)
+option(SCHEMATIC_VERBOSE "Whether extra schematic CMake messages should be displayed" ${PROJECT_IS_TOP_LEVEL})
+option(SCHEMATIC_TESTS "Whether tests are built and enabled" ${TESTS_DEFAULT})
+option(SCHEMATIC_INSTALL "Whether installation targets are enabled" ${PROJECT_IS_TOP_LEVEL})
+
+if(SCHEMATIC_VERBOSE)
+    message(STATUS "Schematic protobuf support: ${SCHEMATIC_PROTOBUF}")
+    message(STATUS "Schematic tests: ${SCHEMATIC_TESTS}")
+    message(STATUS "Schematic install target: ${SCHEMATIC_INSTALL}")
+endif()
+
 if(CMAKE_RUNTIME_OUTPUT_DIRECTORY)
     string(REPLACE "/" "\\\\" SCHEMATIC_OUT_DIR_WIN32 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
     configure_file(.vs/launch.vs.json.in "${CMAKE_CURRENT_SOURCE_DIR}/.vs/launch.vs.json" @ONLY NEWLINE_STYLE WIN32)
@@ -17,7 +36,7 @@ set(CMAKE_VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 add_subdirectory(schematic)
 add_subdirectory(schemac)
 
-if(PROJECT_IS_TOP_LEVEL)
+if(SCHEMATIC_TESTS)
     include(CTest)
     if(BUILD_TESTING)
         enable_testing()
@@ -25,22 +44,23 @@ if(PROJECT_IS_TOP_LEVEL)
     endif()
 endif()
 
-install(EXPORT SchematicTargets
-    DESTINATION lib/cmake/schematic
-    NAMESPACE schematic::
-)
+if(SCHEMATIC_INSTALL)
+    install(EXPORT SchematicTargets
+        DESTINATION lib/cmake/schematic
+        NAMESPACE schematic::
+    )
 
-export(EXPORT SchematicTargets
-    FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/SchematicTargets.cmake"
-    NAMESPACE schematic::
-)
+    export(EXPORT SchematicTargets
+        FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/SchematicTargets.cmake"
+        NAMESPACE schematic::
+    )
 
-include(CMakePackageConfigHelpers)
-configure_package_config_file(SchematicConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/SchematicConfig.cmake
-    INSTALL_DESTINATION lib/cmake/schematic
-)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/SchematicConfig.cmake
-    DESTINATION lib/cmake/schematic
-)
-
+    include(CMakePackageConfigHelpers)
+    configure_package_config_file(SchematicConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/SchematicConfig.cmake
+        INSTALL_DESTINATION lib/cmake/schematic
+    )
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/SchematicConfig.cmake
+        DESTINATION lib/cmake/schematic
+    )
+endif()

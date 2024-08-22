@@ -46,44 +46,50 @@ target_sources(schematic_compiler PRIVATE
     "source/token.h"
 )
 
-add_library(schematic_protobuf)
-add_library(schematic::schematic_protobuf ALIAS schematic_protobuf)
-target_compile_features(schematic_protobuf PUBLIC cxx_std_23)
-target_link_libraries(schematic_protobuf PUBLIC schematic_core PRIVATE protobuf::libprotobuf)
-target_include_directories(schematic_protobuf PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
-target_sources(schematic_protobuf PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
-    "include/schematic/protobuf.h"
-)
-target_sources(schematic_protobuf PRIVATE
-    "source/protobuf.cpp"
-)
+set(LIBS "schematic_core;schematic_compiler")
+
+if(SCHEMATIC_PROTOBUF)
+    add_library(schematic_protobuf)
+    add_library(schematic::schematic_protobuf ALIAS schematic_protobuf)
+    target_compile_features(schematic_protobuf PUBLIC cxx_std_23)
+    target_link_libraries(schematic_protobuf PUBLIC schematic_core PRIVATE protobuf::libprotobuf)
+    target_include_directories(schematic_protobuf PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+    )
+    target_sources(schematic_protobuf PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
+        "include/schematic/protobuf.h"
+    )
+    target_sources(schematic_protobuf PRIVATE
+        "source/protobuf.cpp"
+    )
+    
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic")
+    target_include_directories(schematic_protobuf PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/protobuf>)
+    add_custom_command(
+        OUTPUT
+            "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic/schematic.pb.h"
+            "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic/schematic.pb.cc"
+        COMMAND protobuf::protoc "--error_format=$<IF:$<BOOL:${MSVC}>,msvs,gcc>" "--cpp_out=${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic" "--proto_path=${CMAKE_CURRENT_SOURCE_DIR}" schematic.proto
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        MAIN_DEPENDENCY schematic.proto
+    )
+    target_sources(schematic_protobuf PUBLIC FILE_SET HEADERS BASE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/protobuf" FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic/schematic.pb.h"
+    )
+    target_sources(schematic_protobuf PRIVATE
+        "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic/schematic.pb.cc"
+    )
+
+    set(LIBS "${LIBS};schematic_protobuf")
+endif()
 
 add_library(schematic INTERFACE)
 add_library(schematic::schematic ALIAS schematic)
-target_link_libraries(schematic INTERFACE schematic_core schematic_compiler schematic_protobuf)
+target_link_libraries(schematic INTERFACE ${LIBS})
 
 install(
-    TARGETS schematic_core schematic_compiler schematic_protobuf
+    TARGETS ${LIBS}
     EXPORT SchematicTargets
     FILE_SET HEADERS
-)
-
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic")
-target_include_directories(schematic_protobuf PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/protobuf>)
-add_custom_command(
-    OUTPUT
-        "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic/schematic.pb.h"
-        "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic/schematic.pb.cc"
-    COMMAND protobuf::protoc "--error_format=$<IF:$<BOOL:${MSVC}>,msvs,gcc>" "--cpp_out=${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic" "--proto_path=${CMAKE_CURRENT_SOURCE_DIR}" schematic.proto
-    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    MAIN_DEPENDENCY schematic.proto
-)
-target_sources(schematic_protobuf PUBLIC FILE_SET HEADERS BASE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/protobuf" FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic/schematic.pb.h"
-)
-target_sources(schematic_protobuf PRIVATE
-    "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic/schematic.pb.cc"
 )
