@@ -28,6 +28,7 @@ namespace potato::schematic
     struct TypeEnum;
     struct TypeFloat;
     struct TypeInt;
+    struct TypeMessage;
     struct TypeNullable;
     struct TypePointer;
     struct TypeString;
@@ -54,6 +55,7 @@ namespace potato::schematic
         Enum,
         Float,
         Int,
+        Message,
         Nullable,
         Pointer,
         String,
@@ -100,6 +102,7 @@ namespace potato::schematic
         const Type* owner = nullptr;
         const Type* type = nullptr;
         const Value* value = nullptr;
+        std::uint32_t proto = 0;
         Span<const Annotation*> annotations;
     };
 
@@ -176,6 +179,13 @@ namespace potato::schematic
 
         bool isSigned = true;
         std::uint32_t width = 32;
+    };
+
+    struct TypeMessage : Type
+    {
+        SCHEMATIC_TYPE(Message);
+
+        Span<Field> fields;
     };
 
     struct TypeNullable : Type

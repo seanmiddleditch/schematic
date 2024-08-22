@@ -16,6 +16,7 @@ namespace potato::schematic::compiler
         Module,
         Import,
         StructDecl,
+        MessageDecl,
         AttributeDecl,
         Field,
         EnumDecl,
@@ -40,6 +41,7 @@ namespace potato::schematic::compiler
     struct AstNodeModule;
     struct AstNodeImport;
     struct AstNodeStructDecl;
+    struct AstNodeMessageDecl;
     struct AstNodeAttributeDecl;
     struct AstNodeField;
     struct AstNodeEnumDecl;
@@ -126,6 +128,13 @@ namespace potato::schematic::compiler
         Array<const AstNodeField*> fields;
     };
 
+    struct AstNodeMessageDecl : AstNodeDecl
+    {
+        AST_NODE(AstNodeMessageDecl, AstNodeDecl, AstNodeKind::MessageDecl);
+
+        Array<const AstNodeField*> fields;
+    };
+
     struct AstNodeAttributeDecl : AstNodeDecl
     {
         AST_NODE(AstNodeAttributeDecl, AstNodeDecl, AstNodeKind::Annotation);
@@ -139,6 +148,7 @@ namespace potato::schematic::compiler
 
         const AstNodeType* type = nullptr;
         const AstNodeExpression* value = nullptr;
+        const AstNodeLiteralInt* proto = nullptr;
     };
 
     struct AstNodeEnumDecl : AstNodeDecl

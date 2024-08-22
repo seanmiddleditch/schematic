@@ -61,7 +61,7 @@ int main(int argc, char** argv)
     MainContext ctx;
 
     if (!ParseArguments(ctx, std::span{ &argv[1], &argv[argc] }))
-        return 1;
+        return 3;
 
     const ModuleId root = ctx.TryLoadFile(ctx.input);
 
@@ -76,7 +76,7 @@ int main(int argc, char** argv)
     if (schema == nullptr)
     {
         fmt::println(stderr, "Internal error: schema not created");
-        return 1;
+        return 2;
     }
 
     {
@@ -93,7 +93,7 @@ int main(int argc, char** argv)
             if (!out_file)
             {
                 fmt::println(stderr, "Cannot open output file: {}", ctx.output);
-                return 1;
+                return 3;
             }
 
             out = &out_file;
@@ -104,13 +104,14 @@ int main(int argc, char** argv)
         if (proto == nullptr)
         {
             fmt::println(stderr, "Internal error: serialization to protobuf failed");
-            return 1;
+            return 2;
         }
 
         if (ctx.writeJson)
         {
             google::protobuf::util::JsonPrintOptions options;
             options.add_whitespace = true;
+            options.always_print_primitive_fields = true;
             options.preserve_proto_field_names = true;
             std::string json;
             google::protobuf::util::MessageToJsonString(*proto, &json, options);
@@ -121,7 +122,7 @@ int main(int argc, char** argv)
             if (!proto->SerializeToOstream(out))
             {
                 fmt::println(stderr, "Internal error: serializing to output stream failed");
-                return 1;
+                return 2;
             }
         }
 
@@ -134,7 +135,7 @@ int main(int argc, char** argv)
         if (!deps)
         {
             fmt::println(stderr, "Cannot open deps file: {}", ctx.deps);
-            return 1;
+            return 3;
         }
 
         const std::filesystem::path cwd = std::filesystem::current_path();
@@ -294,11 +295,11 @@ void MainContext::Error(ModuleId moduleId, const Range& range, std::string_view 
 
     if (range.start.line == 0)
     {
-        fmt::println(stderr, "{}: {}", files[moduleId.value].filename, message);
+        fmt::println(stderr, "{}: {}", files[moduleId.value].filename.generic_string(), message);
         return;
     }
 
-    fmt::println(stderr, "{}({},{}): {}", files[moduleId.value].filename, range.start.line, range.start.column, message);
+    fmt::println(stderr, "{}({},{}): {}", files[moduleId.value].filename.generic_string(), range.start.line, range.start.column, message);
 }
 
 std::string_view MainContext::ReadFileContents(ModuleId id)

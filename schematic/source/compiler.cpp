@@ -51,9 +51,11 @@ struct potato::schematic::Compiler::Impl final
     const Module* CreateBuiltins();
 
     void BuildStruct(const AstNodeStructDecl& ast);
+    void BuildMessage(const AstNodeMessageDecl& ast);
     void BuildAttribute(const AstNodeAttributeDecl& ast);
     void BuildEnum(const AstNodeEnumDecl& ast);
 
+    void BuildFields(std::span<const Field>& out, const Type* owner, Array<const AstNodeField*> fields);
     void BuildAnnotations(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast);
     void BuildArguments(std::span<const Argument>& out, const Type* type, const std::span<const Field>& fields, const TypeStruct* baseType, Array<const AstNode*> ast);
 
@@ -174,6 +176,12 @@ const Module* potato::schematic::Compiler::Impl::CompileModule()
             continue;
         }
 
+        if (const AstNodeMessageDecl* const message = adecl->CastTo<AstNodeMessageDecl>())
+        {
+            BuildMessage(*message);
+            continue;
+        }
+
         if (const AstNodeAttributeDecl* const attr = adecl->CastTo<AstNodeAttributeDecl>())
         {
             BuildAttribute(*attr);
@@ -215,7 +223,10 @@ const Schema* potato::schematic::Compiler::Impl::Compile(ModuleId moduleId)
     state->mod->filename = arena.NewString(ctx.GetFileName(moduleId));
 
     if (useBuiltins)
+    {
         state->imports.EmplaceBack(arena, builtins);
+        state->mod->imports = state->imports;
+    }
 
     if (!CompileModule())
         return nullptr;
@@ -331,20 +342,19 @@ void potato::schematic::Compiler::Impl::BuildStruct(const AstNodeStructDecl& ast
     }
 
     BuildAnnotations(type->annotations, ast.annotations);
+    BuildFields(type->fields, type, ast.fields);
+}
 
-    auto fields = arena.NewArray<Field>(ast.fields.Size());
-    for (const AstNodeField* ast_field : ast.fields)
-    {
-        Field& field = fields.EmplaceBack(arena);
-        field.owner = type;
-        if (ast_field->name.name != nullptr)
-            field.name = ast_field->name.name;
-        field.type = Resolve(ast_field->type);
-        if (ast_field->value != nullptr)
-            field.value = BuildExpression(field.type, *ast_field->value);
-        BuildAnnotations(field.annotations, ast_field->annotations);
-    }
-    type->fields = fields;
+void potato::schematic::Compiler::Impl::BuildMessage(const AstNodeMessageDecl& ast)
+{
+    TypeMessage* const type = AddType<TypeMessage>(ast.tokenIndex, ast.name.name);
+    if (type == nullptr)
+        return;
+
+    type->name = ast.name.name;
+
+    BuildAnnotations(type->annotations, ast.annotations);
+    BuildFields(type->fields, type, ast.fields);
 }
 
 void potato::schematic::Compiler::Impl::BuildAttribute(const AstNodeAttributeDecl& ast)
@@ -356,20 +366,7 @@ void potato::schematic::Compiler::Impl::BuildAttribute(const AstNodeAttributeDec
     type->name = ast.name.name;
 
     BuildAnnotations(type->annotations, ast.annotations);
-
-    auto fields = arena.NewArray<Field>(ast.fields.Size());
-    for (const AstNodeField* ast_field : ast.fields)
-    {
-        Field& field = fields.EmplaceBack(arena);
-        field.owner = type;
-        if (ast_field->name.name != nullptr)
-            field.name = ast_field->name.name;
-        field.type = Resolve(ast_field->type);
-        if (ast_field->value != nullptr)
-            field.value = BuildExpression(field.type, *ast_field->value);
-        BuildAnnotations(field.annotations, ast_field->annotations);
-    }
-    type->fields = fields;
+    BuildFields(type->fields, type, ast.fields);
 }
 
 void potato::schematic::Compiler::Impl::BuildEnum(const AstNodeEnumDecl& ast)
@@ -407,6 +404,25 @@ void potato::schematic::Compiler::Impl::BuildEnum(const AstNodeEnumDecl& ast)
         BuildAnnotations(item.annotations, ast_item->annotations);
     }
     type->items = items;
+}
+
+void potato::schematic::Compiler::Impl::BuildFields(std::span<const Field>& out, const Type* owner, Array<const AstNodeField*> fields)
+{
+    Array<Field> temp = arena.NewArray<Field>(fields.Size());
+    for (const AstNodeField* ast_field : fields)
+    {
+        Field& field = temp.EmplaceBack(arena);
+        field.owner = owner;
+        field.type = Resolve(ast_field->type);
+        if (ast_field->name.name != nullptr)
+            field.name = ast_field->name.name;
+        if (ast_field->proto != nullptr)
+            field.proto = ast_field->proto->value;
+        if (ast_field->value != nullptr)
+            field.value = BuildExpression(field.type, *ast_field->value);
+        BuildAnnotations(field.annotations, ast_field->annotations);
+    }
+    out = temp;
 }
 
 void potato::schematic::Compiler::Impl::BuildAnnotations(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast)
@@ -800,6 +816,17 @@ void potato::schematic::Compiler::Impl::VisitTypes(const Type* type, Array<const
         VisitTypes(struct_->base, visited);
 
         for (const Field& field : struct_->fields)
+        {
+            VisitTypes(field.type, visited);
+            VisitTypes(field.value, visited);
+
+            for (const Annotation* const annotation : field.annotations)
+                VisitTypes(annotation, visited);
+        }
+    }
+    else if (const TypeMessage* const message = CastTo<TypeMessage>(type); message != nullptr)
+    {
+        for (const Field& field : message->fields)
         {
             VisitTypes(field.type, visited);
             VisitTypes(field.value, visited);

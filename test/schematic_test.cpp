@@ -256,4 +256,14 @@ World!""")",
         const Value* const third = FindArgument(name, "third");
         CHECK_THAT(third, IsValue<ValueInt>(7));
     }
+
+    SECTION("Messages")
+    {
+        ctx.AddFile("messages", R"--(
+        message Test {
+            int32 field @1;
+        }
+)--");
+        const Schema& schema = CompileTest("messages");
+    }
 }
