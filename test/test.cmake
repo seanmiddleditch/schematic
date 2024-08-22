@@ -18,7 +18,7 @@ function(schematic_add_tests)
                 "-DACCEPT=${CMAKE_CURRENT_SOURCE_DIR}/accept"
                 "-DSEARCH=${IMPORT_DIR}"
                 "-DDIFF=${DIFF_PATH}"
-                "-DTEST=${SOURCE}"
+                "-DTEST=${TEST}"
                 "-DOUT=${CMAKE_CURRENT_BINARY_DIR}"
                 -P "${CMAKE_CURRENT_SOURCE_DIR}/driver.cmake"
         )

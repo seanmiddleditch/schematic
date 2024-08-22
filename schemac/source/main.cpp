@@ -139,14 +139,14 @@ int main(int argc, char** argv)
         }
 
         const std::filesystem::path cwd = std::filesystem::current_path();
-        deps << ctx.output.lexically_proximate(cwd) << ": ";
+        deps << ctx.output.lexically_proximate(cwd).generic_string() << ": ";
 
         for (size_t index = 0; index != ctx.files.size(); ++index)
         {
             if (index != 0)
                 deps << "  ";
 
-            deps << ctx.files[index].filename.lexically_proximate(cwd);
+            deps << ctx.files[index].filename.lexically_proximate(cwd).generic_string();
 
             if (index != ctx.files.size() - 1)
                 deps << " \\";
