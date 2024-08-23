@@ -1,0 +1,60 @@
+{
+ "modules": [
+  {
+   "filename": "schemas/test02.sat",
+   "imports": [
+    1
+   ]
+  },
+  {
+   "filename": "$builtins",
+   "imports": []
+  }
+ ],
+ "types": [
+  {
+   "string": {
+    "name": "string",
+    "module": 1,
+    "annotations": []
+   }
+  },
+  {
+   "int": {
+    "name": "int32",
+    "module": 1,
+    "annotations": [],
+    "width": 32,
+    "signed": true
+   }
+  },
+  {
+   "message": {
+    "name": "Test",
+    "module": 0,
+    "annotations": [],
+    "fields": [
+     {
+      "name": "name",
+      "type": 0,
+      "annotations": [],
+      "proto": 1
+     },
+     {
+      "name": "payload1",
+      "type": 1,
+      "annotations": [],
+      "proto": 7
+     },
+     {
+      "name": "payload2",
+      "type": 1,
+      "annotations": [],
+      "proto": 4096
+     }
+    ]
+   }
+  }
+ ],
+ "root": 0
+}

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.26)
+cmake_minimum_required(VERSION 3.29)
 
 if (POLICY CMP0141)
   cmake_policy(SET CMP0141 NEW)
@@ -28,7 +28,7 @@ endif()
 
 if(CMAKE_RUNTIME_OUTPUT_DIRECTORY)
     string(REPLACE "/" "\\\\" SCHEMATIC_OUT_DIR_WIN32 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
-    configure_file(.vs/launch.vs.json.in "${CMAKE_CURRENT_SOURCE_DIR}/.vs/launch.vs.json" @ONLY NEWLINE_STYLE WIN32)
+    configure_file(launch.vs.json.in "${CMAKE_CURRENT_SOURCE_DIR}/.vs/launch.vs.json" @ONLY NEWLINE_STYLE WIN32)
 endif()
 
 set(CMAKE_VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")

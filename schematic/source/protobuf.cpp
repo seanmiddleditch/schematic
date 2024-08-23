@@ -27,17 +27,20 @@ namespace
         std::uint32_t IndexOfModule(const Module* mod) const noexcept;
 
         void Serialize(proto::Type& out, const Type& in);
-        void Serialize(proto::Type::Struct& out, const TypeStruct& in);
-        void Serialize(proto::Type::Bool& out, const TypeBool& in);
-        void Serialize(proto::Type::Int& out, const TypeInt& in);
-        void Serialize(proto::Type::Float& out, const TypeFloat& in);
         void Serialize(proto::Type::Array& out, const TypeArray& in);
-        void Serialize(proto::Type::String& out, const TypeString& in);
-        void Serialize(proto::Type::Enum& out, const TypeEnum& in);
-        void Serialize(proto::Type::TypeRef& out, const TypeType& in);
-        void Serialize(proto::Type::Pointer& out, const TypePointer& in);
-        void Serialize(proto::Type::Nullable& out, const TypeNullable& in);
         void Serialize(proto::Type::Attribute& out, const TypeAttribute& in);
+        void Serialize(proto::Type::Bool& out, const TypeBool& in);
+        void Serialize(proto::Type::Enum& out, const TypeEnum& in);
+        void Serialize(proto::Type::Float& out, const TypeFloat& in);
+        void Serialize(proto::Type::Int& out, const TypeInt& in);
+        void Serialize(proto::Type::Message& out, const TypeMessage& in);
+        void Serialize(proto::Type::Nullable& out, const TypeNullable& in);
+        void Serialize(proto::Type::Pointer& out, const TypePointer& in);
+        void Serialize(proto::Type::String& out, const TypeString& in);
+        void Serialize(proto::Type::Struct& out, const TypeStruct& in);
+        void Serialize(proto::Type::TypeRef& out, const TypeType& in);
+
+        void SerializeField(proto::Field& out, const Field& in);
 
         template <typename T>
         void SerializeTypeCommon(T& out, const Type& in);
@@ -71,17 +74,20 @@ namespace
 
     private:
         void Deserialize(Type& out, const proto::Type& in);
-        void Deserialize(TypeStruct& out, const proto::Type::Struct& in);
+        void Deserialize(TypeAttribute& out, const proto::Type::Attribute& in);
+        void Deserialize(TypeArray& out, const proto::Type::Array& in);
         void Deserialize(TypeBool& out, const proto::Type::Bool& in);
         void Deserialize(TypeInt& out, const proto::Type::Int& in);
-        void Deserialize(TypeFloat& out, const proto::Type::Float& in);
-        void Deserialize(TypeArray& out, const proto::Type::Array& in);
-        void Deserialize(TypeString& out, const proto::Type::String& in);
         void Deserialize(TypeEnum& out, const proto::Type::Enum& in);
-        void Deserialize(TypeType& out, const proto::Type::TypeRef& in);
+        void Deserialize(TypeFloat& out, const proto::Type::Float& in);
+        void Deserialize(TypeMessage& out, const proto::Type::Message& in);
         void Deserialize(TypeNullable& out, const proto::Type::Nullable& in);
         void Deserialize(TypePointer& out, const proto::Type::Pointer& in);
-        void Deserialize(TypeAttribute& out, const proto::Type::Attribute& in);
+        void Deserialize(TypeString& out, const proto::Type::String& in);
+        void Deserialize(TypeStruct& out, const proto::Type::Struct& in);
+        void Deserialize(TypeType& out, const proto::Type::TypeRef& in);
+
+        void DeserializeField(Field& out, const Type* owner, const proto::Field& in);
 
         template <typename T>
         void DeserializeTypeCommon(Type& out, const T& in);
@@ -138,11 +144,11 @@ void Serializer::Serialize(proto::Schema& out)
             pmod->add_imports(IndexOfModule(import));
     }
 
+    if (schema_.root != nullptr)
+        out.set_root(IndexOfModule(schema_.root));
+
     for (const Type* const type : schema_.types)
         Serialize(*out.add_types(), *type);
-
-    if (schema_.root != nullptr)
-        out.set_root_module(IndexOfModule(schema_.root));
 }
 
 std::uint32_t Serializer::IndexOfType(const Type* type) const noexcept
@@ -192,6 +198,9 @@ void Serializer::Serialize(proto::Type& out, const Type& in)
         case Int:
             Serialize(*out.mutable_int_(), static_cast<const TypeInt&>(in));
             break;
+        case Message:
+            Serialize(*out.mutable_message(), static_cast<const TypeMessage&>(in));
+            break;
         case Nullable:
             Serialize(*out.mutable_nullable(), static_cast<const TypeNullable&>(in));
             break;
@@ -218,17 +227,7 @@ void Serializer::Serialize(proto::Type::Struct& out, const TypeStruct& in)
         out.set_base(IndexOfType(in.base));
 
     for (const Field& field : in.fields)
-    {
-        proto::Field& out_field = *out.add_fields();
-        out_field.set_name(field.name);
-        out_field.set_type(IndexOfType(field.type));
-
-        if (field.value != nullptr)
-            Serialize(*out_field.mutable_default_(), *field.value);
-
-        for (const Annotation* const annotation : field.annotations)
-            Serialize(*out_field.add_annotations(), *annotation);
-    }
+        SerializeField(*out.add_fields(), field);
 }
 
 void Serializer::Serialize(proto::Type::Bool& out, const TypeBool& in)
@@ -305,21 +304,35 @@ void Serializer::Serialize(proto::Type::Pointer& out, const TypePointer& in)
         out.set_type(IndexOfType(in.type));
 }
 
+void Serializer::Serialize(proto::Type::Message& out, const TypeMessage& in)
+{
+    SerializeTypeCommon(out, in);
+
+    for (const Field& field : in.fields)
+        SerializeField(*out.add_fields(), field);
+}
+
 void Serializer::Serialize(proto::Type::Attribute& out, const TypeAttribute& in)
 {
     SerializeTypeCommon(out, in);
 
     for (const Field& field : in.fields)
-    {
-        proto::Field& out_field = *out.add_fields();
-        out_field.set_name(field.name);
-        out_field.set_type(IndexOfType(field.type));
-        if (field.value != nullptr)
-            Serialize(*out_field.mutable_default_(), *field.value);
+        SerializeField(*out.add_fields(), field);
+}
 
-        for (const Annotation* const annotation : field.annotations)
-            Serialize(*out_field.add_annotations(), *annotation);
-    }
+void Serializer::SerializeField(proto::Field& out, const Field& in)
+{
+    out.set_name(in.name);
+    out.set_type(IndexOfType(in.type));
+
+    if (in.proto != 0)
+        out.set_proto(in.proto);
+
+    if (in.value != nullptr)
+        Serialize(*out.mutable_default_(), *in.value);
+
+    for (const Annotation* const annotation : in.annotations)
+        Serialize(*out.add_annotations(), *annotation);
 }
 
 template <typename T>
@@ -460,7 +473,7 @@ void Deserializer::Deserialize(Schema& out)
     for (std::size_t index = 0; index != modules_.Capacity(); ++index)
         modules_.PushBack(arena_, arena_.New<Module>());
 
-    const std::size_t root_index = proto_.root_module();
+    const std::size_t root_index = proto_.root();
     if (root_index < modules_.Size())
         out.root = modules_[root_index];
 
@@ -487,37 +500,41 @@ void Deserializer::Deserialize(Schema& out)
     {
         switch (type.Types_case())
         {
-            case proto::Type::kStruct:
-                types_.PushBack(arena_, arena_.New<TypeStruct>());
-                break;
-            case proto::Type::kBool:
-                types_.PushBack(arena_, arena_.New<TypeBool>());
-                break;
-            case proto::Type::kInt:
-                types_.PushBack(arena_, arena_.New<TypeInt>());
-                break;
-            case proto::Type::kFloat:
-                types_.PushBack(arena_, arena_.New<TypeFloat>());
-                break;
             case proto::Type::kArray:
                 types_.PushBack(arena_, arena_.New<TypeArray>());
-                break;
-            case proto::Type::kString:
-                types_.PushBack(arena_, arena_.New<TypeString>());
-                break;
-            case proto::Type::kEnum:
-                types_.PushBack(arena_, arena_.New<TypeEnum>());
-                break;
-            case proto::Type::kType:
-                types_.PushBack(arena_, arena_.New<TypeType>());
-                break;
-            case proto::Type::kPointer:
-                types_.PushBack(arena_, arena_.New<TypePointer>());
-                break;
+                continue;
             case proto::Type::kAttribute:
                 types_.PushBack(arena_, arena_.New<TypeAttribute>());
-                break;
+                continue;
+            case proto::Type::kBool:
+                types_.PushBack(arena_, arena_.New<TypeBool>());
+                continue;
+            case proto::Type::kEnum:
+                types_.PushBack(arena_, arena_.New<TypeEnum>());
+                continue;
+            case proto::Type::kFloat:
+                types_.PushBack(arena_, arena_.New<TypeFloat>());
+                continue;
+            case proto::Type::kInt:
+                types_.PushBack(arena_, arena_.New<TypeInt>());
+                continue;
+            case proto::Type::kMessage:
+                types_.PushBack(arena_, arena_.New<TypeMessage>());
+                continue;
+            case proto::Type::kPointer:
+                types_.PushBack(arena_, arena_.New<TypePointer>());
+                continue;
+            case proto::Type::kString:
+                types_.PushBack(arena_, arena_.New<TypeString>());
+                continue;
+            case proto::Type::kStruct:
+                types_.PushBack(arena_, arena_.New<TypeStruct>());
+                continue;
+            case proto::Type::kType:
+                types_.PushBack(arena_, arena_.New<TypeType>());
+                continue;
         }
+        return;
     }
     out.types = types_;
 
@@ -525,8 +542,9 @@ void Deserializer::Deserialize(Schema& out)
     std::size_t type_index = 0;
     for (const proto::Type& type : proto_.types())
     {
-        potato::schematic::Type& out_type = *types_[type_index++];
-        Deserialize(out_type, type);
+        potato::schematic::Type* const out_type = types_[type_index++];
+        if (out_type != nullptr)
+            Deserialize(*out_type, type);
     }
 
     // Link types to modules (could be way less... bad)
@@ -574,6 +592,9 @@ void Deserializer::Deserialize(Type& out, const proto::Type& in)
         case TypeKind::Int:
             Deserialize(static_cast<TypeInt&>(out), in.int_());
             break;
+        case TypeKind::Message:
+            Deserialize(static_cast<TypeMessage&>(out), in.message());
+            break;
         case TypeKind::Nullable:
             Deserialize(static_cast<TypeNullable&>(out), in.nullable());
             break;
@@ -605,15 +626,7 @@ void Deserializer::Deserialize(TypeStruct& out, const proto::Type::Struct& in)
 
     Array<Field> fields = arena_.NewArray<Field>(in.fields_size());
     for (const proto::Field& field : in.fields())
-    {
-        Field& out_field = fields.EmplaceBack(arena_);
-        out_field.name = arena_.NewString(field.name());
-        out_field.owner = &out;
-        if (field.type() < types_.Size())
-            out_field.type = types_[field.type()];
-        if (field.has_default_())
-            out_field.value = Deserialize(field.default_());
-    }
+        DeserializeField(fields.EmplaceBack(arena_), &out, field);
     out.fields = fields;
 }
 
@@ -686,6 +699,16 @@ void Deserializer::Deserialize(TypeType& out, const proto::Type::TypeRef& in)
     DeserializeTypeCommon(out, in);
 }
 
+void Deserializer::Deserialize(TypeMessage& out, const proto::Type::Message& in)
+{
+    DeserializeTypeCommon(out, in);
+
+    Array<Field> fields = arena_.NewArray<Field>(in.fields_size());
+    for (const proto::Field& field : in.fields())
+        DeserializeField(fields.EmplaceBack(arena_), &out, field);
+    out.fields = fields;
+}
+
 void Deserializer::Deserialize(TypeNullable& out, const proto::Type::Nullable& in)
 {
     DeserializeTypeCommon(out, in);
@@ -708,16 +731,23 @@ void Deserializer::Deserialize(TypeAttribute& out, const proto::Type::Attribute&
 
     Array<Field> fields = arena_.NewArray<Field>(in.fields_size());
     for (const proto::Field& field : in.fields())
-    {
-        Field& out_field = fields.EmplaceBack(arena_);
-        out_field.name = arena_.NewString(field.name());
-        out_field.owner = &out;
-        if (field.type() < types_.Size())
-            out_field.type = types_[field.type()];
-        if (field.has_default_())
-            out_field.value = Deserialize(field.default_());
-    }
+        DeserializeField(fields.EmplaceBack(arena_), &out, field);
     out.fields = fields;
+}
+
+void Deserializer::DeserializeField(Field& out, const Type* owner, const proto::Field& in)
+{
+    out.name = arena_.NewString(in.name());
+    out.owner = owner;
+
+    if (in.has_proto())
+        out.proto = in.proto();
+
+    if (in.type() < types_.Size())
+        out.type = types_[in.type()];
+
+    if (in.has_default_())
+        out.value = Deserialize(in.default_());
 }
 
 template <typename T>

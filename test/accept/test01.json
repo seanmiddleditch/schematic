@@ -1,33 +1,39 @@
 {
  "modules": [
   {
-   "filename": "C:/Projects/schematic/test/schemas/test01.sat",
+   "filename": "schemas/test01.sat",
    "imports": [
     1,
     2
    ]
   },
   {
-   "filename": "$builtins"
+   "filename": "$builtins",
+   "imports": []
   },
   {
-   "filename": "C:/Projects/schematic/test/schemas/import01.sat"
+   "filename": "schemas/import01.sat",
+   "imports": []
   }
  ],
  "types": [
   {
    "string": {
     "name": "string",
-    "module": 1
+    "module": 1,
+    "annotations": []
    }
   },
   {
    "attribute": {
     "name": "Name",
     "module": 2,
+    "annotations": [],
     "fields": [
      {
-      "name": "name"
+      "name": "name",
+      "type": 0,
+      "annotations": []
      }
     ]
    }
@@ -36,6 +42,7 @@
    "float": {
     "name": "float",
     "module": 1,
+    "annotations": [],
     "width": 32
    }
   },
@@ -43,18 +50,22 @@
    "struct": {
     "name": "Vec3",
     "module": 2,
+    "annotations": [],
     "fields": [
      {
       "name": "x",
-      "type": 2
+      "type": 2,
+      "annotations": []
      },
      {
       "name": "y",
-      "type": 2
+      "type": 2,
+      "annotations": []
      },
      {
       "name": "z",
-      "type": 2
+      "type": 2,
+      "annotations": []
      }
     ]
    }
@@ -63,6 +74,7 @@
    "int": {
     "name": "int32",
     "module": 1,
+    "annotations": [],
     "width": 32,
     "signed": true
    }
@@ -70,6 +82,8 @@
   {
    "array": {
     "name": "int32[]",
+    "module": 0,
+    "annotations": [],
     "element": 4
    }
   },
@@ -77,10 +91,12 @@
    "attribute": {
     "name": "Priority",
     "module": 2,
+    "annotations": [],
     "fields": [
      {
       "name": "level",
       "type": 4,
+      "annotations": [],
       "default": {
        "int": {
         "value": "1"
@@ -94,16 +110,21 @@
    "enum": {
     "name": "Color",
     "module": 2,
+    "annotations": [],
     "items": [
      {
-      "name": "Red"
+      "name": "Red",
+      "annotations": [],
+      "value": "0"
      },
      {
       "name": "Blue",
+      "annotations": [],
       "value": "2"
      },
      {
       "name": "Green",
+      "annotations": [],
       "value": "1"
      }
     ]
@@ -112,6 +133,7 @@
   {
    "struct": {
     "name": "Test",
+    "module": 0,
     "annotations": [
      {
       "attribute": 1,
@@ -130,7 +152,8 @@
     "fields": [
      {
       "name": "vec",
-      "type": 3
+      "type": 3,
+      "annotations": []
      },
      {
       "name": "array",
@@ -175,14 +198,17 @@
      },
      {
       "name": "integer",
-      "type": 4
+      "type": 4,
+      "annotations": []
      },
      {
       "name": "color",
-      "type": 7
+      "type": 7,
+      "annotations": []
      }
     ]
    }
   }
- ]
+ ],
+ "root": 0
 }

@@ -5,8 +5,8 @@
     {
       "type": "default",
       "project": "CMakeLists.txt",
-      "projectTarget": "schematic_schemac.exe (@SCHEMATIC_OUT_DIR_WIN32@\\schematic_schemac.exe)",
-      "name": "schematic_schemac.exe (@SCHEMATIC_OUT_DIR_WIN32@\\schematic_schemac.exe)",
+      "projectTarget": "schemac.exe (@SCHEMATIC_OUT_DIR_WIN32@\\schemac.exe)",
+      "name": "schemac.exe (@SCHEMATIC_OUT_DIR_WIN32@\\schemac.exe)",
       "args": [
         "-I@CMAKE_CURRENT_SOURCE_DIR@\\test\\schemas",
         "-MF@CMAKE_CURRENT_BINARY_DIR@\\test\\test01.d",

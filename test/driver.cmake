@@ -1,53 +1,83 @@
 if(NOT EXISTS ${EXE})
-    message(FATAL_ERROR "EXE must be path to schemac")
+    message(STATUS "EXE must be path to schemac")
+    cmake_language(EXIT 1)
 endif()
 if(NOT IS_DIRECTORY ${SEARCH})
-    message(FATAL_ERROR "SEARCH must be a valid directory")
+    message(STATUS "SEARCH must be a valid directory")
+    cmake_language(EXIT 1)
 endif()
 if(NOT IS_DIRECTORY ${OUT})
-    message(FATAL_ERROR "OUT must be a valid directory")
+    message(STATUS "OUT must be a valid directory")
+    cmake_language(EXIT 1)
 endif()
 if(NOT IS_DIRECTORY ${ACCEPT})
-    message(FATAL_ERROR "ACCEPT must be a valid directory")
+    message(STATUS "ACCEPT must be a valid directory")
+    cmake_language(EXIT 1)
+endif()
+if(NOT EXISTS ${TEST})
+    message(STATUS "TEST must be a schema file")
+    cmake_language(EXIT 1)
 endif()
 
-cmake_path(CONVERT "${SEARCH}/${TEST}.sat" TO_NATIVE_PATH_LIST SOURCE_FILE NORMALIZE)
-cmake_path(CONVERT "${OUT}/${TEST}.json" TO_NATIVE_PATH_LIST OUTPUT_FILE NORMALIZE)
-cmake_path(CONVERT "${OUT}/${TEST}.d" TO_NATIVE_PATH_LIST DEPS_FILE NORMALIZE)
+get_filename_component(NAME ${TEST} NAME_WE)
+
+cmake_path(CONVERT "${TEST}" TO_NATIVE_PATH_LIST SOURCE_FILE NORMALIZE)
+cmake_path(CONVERT "${OUT}/${NAME}.json" TO_NATIVE_PATH_LIST OUTPUT_FILE NORMALIZE)
+cmake_path(CONVERT "${OUT}/${NAME}.d" TO_NATIVE_PATH_LIST DEPS_FILE NORMALIZE)
+
+message(STATUS "Test:   ${NAME}")
+message(STATUS "Search: ${SEARCH}")
+message(STATUS "Source: ${TEST}")
+message(STATUS "Accept: ${ACCEPT}/${NAME}.json")
+message(STATUS "Deps:   ${ACCEPT}/${NAME}.d")
+if(DIFF)
+    message(STATUS "Diff:   ${DIFF}")
+endif()
 
 execute_process(
     COMMAND "${EXE}" "-I${SEARCH}" "-MF${DEPS_FILE}" -Ojson -o "${OUTPUT_FILE}" -- "${SOURCE_FILE}"
-    TIMEOUT 10
-    ERROR_VARIABLE ERROR
-    ECHO_ERROR_VARIABLE
     RESULT_VARIABLE RESULT
+    COMMAND_ECHO STDOUT
+    ERROR_VARIABLE ERRORS
+    TIMEOUT 10
 )
+if(NOT RESULT EQUAL 0)
+    message(STATUS "Error output\n${ERRORS}")
+    message(STATUS "Schema compilation failed")
+    cmake_language(EXIT 1)
+endif()
+
+message(STATUS "Compilation succeeded")
 
 function(test_output EXPECTED ACTUAL)
+    message(STATUS "Comparing ${EXPECTED} vs ${ACTUAL}")
     cmake_path(CONVERT "${EXPECTED}" TO_NATIVE_PATH_LIST EXPECTED_NATIVE NORMALIZE)
     cmake_path(CONVERT "${ACTUAL}" TO_NATIVE_PATH_LIST ACTUAL_NATIVE NORMALIZE)
     if(NOT EXISTS "${ACTUAL}")
-        message(FATAL_ERROR "${TEST} failed: file ${ACTUAL} missing")
+        message(STATUS "${TEST} failed: file ${ACTUAL} missing")
+        cmake_language(EXIT 1)
     endif()
-    execute_process(COMMAND
-        ${CMAKE_COMMAND} -E compare_files --ignore-eol "${ACTUAL_NATIVE}" "${EXPECTED_NATIVE}"
-        RESULT_VARIABLE DEPS_COMPARE
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E compare_files --ignore-eol "${ACTUAL_NATIVE}" "${EXPECTED_NATIVE}"
+        RESULT_VARIABLE RESULT
     )
-    if(NOT DEPS_COMPARE EQUAL 0)
+    if(NOT RESULT EQUAL 0)
         if(DIFF)
-            execute_process(COMMAND "${DIFF}" "${EXPECTED_NATIVE}" "${ACTUAL_NATIVE}")
-        else()
-            file(READ "${EXPECTED}" EXPECTED_CONTENTS)
-            file(READ "${ACTUAL}" ACTUAL_CONTENTS) 
-            message("Expected:\n${EXPECTED_CONTENTS}\nGot:\n${ACTUAL_CONTENTS}")
+            execute_process(
+                COMMAND "${DIFF}" "${EXPECTED_NATIVE}" "${ACTUAL_NATIVE}"
+                RESULT_VARIABLE RESULT
+            )
         endif()
-        message(FATAL_ERROR "Output does not match acceptance test")
+        message(STATUS "Output does not match acceptance test")
+        cmake_language(EXIT 1)
     endif()
+    message(STATUS "- Actual matches expected")
 endfunction()
 
-if(NOT ${RESULT} EQUAL 0)
-    message(FATAL_ERROR "${TEST} failed: ${RESULT}")
-endif()
+test_output("${ACCEPT}/${NAME}.json" "${OUTPUT_FILE}")
 
-test_output("${ACCEPT}/${TEST}.d" "${DEPS_FILE}")
-test_output("${ACCEPT}/${TEST}.json" "${OUTPUT_FILE}")
+# absolute paths will be different depending on machine, so a simple
+# text comparison is not an appropriate way to test this output
+#test_output("${ACCEPT}/${NAME}.d" "${DEPS_FILE}")
+
+cmake_language(EXIT 0)

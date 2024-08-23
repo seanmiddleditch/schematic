@@ -5,7 +5,7 @@ message Schema
 {
     repeated Module modules = 1;
     repeated Type types = 2;
-    uint32 root_module = 3;
+    uint32 root = 3;
 }
 
 message Module
@@ -20,6 +20,7 @@ message Field
     uint32 type = 2;
     repeated Annotation annotations = 3;
     Value default = 4;
+    optional uint32 proto = 5;
 }
 
 message Argument
@@ -97,6 +98,15 @@ message Type
         uint32 width = 10;
         bool signed = 11;
     }
+
+    message Message
+    {
+        string name = 1;
+        uint32 module = 2;
+        repeated Annotation annotations = 3;
+
+        repeated Field fields = 10;
+    }
     
     message Nullable
     {
@@ -148,11 +158,12 @@ message Type
         Int int = 4;
         Enum enum = 5;
         Float float = 6;
-        Nullable nullable = 7;
-        Pointer pointer = 8;
-        String string = 9;
-        Struct struct = 10;
-        TypeRef type = 11;
+        Message message = 7;
+        Nullable nullable = 8;
+        Pointer pointer = 9;
+        String string = 10;
+        Struct struct = 11;
+        TypeRef type = 12;
     }
 }
 

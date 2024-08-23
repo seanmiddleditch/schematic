@@ -31,6 +31,10 @@ static constexpr char main_source[] = R"(
     struct Derived : Base {
         int16 y = 1;
     }
+
+    message Message {
+        float f @3;
+    }
 )";
 
 TEST_CASE("Serialize", "[potato][schematic]")

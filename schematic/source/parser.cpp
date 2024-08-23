@@ -72,6 +72,13 @@ const AstNodeModule* Parser::Parse()
             continue;
         }
 
+        if (ConsumeKey("message"))
+        {
+            if (!ParseMessageDecl())
+                Recover(RecoverType::Declaration);
+            continue;
+        }
+
         if (ConsumeKey("attribute"))
         {
             if (!ParseAttributeDecl())
@@ -209,6 +216,47 @@ bool Parser::ParseStructDecl()
     return true;
 }
 
+bool Parser::ParseMessageDecl()
+{
+    AstNodeMessageDecl* const message = arena_.New<AstNodeMessageDecl>(Pos());
+    message->annotations = annotations_;
+
+    mod->nodes.EmplaceBack(arena_, message);
+
+    if (!ExpectIdent(message->name))
+        return false;
+
+    if (Consume(TokenType::SemiColon))
+    {
+        // empty body
+    }
+    else if (Expect(TokenType::LBrace))
+    {
+        while (!Match(TokenType::RBrace))
+        {
+            if (Consume(TokenType::End))
+                break;
+
+            if (!ParseAnnotations())
+                return false;
+
+            if (!ParseField(message->fields))
+                return false;
+
+            if (!Expect(TokenType::SemiColon))
+                return false;
+        }
+
+        Expect(TokenType::RBrace);
+    }
+    else
+    {
+        return false;
+    }
+
+    return true;
+}
+
 bool Parser::ParseAttributeDecl()
 {
     AstNodeAttributeDecl* const attr = arena_.New<AstNodeAttributeDecl>(Pos());
@@ -259,6 +307,10 @@ const bool Parser::ParseField(Array<const AstNodeField*>& fields)
 
     if (!ExpectIdent(field->name))
         return false;
+
+    if (Consume(TokenType::At))
+        if (!ExpectInt(field->proto))
+            return false;
 
     if (Consume(TokenType::Equals))
     {
@@ -657,14 +709,18 @@ void Parser::Error(std::string_view message)
 void Parser::ErrorExpect(std::string_view expected)
 {
     if (next_ != 0)
+    {
         Error(fmt::format("Unexpected {} after {} expected {}",
             PrintToken{ .token = tokens_[next_], .source = contents_ },
             PrintToken{ .token = tokens_[next_ - 1], .source = contents_ },
             expected));
+    }
     else
+    {
         Error(fmt::format("Unexpected {} expected {}",
             PrintToken{ .token = tokens_[next_], .source = contents_ },
             expected));
+    }
 }
 
 bool Parser::Match(TokenType type, const Token** out)
