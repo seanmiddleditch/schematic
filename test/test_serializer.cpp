@@ -63,3 +63,32 @@ TEST_CASE("Serialize", "[potato][schematic]")
 
     CHECK(proto->ShortDebugString() == proto2->ShortDebugString());
 }
+
+TEST_CASE("ParseError", "[potato][schematic]")
+{
+    TestContext ctx;
+    ArenaAllocator arena;
+    google::protobuf::Arena pb_arena;
+
+    TypeInt i32;
+    i32.name = "i32";
+    i32.width = 32;
+    i32.isSigned = true;
+    TypeEnum bad;
+    bad.name = "bad";
+    bad.base = &i32;
+    Module root;
+    root.filename = "<root>";
+    const Type* types[] = { &i32, &bad };
+    root.types = types;
+    const Module* modules[] = { &root };
+    Schema schema;
+    schema.root = &root;
+    schema.modules = modules;
+    schema.types = types;
+
+    const proto::Schema* const proto = SerializeSchemaProto(pb_arena, &schema);
+    REQUIRE(proto != nullptr);
+
+    CHECK(ParseSchemaProto(arena, proto) == nullptr);
+}

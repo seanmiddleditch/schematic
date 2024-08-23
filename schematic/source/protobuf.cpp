@@ -70,7 +70,7 @@ namespace
         {
         }
 
-        void Deserialize(Schema& out);
+        bool Deserialize(Schema& out);
 
     private:
         void Deserialize(Type& out, const proto::Type& in);
@@ -109,6 +109,7 @@ namespace
         ArenaAllocator& arena_;
         Array<Module*> modules_;
         Array<Type*> types_;
+        bool failed_ = false;
     };
 } // namespace
 
@@ -128,7 +129,8 @@ const Schema* potato::schematic::ParseSchemaProto(ArenaAllocator& arena, const p
         return nullptr;
     Schema* const schema = arena.New<Schema>();
     Deserializer serializer(*proto, arena);
-    serializer.Deserialize(*schema);
+    if (!serializer.Deserialize(*schema))
+        return nullptr;
     return schema;
 }
 
@@ -466,7 +468,13 @@ void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
 
 // --- Deserializer ---
 
-void Deserializer::Deserialize(Schema& out)
+#define VERIFY(EXPR) \
+    ((EXPR) || !(failed_ = true))
+
+#define VERIFY_INDEX(ARRAY, INDEX) \
+    VERIFY((INDEX) < (ARRAY).Size())
+
+bool Deserializer::Deserialize(Schema& out)
 {
     // Deserialize modules, excluding their child types (we haven't deserialized those yet)
     modules_ = arena_.NewArray<Module*>(proto_.modules_size());
@@ -474,8 +482,8 @@ void Deserializer::Deserialize(Schema& out)
         modules_.PushBack(arena_, arena_.New<Module>());
 
     const std::size_t root_index = proto_.root();
-    if (root_index < modules_.Size())
-        out.root = modules_[root_index];
+    if (VERIFY_INDEX(modules_, proto_.root()))
+        out.root = modules_[proto_.root()];
 
     std::size_t module_index = 0;
     for (const proto::Module& mod : proto_.modules())
@@ -486,7 +494,7 @@ void Deserializer::Deserialize(Schema& out)
         Array<const Module*> imports = arena_.NewArray<const Module*>(mod.imports_size());
         for (std::uint32_t target_index : mod.imports())
         {
-            if (target_index < modules_.Size())
+            if (VERIFY_INDEX(modules_, target_index))
                 imports.EmplaceBack(arena_, modules_[target_index]);
         }
         out_mod.imports = imports;
@@ -534,7 +542,7 @@ void Deserializer::Deserialize(Schema& out)
                 types_.PushBack(arena_, arena_.New<TypeType>());
                 continue;
         }
-        return;
+        return false; // unknown tag
     }
     out.types = types_;
 
@@ -543,8 +551,8 @@ void Deserializer::Deserialize(Schema& out)
     for (const proto::Type& type : proto_.types())
     {
         potato::schematic::Type* const out_type = types_[type_index++];
-        if (out_type != nullptr)
-            Deserialize(*out_type, type);
+        assert(out_type != nullptr); // previous unknown tag check should return, cannot reach this statement
+        Deserialize(*out_type, type);
     }
 
     // Link types to modules (could be way less... bad)
@@ -565,6 +573,8 @@ void Deserializer::Deserialize(Schema& out)
         }
         mod->types = mod_types;
     }
+
+    return !failed_;
 }
 
 void Deserializer::Deserialize(Type& out, const proto::Type& in)
@@ -573,41 +583,42 @@ void Deserializer::Deserialize(Type& out, const proto::Type& in)
     {
         case TypeKind::Struct:
             Deserialize(static_cast<TypeStruct&>(out), in.struct_());
-            break;
+            return;
         case TypeKind::Array:
             Deserialize(static_cast<TypeArray&>(out), in.array());
-            break;
+            return;
         case TypeKind::Attribute:
             Deserialize(static_cast<TypeAttribute&>(out), in.attribute());
-            break;
+            return;
         case TypeKind::Bool:
             Deserialize(static_cast<TypeBool&>(out), in.bool_());
-            break;
+            return;
         case TypeKind::Enum:
             Deserialize(static_cast<TypeEnum&>(out), in.enum_());
-            break;
+            return;
         case TypeKind::Float:
             Deserialize(static_cast<TypeFloat&>(out), in.float_());
-            break;
+            return;
         case TypeKind::Int:
             Deserialize(static_cast<TypeInt&>(out), in.int_());
-            break;
+            return;
         case TypeKind::Message:
             Deserialize(static_cast<TypeMessage&>(out), in.message());
-            break;
+            return;
         case TypeKind::Nullable:
             Deserialize(static_cast<TypeNullable&>(out), in.nullable());
-            break;
+            return;
         case TypeKind::Pointer:
             Deserialize(static_cast<TypePointer&>(out), in.pointer());
-            break;
+            return;
         case TypeKind::String:
             Deserialize(static_cast<TypeString&>(out), in.string());
-            break;
+            return;
         case TypeKind::Type:
             Deserialize(static_cast<TypeType&>(out), in.type());
-            break;
+            return;
     }
+    assert(false); // should be unreachable
 }
 
 void Deserializer::Deserialize(TypeStruct& out, const proto::Type::Struct& in)
@@ -616,10 +627,10 @@ void Deserializer::Deserialize(TypeStruct& out, const proto::Type::Struct& in)
 
     if (in.has_base())
     {
-        if (in.base() < types_.Size())
+        if (VERIFY_INDEX(types_, in.base()))
         {
             const Type* const base = types_[in.base()];
-            if (base->kind == TypeKind::Struct)
+            if (VERIFY(base->kind == TypeKind::Struct))
                 out.base = static_cast<const TypeStruct*>(base);
         }
     }
@@ -657,7 +668,7 @@ void Deserializer::Deserialize(TypeArray& out, const proto::Type::Array& in)
         out.size = in.size();
     }
 
-    if (in.element() < types_.Size())
+    if (VERIFY_INDEX(types_, in.element()))
         out.type = types_[in.element()];
 }
 
@@ -672,10 +683,10 @@ void Deserializer::Deserialize(TypeEnum& out, const proto::Type::Enum& in)
 
     if (in.has_base())
     {
-        if (in.base() < types_.Size())
+        if (VERIFY_INDEX(types_, in.base()))
         {
             const Type* const base = types_[in.base()];
-            if (base->kind == TypeKind::Int)
+            if (VERIFY(base->kind == TypeKind::Int))
                 out.base = base;
         }
     }
@@ -713,7 +724,7 @@ void Deserializer::Deserialize(TypeNullable& out, const proto::Type::Nullable& i
 {
     DeserializeTypeCommon(out, in);
 
-    if (in.type() < types_.Size())
+    if (VERIFY_INDEX(types_, in.type()))
         out.type = types_[in.type()];
 }
 
@@ -721,7 +732,7 @@ void Deserializer::Deserialize(TypePointer& out, const proto::Type::Pointer& in)
 {
     DeserializeTypeCommon(out, in);
 
-    if (in.type() < types_.Size())
+    if (VERIFY_INDEX(types_, in.type()))
         out.type = types_[in.type()];
 }
 
@@ -743,7 +754,7 @@ void Deserializer::DeserializeField(Field& out, const Type* owner, const proto::
     if (in.has_proto())
         out.proto = in.proto();
 
-    if (in.type() < types_.Size())
+    if (VERIFY_INDEX(types_, in.type()))
         out.type = types_[in.type()];
 
     if (in.has_default_())
@@ -754,7 +765,7 @@ template <typename T>
 void Deserializer::DeserializeTypeCommon(Type& out, const T& in)
 {
     out.name = arena_.NewString(in.name());
-    if (in.module() < modules_.Size())
+    if (VERIFY_INDEX(modules_, in.module()))
         out.owner = modules_[in.module()];
 
     Array<Annotation*> annotations = arena_.NewArray<Annotation*>(in.annotations_size());
@@ -780,6 +791,7 @@ Value* Deserializer::Deserialize(const proto::Value& in)
         case proto::Value::kArray: return Deserialize(in.array());
         case proto::Value::kObject: return Deserialize(in.object());
     }
+    failed_ = true; // unknown type tag
     return nullptr;
 }
 
@@ -830,10 +842,10 @@ ValueArray* Deserializer::Deserialize(const proto::Value::Array& in)
 ValueEnum* Deserializer::Deserialize(const proto::Value::Enum& in)
 {
     ValueEnum* const value = arena_.New<ValueEnum>();
-    if (in.type() < types_.Size() && types_[in.type()]->kind == TypeKind::Enum)
+    if (VERIFY_INDEX(types_, in.type()) && VERIFY(types_[in.type()]->kind == TypeKind::Enum))
     {
         const TypeEnum* const enum_ = static_cast<const TypeEnum*>(types_[in.type()]);
-        if (in.item() < enum_->items.size())
+        if (VERIFY(in.item() < enum_->items.size()))
             value->item = &enum_->items[in.item()];
     }
     return value;
@@ -851,8 +863,8 @@ ValueNull* Deserializer::Deserialize(const proto::Value::Null& in)
 
 void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
 {
-    if (in.attribute() < types_.Size())
-        if (types_[in.attribute()]->kind == TypeKind::Attribute)
+    if (VERIFY_INDEX(types_, in.attribute()))
+        if (VERIFY(types_[in.attribute()]->kind == TypeKind::Attribute))
             out.attribute = static_cast<const TypeAttribute*>(types_[in.attribute()]);
 
     Array<Argument> args = arena_.NewArray<Argument>(in.arguments_size());
