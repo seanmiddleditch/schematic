@@ -9,7 +9,6 @@ function(schematic_add_tests)
 
     foreach(TEST ${ARG_TESTS})
         get_filename_component(NAME ${TEST} NAME_WE)
-        get_filename_component(SOURCE ${TEST} ABSOLUTE)
         add_test(
             NAME schematic_test_${NAME}
             WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"

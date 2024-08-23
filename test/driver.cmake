@@ -1,17 +1,22 @@
 if(NOT EXISTS ${EXE})
-    message(FATAL_ERROR "EXE must be path to schemac")
+    message(STATUS "EXE must be path to schemac")
+    cmake_language(EXIT 1)
 endif()
 if(NOT IS_DIRECTORY ${SEARCH})
-    message(FATAL_ERROR "SEARCH must be a valid directory")
+    message(STATUS "SEARCH must be a valid directory")
+    cmake_language(EXIT 1)
 endif()
 if(NOT IS_DIRECTORY ${OUT})
-    message(FATAL_ERROR "OUT must be a valid directory")
+    message(STATUS "OUT must be a valid directory")
+    cmake_language(EXIT 1)
 endif()
 if(NOT IS_DIRECTORY ${ACCEPT})
-    message(FATAL_ERROR "ACCEPT must be a valid directory")
+    message(STATUS "ACCEPT must be a valid directory")
+    cmake_language(EXIT 1)
 endif()
 if(NOT EXISTS ${TEST})
-    message(FATAL_ERROR "TEST must be a schema file")
+    message(STATUS "TEST must be a schema file")
+    cmake_language(EXIT 1)
 endif()
 
 get_filename_component(NAME ${TEST} NAME_WE)
@@ -54,13 +59,13 @@ function(test_output EXPECTED ACTUAL)
     endif()
     execute_process(
         COMMAND ${CMAKE_COMMAND} -E compare_files --ignore-eol "${ACTUAL_NATIVE}" "${EXPECTED_NATIVE}"
-        RESULT_VARIABLE COMPARE
+        RESULT_VARIABLE RESULT
     )
-    if(NOT COMPARE EQUAL 0)
+    if(NOT RESULT EQUAL 0)
         if(DIFF)
             execute_process(
                 COMMAND "${DIFF}" "${EXPECTED_NATIVE}" "${ACTUAL_NATIVE}"
-                RESULT_VARIABLE DIFF_RESULT
+                RESULT_VARIABLE RESULT
             )
         endif()
         message(STATUS "Output does not match acceptance test")
@@ -69,6 +74,10 @@ function(test_output EXPECTED ACTUAL)
     message(STATUS "- Actual matches expected")
 endfunction()
 
-test_output("${ACCEPT}/${NAME}.d" "${DEPS_FILE}")
 test_output("${ACCEPT}/${NAME}.json" "${OUTPUT_FILE}")
+
+# absolute paths will be different depending on machine, so a simple
+# text comparison is not an appropriate way to test this output
+#test_output("${ACCEPT}/${NAME}.d" "${DEPS_FILE}")
+
 cmake_language(EXIT 0)
