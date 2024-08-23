@@ -9,8 +9,20 @@ on:
 
 jobs:
   build-project:
-    name: Ubuntu GCC
+    strategy:
+      fail-fast: true
+      matrix:
+        cxx: [g++, clang++]
+        cmake-defines: [""]
+        include:
+          - name: g++ (no protobuf)
+            cxx: g++
+            cmake-defines: "-DSCHEMATIC_PROTOBUF=NO -DSCHEMATIC_SCHEMAC=NO"
+
+    name: Ubuntu ${{ matrix.name || matrix.cxx }}
     runs-on: ubuntu-latest
+    env:
+      CXX: ${{ matrix.cxx }}
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v4
@@ -39,7 +51,7 @@ jobs:
       - name: Configure the project
         run: |
           mkdir out
-          cmake -G Ninja --preset linux-debug ${{ steps.vcpkg.outputs.vcpkg-cmake-config }}
+          cmake -G Ninja --preset linux-debug ${{ matrix.cmake-defines }} ${{ steps.vcpkg.outputs.vcpkg-cmake-config }}
 
       - name: Build the project
         run: cmake --build ${BUILD}

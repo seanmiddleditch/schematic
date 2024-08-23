@@ -12,12 +12,14 @@ target_sources(schematic_test PRIVATE
     "schematic_test.cpp"
     "test_context.h"
     "test_matchers.h"
-    "test_serializer.cpp"
+    $<$<BOOL:${SCHEMATIC_PROTOBUF}>:test_serializer.cpp>
     "test_strings.h"
 )
 catch_discover_tests(schematic_test)
 
-schematic_add_tests(IMPORT_DIR schemas/ TESTS
-    "schemas/test01.sat"
-    "schemas/test02.sat"
-)
+if(SCHEMATIC_SCHEMAC)
+    schematic_add_tests(IMPORT_DIR schemas/ TESTS
+        "schemas/test01.sat"
+        "schemas/test02.sat"
+    )
+endif()
