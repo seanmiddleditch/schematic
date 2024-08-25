@@ -14,12 +14,14 @@ target_sources(schematic_core PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
     "include/schematic/allocator.h"
     "include/schematic/schema.h"
     "include/schematic/utility.h"
+    "include/schematic/visitor.h"
 )
 target_sources(schematic_core PRIVATE
     "schematic.natvis"
     "source/allocator.cpp"
     "source/array.h"
     "source/utility.cpp"
+    "source/visitor.cpp"
 )
 
 add_library(schematic_compiler)
