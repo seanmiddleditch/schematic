@@ -16,11 +16,17 @@ else()
 endif()
 
 option(SCHEMATIC_PROTOBUF "Whether protobuf serialization is enabled" ON)
+option(SCHEMATIC_SCHEMAC "Whether to build the schemac utility (requires protobuf)" ${SCHEMATIC_PROTOBUF})
 option(SCHEMATIC_VERBOSE "Whether extra schematic CMake messages should be displayed" ${PROJECT_IS_TOP_LEVEL})
 option(SCHEMATIC_TESTS "Whether tests are built and enabled" ${TESTS_DEFAULT})
 option(SCHEMATIC_INSTALL "Whether installation targets are enabled" ${PROJECT_IS_TOP_LEVEL})
 
+if (SCHEMATIC_SCHEMAC AND NOT SCHEMATIC_PROTOBUF)
+    message(FATAL_ERROR "schemac requires SCHEMATIC_PROTOBUF=ON")
+endif()
+
 if(SCHEMATIC_VERBOSE)
+    message(STATUS "Schematic schemac: ${SCHEMATIC_SCHEMAC}")
     message(STATUS "Schematic protobuf support: ${SCHEMATIC_PROTOBUF}")
     message(STATUS "Schematic tests: ${SCHEMATIC_TESTS}")
     message(STATUS "Schematic install target: ${SCHEMATIC_INSTALL}")
@@ -34,7 +40,10 @@ endif()
 set(CMAKE_VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_subdirectory(schematic)
-add_subdirectory(schemac)
+
+if(SCHEMATIC_SCHEMAC)
+    add_subdirectory(schemac)
+endif()
 
 if(SCHEMATIC_TESTS)
     include(CTest)
