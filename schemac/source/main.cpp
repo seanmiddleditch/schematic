@@ -69,15 +69,9 @@ int main(int argc, char** argv)
     ArenaAllocator arena(alloc);
     Compiler compiler(ctx, arena);
     compiler.SetUseBuiltins(true);
-    if (!compiler.Compile(root))
-        return 1;
-
-    const Schema* const schema = compiler.GetSchema();
+    const Schema* const schema = compiler.Compile(root);
     if (schema == nullptr)
-    {
-        fmt::println(stderr, "Internal error: schema not created");
-        return 2;
-    }
+        return 1;
 
     {
         std::ostream* out = &std::cout;

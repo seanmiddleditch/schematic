@@ -47,9 +47,7 @@ TEST_CASE("Serialize", "[potato][schematic]")
 
     ctx.AddFile("<main>", main_source);
     ctx.AddFile("imported", imported_source);
-    REQUIRE(compiler.Compile(ModuleId{ 0 }));
-
-    const Schema* const original = compiler.GetSchema();
+    const Schema* const original = compiler.Compile(ModuleId{ 0 });
     REQUIRE(original != nullptr);
 
     const proto::Schema* const proto = SerializeSchemaProto(pb_arena, original);

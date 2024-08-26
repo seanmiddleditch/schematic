@@ -19,8 +19,7 @@ using namespace potato::schematic::test;
     ([&](auto name) { \
         const ModuleId moduleId = ctx.ResolveModule(name, ModuleId{}); \
         REQUIRE(moduleId.value != ModuleId::InvalidValue); \
-        REQUIRE(compiler.Compile(moduleId)); \
-        const Schema* const schema = compiler.GetSchema(); \
+        const Schema* const schema = compiler.Compile(moduleId); \
         REQUIRE(schema != nullptr); \
         REQUIRE(schema->root != nullptr); \
         return *schema; \

@@ -37,6 +37,8 @@ target_sources(schematic_compiler PRIVATE
     "source/array.h"
     "source/ast.h"
     "source/compiler.cpp"
+    "source/generator.cpp"
+    "source/generator.h"
     "source/lexer.cpp"
     "source/lexer.h"
     "source/location.h"

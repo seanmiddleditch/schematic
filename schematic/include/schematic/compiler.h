@@ -8,6 +8,11 @@
 
 #include <string_view>
 
+namespace potato::schematic::compiler
+{
+    class Generator;
+}
+
 namespace potato::schematic
 {
     struct Range;
@@ -40,21 +45,19 @@ namespace potato::schematic
     {
     public:
         explicit Compiler(CompileContext& ctx, ArenaAllocator& arena);
-        virtual ~Compiler();
 
         Compiler(const Compiler&) = delete;
         Compiler& operator=(const Compiler&) = delete;
 
         void SetUseBuiltins(bool useBuiltins = true);
 
-        bool Compile(ModuleId moduleId);
-
-        const Schema* GetSchema(); // returns nullptr if Compile has not previously returned true
+        const Schema* Compile(ModuleId moduleId);
 
     private:
-        struct Impl;
-        Impl* impl_ = nullptr;
+        CompileContext& ctx_;
         ArenaAllocator& arena_;
+        compiler::Generator* generator_ = nullptr;
+        bool useBuiltins_ = false;
     };
 
     struct Location
