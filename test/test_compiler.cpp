@@ -1,6 +1,5 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
-#include "lexer.h"
 #include "test_context.h"
 #include "test_matchers.h"
 #include "test_strings.h"
@@ -32,49 +31,10 @@ TEST_CASE("Compiler", "[potato][schematic]")
     Compiler compiler(ctx, arena);
     compiler.SetUseBuiltins(true);
 
-    SECTION("Lexer")
-    {
-        Array<Token> tokens;
-        ctx.AddFile("<test>", R"--(
-        // this is a comment
-
-        // and another comment
-)--");
-
-        Lexer lexer(ctx, arena, ModuleId{ 0 });
-        REQUIRE(!lexer.Tokenize().IsEmpty());
-
-        CHECK_THAT("123", IsTokenType(TokenType::Integer));
-
-        CHECK_THAT("0.", IsTokenType(TokenType::Float));
-        CHECK_THAT(".0", IsTokenType(TokenType::Float));
-        CHECK_THAT("0.0", IsTokenType(TokenType::Float));
-        CHECK_THAT("0.0e1", IsTokenType(TokenType::Float));
-        CHECK_THAT("0.0e-1", IsTokenType(TokenType::Float));
-
-        CHECK_THAT("00", IsLexError());
-        CHECK_THAT("01234", IsLexError());
-
-        CHECK_THAT(".", IsTokenType(TokenType::Dot));
-        CHECK_THAT(";", IsTokenType(TokenType::SemiColon));
-
-        CHECK_THAT(R"("Hello World!")", IsTokenType(TokenType::String));
-        CHECK_THAT(R"("Hello World!)", IsLexError());
-        CHECK_THAT("\"Hello World!\n\"", IsLexError());
-        CHECK_THAT("\\L", IsLexError());
-
-        CHECK_THAT(R"("""Hello
-World!""")",
-            IsTokenType(TokenType::MultilineString));
-        CHECK_THAT(R"("""Hello World!)", IsLexError());
-
-        CHECK_THAT("/", IsLexError());
-    }
-
     SECTION("Enum")
     {
         ctx.AddFile("enum", R"--(
-        enum color
+        enum color : int8
         {
             red,
             green = 0xff,

@@ -284,7 +284,7 @@ void Generator::BuildEnum(const AstNodeEnumDecl& ast)
         Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type->name);
 
     type->base = Resolve(ast.base);
-    if (type->base != nullptr && type->kind != TypeKind::Int)
+    if (type->base != nullptr && type->base->kind != TypeKind::Int)
         Error(ast.base.parts.Front().tokenIndex, "Base type is not an integer: {}", type->base->name);
 
     BuildAnnotations(type->annotations, ast.annotations);
