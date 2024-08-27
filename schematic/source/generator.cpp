@@ -24,10 +24,10 @@ using namespace potato::schematic;
 using namespace potato::schematic::compiler;
 
 template <>
-struct fmt::formatter<potato::schematic::compiler::AstQualifiedName> : fmt::formatter<const char*>
+struct fmt::formatter<AstQualifiedName> : fmt::formatter<const char*>
 {
     template <typename FormatContext>
-    FMT_CONSTEXPR auto format(const potato::schematic::compiler::AstQualifiedName& name, FormatContext& ctx) const
+    FMT_CONSTEXPR auto format(const AstQualifiedName& name, FormatContext& ctx) const
         -> decltype(ctx.out())
     {
         bool first = true;
@@ -42,7 +42,7 @@ struct fmt::formatter<potato::schematic::compiler::AstQualifiedName> : fmt::form
     }
 };
 
-struct potato::schematic::compiler::Generator::State
+struct Generator::State
 {
     ModuleId moduleId;
     const AstNodeModule* ast = nullptr;
@@ -52,7 +52,7 @@ struct potato::schematic::compiler::Generator::State
     Array<Token> tokens;
 };
 
-const Module* potato::schematic::compiler::Generator::CompileModule()
+const Module* Generator::CompileModule()
 {
     State& state = *stack.Back();
 
@@ -119,7 +119,7 @@ const Module* potato::schematic::compiler::Generator::CompileModule()
     return state.mod;
 }
 
-const Module* potato::schematic::compiler::Generator::Compile(ModuleId moduleId, bool useBuiltins)
+const Module* Generator::Compile(ModuleId moduleId, bool useBuiltins)
 {
     builtins = nullptr;
     schema = nullptr;
@@ -154,7 +154,7 @@ const Module* potato::schematic::compiler::Generator::Compile(ModuleId moduleId,
     return state->mod;
 }
 
-bool potato::schematic::compiler::Generator::HandleImport(const AstNodeImport& imp)
+bool Generator::HandleImport(const AstNodeImport& imp)
 {
     const ModuleId moduleId = ctx.ResolveModule(imp.target.name, stack.Back()->moduleId);
     if (moduleId.value == ModuleId::InvalidValue)
@@ -182,7 +182,7 @@ bool potato::schematic::compiler::Generator::HandleImport(const AstNodeImport& i
     return success;
 }
 
-const Module* potato::schematic::compiler::Generator::CreateBuiltins()
+const Module* Generator::CreateBuiltins()
 {
     if (builtins != nullptr)
         return builtins;
@@ -227,13 +227,15 @@ const Module* potato::schematic::compiler::Generator::CreateBuiltins()
     return builtins;
 }
 
-void potato::schematic::compiler::Generator::BuildStruct(const AstNodeStructDecl& ast)
+void Generator::BuildStruct(const AstNodeStructDecl& ast)
 {
     TypeStruct* const type = AddType<TypeStruct>(ast.tokenIndex, ast.name.name);
     if (type == nullptr)
         return;
 
-    type->name = ast.name.name;
+    if (IsReserved(type->name))
+        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type->name);
+
     const Type* const baseType = Resolve(ast.base);
     if (baseType != nullptr)
     {
@@ -246,37 +248,40 @@ void potato::schematic::compiler::Generator::BuildStruct(const AstNodeStructDecl
     BuildFields(type->fields, type, ast.fields);
 }
 
-void potato::schematic::compiler::Generator::BuildMessage(const AstNodeMessageDecl& ast)
+void Generator::BuildMessage(const AstNodeMessageDecl& ast)
 {
     TypeMessage* const type = AddType<TypeMessage>(ast.tokenIndex, ast.name.name);
     if (type == nullptr)
         return;
 
-    type->name = ast.name.name;
+    if (IsReserved(type->name))
+        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type->name);
 
     BuildAnnotations(type->annotations, ast.annotations);
     BuildFields(type->fields, type, ast.fields);
 }
 
-void potato::schematic::compiler::Generator::BuildAttribute(const AstNodeAttributeDecl& ast)
+void Generator::BuildAttribute(const AstNodeAttributeDecl& ast)
 {
     TypeAttribute* const type = AddType<TypeAttribute>(ast.tokenIndex, ast.name.name);
     if (type == nullptr)
         return;
 
-    type->name = ast.name.name;
+    if (IsReserved(type->name))
+        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type->name);
 
     BuildAnnotations(type->annotations, ast.annotations);
     BuildFields(type->fields, type, ast.fields);
 }
 
-void potato::schematic::compiler::Generator::BuildEnum(const AstNodeEnumDecl& ast)
+void Generator::BuildEnum(const AstNodeEnumDecl& ast)
 {
     TypeEnum* const type = AddType<TypeEnum>(ast.tokenIndex, ast.name.name);
     if (type == nullptr)
         return;
 
-    type->name = ast.name.name;
+    if (IsReserved(type->name))
+        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type->name);
 
     type->base = Resolve(ast.base);
     if (type->base != nullptr && type->kind != TypeKind::Int)
@@ -291,6 +296,8 @@ void potato::schematic::compiler::Generator::BuildEnum(const AstNodeEnumDecl& as
         EnumItem& item = items.EmplaceBack(arena);
         item.owner = type;
         item.name = ast_item->name.name;
+        if (IsReserved(type->name))
+            Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type->name);
         if (ast_item->value != nullptr)
         {
             item.value = BuildInteger(*ast_item->value);
@@ -307,16 +314,21 @@ void potato::schematic::compiler::Generator::BuildEnum(const AstNodeEnumDecl& as
     type->items = items;
 }
 
-void potato::schematic::compiler::Generator::BuildFields(std::span<const Field>& out, const Type* owner, Array<const AstNodeField*> fields)
+template <typename T>
+void Generator::BuildFields(std::span<const Field>& out, const T* owner, Array<const AstNodeField*> fields)
 {
     Array<Field> temp = arena.NewArray<Field>(fields.Size());
     for (const AstNodeField* ast_field : fields)
     {
+        if (const Field* const field = FindField(owner, ast_field->name.name); field != nullptr)
+            Error(ast_field->tokenIndex, "Duplicate field name: {}.{}", owner->name, field->name);
+
         Field& field = temp.EmplaceBack(arena);
         field.owner = owner;
         field.type = Resolve(ast_field->type);
-        if (ast_field->name.name != nullptr)
-            field.name = ast_field->name.name;
+        field.name = ast_field->name.name;
+        if (IsReserved(field.name))
+            Error(ast_field->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", field.name);
         if (ast_field->proto != nullptr)
             field.proto = ast_field->proto->value;
         if (ast_field->value != nullptr)
@@ -326,7 +338,7 @@ void potato::schematic::compiler::Generator::BuildFields(std::span<const Field>&
     out = temp;
 }
 
-void potato::schematic::compiler::Generator::BuildAnnotations(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast)
+void Generator::BuildAnnotations(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast)
 {
     Array<const Annotation*> temp = arena.NewArray<const Annotation*>(ast.Size());
 
@@ -354,7 +366,7 @@ void potato::schematic::compiler::Generator::BuildAnnotations(std::span<const An
     out = temp;
 }
 
-void potato::schematic::compiler::Generator::BuildArguments(std::span<const Argument>& out, const Type* type, const std::span<const Field>& fields, const TypeStruct* baseType, Array<const AstNode*> ast)
+void Generator::BuildArguments(std::span<const Argument>& out, const Type* type, const std::span<const Field>& fields, const TypeStruct* baseType, Array<const AstNode*> ast)
 {
     bool hasNamed = false;
     size_t index = 0;
@@ -431,35 +443,35 @@ void potato::schematic::compiler::Generator::BuildArguments(std::span<const Argu
     out = temp;
 }
 
-const ValueBool* potato::schematic::compiler::Generator::BuildBool(const AstNodeLiteralBool& lit)
+const ValueBool* Generator::BuildBool(const AstNodeLiteralBool& lit)
 {
     ValueBool* const value = arena.New<ValueBool>();
     value->value = lit.value;
     return value;
 }
 
-const ValueInt* potato::schematic::compiler::Generator::BuildInteger(const AstNodeLiteralInt& lit)
+const ValueInt* Generator::BuildInteger(const AstNodeLiteralInt& lit)
 {
     ValueInt* const value = arena.New<ValueInt>();
     value->value = lit.value;
     return value;
 }
 
-const ValueFloat* potato::schematic::compiler::Generator::BuildFloat(const AstNodeLiteralFloat& lit)
+const ValueFloat* Generator::BuildFloat(const AstNodeLiteralFloat& lit)
 {
     ValueFloat* const value = arena.New<ValueFloat>();
     value->value = lit.value;
     return value;
 }
 
-const ValueString* potato::schematic::compiler::Generator::BuildString(const AstNodeLiteralString& lit)
+const ValueString* Generator::BuildString(const AstNodeLiteralString& lit)
 {
     ValueString* const value = arena.New<ValueString>();
     value->value = lit.value;
     return value;
 }
 
-const Value* potato::schematic::compiler::Generator::BuildExpression(const Type* type, const AstNode& expr)
+const Value* Generator::BuildExpression(const Type* type, const AstNode& expr)
 {
     switch (expr.kind)
     {
@@ -487,7 +499,7 @@ const Value* potato::schematic::compiler::Generator::BuildExpression(const Type*
     }
 }
 
-const Value* potato::schematic::compiler::Generator::BuildQualifiedId(const AstNodeQualifiedId& id)
+const Value* Generator::BuildQualifiedId(const AstNodeQualifiedId& id)
 {
     if (id.id.parts.Size() == 1)
     {
@@ -535,7 +547,7 @@ const Value* potato::schematic::compiler::Generator::BuildQualifiedId(const AstN
     return enumValue;
 }
 
-const ValueArray* potato::schematic::compiler::Generator::BuildArray(const Type* type, const AstNodeInitializerList& expr)
+const ValueArray* Generator::BuildArray(const Type* type, const AstNodeInitializerList& expr)
 {
     ValueArray* const value = arena.New<ValueArray>();
     value->type = type;
@@ -544,7 +556,7 @@ const ValueArray* potato::schematic::compiler::Generator::BuildArray(const Type*
 
     for (const AstNode* const elem : expr.elements)
     {
-        const Value* const elemValue = BuildExpression(nullptr, *elem);
+        const Value* const elemValue = BuildExpression(type, *elem);
         if (elemValue != nullptr)
             elements.PushBack(arena, elemValue);
     }
@@ -554,7 +566,7 @@ const ValueArray* potato::schematic::compiler::Generator::BuildArray(const Type*
     return value;
 }
 
-const ValueObject* potato::schematic::compiler::Generator::BuildObject(const TypeStruct* type, const AstNodeInitializerList& expr)
+const ValueObject* Generator::BuildObject(const TypeStruct* type, const AstNodeInitializerList& expr)
 {
     ValueObject* const obj = arena.New<ValueObject>();
     obj->type = type;
@@ -571,7 +583,7 @@ const ValueObject* potato::schematic::compiler::Generator::BuildObject(const Typ
     return obj;
 }
 
-const Type* potato::schematic::compiler::Generator::Resolve(const AstQualifiedName& name)
+const Type* Generator::Resolve(const AstQualifiedName& name)
 {
     if (!name.parts)
         return nullptr;
@@ -600,7 +612,7 @@ const Type* potato::schematic::compiler::Generator::Resolve(const AstQualifiedNa
     return nullptr;
 }
 
-const Type* potato::schematic::compiler::Generator::Resolve(const AstNodeType* type)
+const Type* Generator::Resolve(const AstNodeType* type)
 {
     if (const AstNodeTypeQualified* qual = type->CastTo<AstNodeTypeQualified>(); qual != nullptr)
     {
@@ -613,15 +625,15 @@ const Type* potato::schematic::compiler::Generator::Resolve(const AstNodeType* t
         if (inner == nullptr)
             return nullptr;
 
-        if (array->size != nullptr)
-        {
-            Error(array->tokenIndex, "Sized arrays not implemented yet");
-            return nullptr;
-        }
-
         const char* const name = arena.NewString(fmt::format("{}[]", inner->name));
         TypeArray* const type = AddType<TypeArray>(array->tokenIndex, name);
         type->type = inner;
+
+        if (array->size != nullptr)
+        {
+            type->isFixed = true;
+            type->size = array->size->value;
+        }
 
         return type;
     }
@@ -655,8 +667,17 @@ const Type* potato::schematic::compiler::Generator::Resolve(const AstNodeType* t
     return nullptr;
 }
 
+bool Generator::IsReserved(const char* ident) const noexcept
+{
+    if (ident == nullptr)
+        return false;
+    if (*ident == '$')
+        return true;
+    return false;
+}
+
 template <typename... Args>
-void potato::schematic::compiler::Generator::Error(std::uint32_t tokenIndex, fmt::format_string<Args...> format, const Args&... args)
+void Generator::Error(std::uint32_t tokenIndex, fmt::format_string<Args...> format, const Args&... args)
 {
     result = false;
     if (tokenIndex < stack.Back()->tokens.Size())
@@ -673,7 +694,7 @@ void potato::schematic::compiler::Generator::Error(std::uint32_t tokenIndex, fmt
 }
 
 template <typename T>
-T* potato::schematic::compiler::Generator::AddType(std::uint32_t tokenIndex, const char* name)
+T* Generator::AddType(std::uint32_t tokenIndex, const char* name)
 {
     if (const Type* const previous = FindType(stack.Back()->mod, name); previous != nullptr)
     {
