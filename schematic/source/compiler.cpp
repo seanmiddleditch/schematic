@@ -36,7 +36,7 @@ namespace potato::schematic::compiler
         void VisitTypes(const Value* value, Array<const Type*>& visited);
         void VisitModules(const Module* mod, Array<const Module*>& visited);
     };
-}
+} // namespace potato::schematic::compiler
 
 potato::schematic::Compiler::Compiler(CompileContext& ctx, ArenaAllocator& arena)
     : ctx_(ctx)
@@ -57,7 +57,7 @@ const Schema* potato::schematic::Compiler::Compile(ModuleId moduleId)
     const Module* const root = generator_->Compile(moduleId, useBuiltins_);
     if (root == nullptr)
         return nullptr;
-    
+
     Schema* const schema = arena_.New<Schema>();
     schema->root = root;
 
