@@ -56,7 +56,7 @@ const Module* Generator::CompileModule()
 {
     State& state = *stack.Back();
 
-    Lexer lexer(ctx, arena, state.moduleId);
+    Lexer lexer(ctx, arena, state.moduleId, ctx.ReadFileContents(state.moduleId));
     state.tokens = lexer.Tokenize();
     if (state.tokens.IsEmpty())
         return nullptr;

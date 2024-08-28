@@ -14,29 +14,6 @@
 using namespace potato::schematic;
 using namespace potato::schematic::test;
 
-static constexpr char imported_source[] = R"(
-    attribute Attr {
-        string name;
-    }
-
-    struct Base {
-        int32 x = 0;
-    }
-)";
-
-static constexpr char main_source[] = R"(
-    import imported;
-
-    [Attr("Derived")]
-    struct Derived : Base {
-        int16 y = 1;
-    }
-
-    message Message {
-        float f @3;
-    }
-)";
-
 TEST_CASE("Serialize", "[potato][schematic]")
 {
     TestContext ctx;
@@ -45,9 +22,8 @@ TEST_CASE("Serialize", "[potato][schematic]")
     Compiler compiler(ctx, arena);
     compiler.SetUseBuiltins(true);
 
-    ctx.AddFile("<main>", main_source);
-    ctx.AddFile("imported", imported_source);
-    const Schema* const original = compiler.Compile(ModuleId{ 0 });
+    ctx.AddEmbeds();
+    const Schema* const original = compiler.Compile(ctx.ResolveModule("schemas/complete.sat", ModuleId{ 0 }));
     REQUIRE(original != nullptr);
 
     const proto::Schema* const proto = SerializeSchemaProto(pb_arena, original);

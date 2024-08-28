@@ -1,0 +1,20 @@
+import imported;
+
+struct struct {
+    int32 i32 = -7;
+    float f32 = 1.0e-7;
+}
+
+struct derived : base {
+    string? opt = null;
+    bool flag = false;
+    struct s = {
+        i32 = 6,
+        f32 = 0
+    };
+}
+
+message command {
+    string[] ids @1;
+    int32 var @2 = 7;
+}

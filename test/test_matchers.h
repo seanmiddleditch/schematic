@@ -93,9 +93,7 @@ namespace potato::schematic::test
             TestContext ctx;
             ArenaAllocator arena;
 
-            ctx.AddFile("<test>", text);
-
-            Lexer lexer(ctx, arena, ModuleId{ 0 });
+            Lexer lexer(ctx, arena, ModuleId{ 0 }, text);
             Array<Token> tokens = lexer.Tokenize();
 
             if (tokens.IsEmpty())
@@ -108,7 +106,7 @@ namespace potato::schematic::test
             return !tokens.IsEmpty() &&
                 tokens.Size() == 2 &&
                 tokens.Front().offset == 0 &&
-                tokens.Front().length == ctx.ReadFileContents(ModuleId{ 0 }).size() &&
+                tokens.Front().length == std::strlen(text) &&
                 tokens.Front().type == type_;
         }
 
@@ -229,9 +227,7 @@ namespace potato::schematic::test
             ArenaAllocator arena;
             Array<Token> tokens;
 
-            ctx.AddFile("<test>", text);
-
-            Lexer lexer(ctx, arena, ModuleId{ 0 });
+            Lexer lexer(ctx, arena, ModuleId{ 0 }, text);
             tokens = lexer.Tokenize();
             return !tokens.IsEmpty();
         }
