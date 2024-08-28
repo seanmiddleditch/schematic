@@ -15,6 +15,7 @@ target_sources(schematic_test PRIVATE
     "test_lexer.cpp"
     "test_matchers.h"
     $<$<BOOL:${SCHEMATIC_PROTOBUF}>:test_serializer.cpp>
+    "test_schemas.cpp"
     "test_strings.h"
 )
 catch_discover_tests(schematic_test)
@@ -34,6 +35,4 @@ schematic_embed_tests(TARGET schematic_test TESTS
     "schemas/message.sat"
     "schemas/modifiers.sat"
     "schemas/struct.sat"
-    "schemas/test01.sat"
-    "schemas/test02.sat"
 )
