@@ -803,6 +803,24 @@ Value* Deserializer::Deserialize(const proto::Value& in)
 ValueObject* Deserializer::Deserialize(const proto::Value::Object& in)
 {
     ValueObject* const value = arena_.New<ValueObject>();
+    if (VERIFY_INDEX(types_, in.type()))
+        value->type = types_[in.type()];
+
+    if (!VERIFY(value->type != nullptr))
+        return nullptr;
+
+    if (!VERIFY(value->type->kind == TypeKind::Struct))
+        return nullptr;
+
+    Array<Argument> args = arena_.NewArray<Argument>(in.arguments_size());
+    for (const proto::Argument& arg : in.arguments())
+    {
+        Argument& out_arg = args.EmplaceBack(arena_);
+        out_arg.field = FindField(static_cast<const TypeStruct*>(value->type), arg.field());
+        if (arg.has_value())
+            out_arg.value = Deserialize(arg.value());
+    }
+    value->fields = args;
     return value;
 }
 
