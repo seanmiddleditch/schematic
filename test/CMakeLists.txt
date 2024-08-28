@@ -21,9 +21,9 @@ target_sources(schematic_test PRIVATE
 catch_discover_tests(schematic_test)
 
 if(SCHEMATIC_SCHEMAC)
-    schematic_add_tests(IMPORT_DIR schemas/ TESTS
-        "schemas/test01.sat"
-        "schemas/test02.sat"
+    schematic_add_tests(IMPORT_DIR input/ TESTS
+        "input/test01.sat"
+        "input/test02.sat"
     )
 endif()
 
