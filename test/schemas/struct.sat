@@ -1,0 +1,9 @@
+import imported;
+
+struct test : base
+{
+    int32 num = 42;
+    bool b = true;
+    float zero = .0;
+    float thousand = 1.0e3;
+}

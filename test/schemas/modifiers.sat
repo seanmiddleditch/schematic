@@ -1,0 +1,6 @@
+struct test
+{
+    int32[] num = { 1, 2, 3 };
+    string? optional = null;
+    string* required = "abc";
+}

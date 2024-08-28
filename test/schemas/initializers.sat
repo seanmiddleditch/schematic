@@ -1,0 +1,12 @@
+struct embed
+{
+    int32 a;
+    int32 b;
+    int32 c;
+}
+
+struct test
+{
+    embed first = embed{ 1, 2, c = -0x3, };
+    embed second = { 4, 5, 6 };
+}

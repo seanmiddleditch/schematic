@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "embed_tests.h"
 #include "location.h"
 
 #include "schematic/compiler.h"
@@ -32,6 +33,7 @@ namespace potato::schematic::test
         inline ModuleId ResolveModule(std::string_view name, ModuleId referrer) override;
 
         inline void AddFile(std::string name, std::string source);
+        inline void AddEmbeds();
 
         std::vector<TestSource> files;
     };
@@ -96,8 +98,9 @@ namespace potato::schematic::test
 
     ModuleId TestContext::ResolveModule(std::string_view name, ModuleId referrer)
     {
+        std::string filename = fmt::format("schemas/{}.sat", name);
         for (std::size_t i = 0; i != files.size(); ++i)
-            if (files[i].name == name)
+            if (files[i].name == name || files[i].name == filename)
                 return ModuleId{ i };
         return ModuleId{};
     }
@@ -105,5 +108,14 @@ namespace potato::schematic::test
     void TestContext::AddFile(std::string name, std::string source)
     {
         files.emplace_back(std::move(name), std::move(source));
+    }
+
+    void TestContext::AddEmbeds()
+    {
+        for (std::size_t i = 0; i < test_embeds_count; ++i)
+        {
+            const EmbeddedTest& test = test_embeds[i];
+            files.emplace_back(test.name, test.source);
+        }
     }
 } // namespace potato::schematic::test

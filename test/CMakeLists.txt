@@ -7,8 +7,9 @@ include(test.cmake)
 add_executable(schematic_test)
 target_link_libraries(schematic_test schematic::schematic Catch2::Catch2WithMain)
 target_compile_features(schematic_test PRIVATE cxx_std_23)
-target_include_directories(schematic_test PRIVATE "${PROJECT_SOURCE_DIR}/schematic/source")
+target_include_directories(schematic_test PRIVATE "${PROJECT_SOURCE_DIR}/schematic/source" "${CMAKE_CURRENT_SOURCE_DIR}")
 target_sources(schematic_test PRIVATE
+    "embed_tests.h"
     "test_compiler.cpp"
     "test_context.h"
     "test_lexer.cpp"
@@ -24,3 +25,15 @@ if(SCHEMATIC_SCHEMAC)
         "schemas/test02.sat"
     )
 endif()
+
+schematic_embed_tests(TARGET schematic_test TESTS
+    "schemas/annotations.sat"
+    "schemas/enum.sat"
+    "schemas/imported.sat"
+    "schemas/initializers.sat"
+    "schemas/message.sat"
+    "schemas/modifiers.sat"
+    "schemas/struct.sat"
+    "schemas/test01.sat"
+    "schemas/test02.sat"
+)

@@ -1,0 +1,17 @@
+attribute Ignore;
+attribute Name { string first; int32 second; int32 third = 7; }
+attribute More {}
+attribute Reference { $type type; }
+
+[Ignore, Name("Toby", second = -2) ]
+[More()]
+struct test
+{
+    [Ignore] int32 field;
+}
+
+[Reference(test)]
+enum enum
+{
+    [Ignore] item
+}

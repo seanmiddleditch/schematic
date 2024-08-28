@@ -17,7 +17,11 @@ using namespace potato::schematic::test;
 #define CompileTest(NAME) \
     ([&](auto name) { \
         const ModuleId moduleId = ctx.ResolveModule(name, ModuleId{}); \
-        REQUIRE(moduleId.value != ModuleId::InvalidValue); \
+        if (moduleId.value == ModuleId::InvalidValue) \
+        { \
+            INFO("File not found: " << name); \
+            REQUIRE(false); \
+        } \
         const Schema* const schema = compiler.Compile(moduleId); \
         REQUIRE(schema != nullptr); \
         REQUIRE(schema->root != nullptr); \
@@ -27,26 +31,14 @@ using namespace potato::schematic::test;
 TEST_CASE("Compiler", "[potato][schematic]")
 {
     TestContext ctx;
+    ctx.AddEmbeds();
     ArenaAllocator arena;
     Compiler compiler(ctx, arena);
     compiler.SetUseBuiltins(true);
 
     SECTION("Enum")
     {
-        ctx.AddFile("enum", R"--(
-        enum color : int8
-        {
-            red,
-            green = 0xff,
-            blue,
-        }
-
-        struct test
-        {
-            color c = color.green;
-        }
-)--");
-        const Schema& schema = CompileTest("enum");
+        const Schema& schema = CompileTest("schemas/enum.sat");
 
         const TypeEnum* const color = CastTo<TypeEnum>(FindType(&schema, "color"));
         REQUIRE(color != nullptr);
@@ -65,22 +57,7 @@ TEST_CASE("Compiler", "[potato][schematic]")
 
     SECTION("Struct")
     {
-        ctx.AddFile("main", R"--(
-        import imported;
-
-        struct test : base
-        {
-            int32 num = 42;
-            bool b = true;
-            float zero = .0;
-            float thousand = 1.0e3;
-        }
-)--");
-        ctx.AddFile("imported", R"--(
-        struct unused {}
-        struct base {}
-)--");
-        const Schema& schema = CompileTest("main");
+        const Schema& schema = CompileTest("schemas/struct.sat");
 
         CHECK(FindType(&schema, "unused") == nullptr);
 
@@ -101,34 +78,12 @@ TEST_CASE("Compiler", "[potato][schematic]")
 
     SECTION("Type Modifiers")
     {
-        ctx.AddFile("type_modifiers", R"--(
-        struct test
-        {
-            int32[] num = { 1, 2, 3 };
-            string? optional = null;
-            string* required = "abc";
-        }
-)--");
-        const Schema& schema = CompileTest("type_modifiers");
+        const Schema& schema = CompileTest("schemas/modifiers.sat");
     }
 
     SECTION("Initializers")
     {
-        ctx.AddFile("initializer", R"--(
-        struct embed
-        {
-            int32 a;
-            int32 b;
-            int32 c;
-        }
-
-        struct test
-        {
-            embed first = embed{ 1, 2, c = -0x3, };
-            embed second = { 4, 5, 6 };
-        }
-)--");
-        const Schema& schema = CompileTest("initializer");
+        const Schema& schema = CompileTest("schemas/initializers.sat");
 
         const TypeStruct* const embed = CastTo<TypeStruct>(FindType(&schema, "embed"));
         REQUIRE(embed != nullptr);
@@ -171,26 +126,7 @@ TEST_CASE("Compiler", "[potato][schematic]")
 
     SECTION("Attributes")
     {
-        ctx.AddFile("annotations", R"--(
-        attribute Ignore;
-        attribute Name { string first; int32 second; int32 third = 7; }
-        attribute More {}
-        attribute Reference { $type type; }
-
-        [Ignore, Name("Toby", second = -2) ]
-        [More()]
-        struct test
-        {
-            [Ignore] int32 field;
-        }
-
-        [Reference(test)]
-        enum enum
-        {
-            [Ignore] item
-        }
-)--");
-        const Schema& schema = CompileTest("annotations");
+        const Schema& schema = CompileTest("schemas/annotations.sat");
 
         CHECK(CastTo<TypeAttribute>(FindType(&schema, "Ignore")) != nullptr);
         CHECK(CastTo<TypeAttribute>(FindType(&schema, "Name")) != nullptr);
@@ -218,11 +154,6 @@ TEST_CASE("Compiler", "[potato][schematic]")
 
     SECTION("Messages")
     {
-        ctx.AddFile("messages", R"--(
-        message Test {
-            int32 field @1;
-        }
-)--");
-        const Schema& schema = CompileTest("messages");
+        const Schema& schema = CompileTest("schemas/message.sat");
     }
 }

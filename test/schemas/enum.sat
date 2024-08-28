@@ -1,0 +1,11 @@
+enum color : int8
+{
+    red,
+    green = 0xff,
+    blue,
+}
+
+struct test
+{
+    color c = color.green;
+}
