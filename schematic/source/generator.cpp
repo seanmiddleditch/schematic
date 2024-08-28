@@ -404,7 +404,20 @@ void Generator::BuildArguments(std::span<const Argument>& out, const Type* type,
                 continue;
             }
 
-            // FIXME: check for duplicate initializers
+            bool isDuplicate = false;
+            for (const Argument& arg : temp)
+            {
+                if (arg.field == field)
+                {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+            if (isDuplicate)
+            {
+                Error(elem->tokenIndex, "Argument already has a value provided: {}", name);
+                continue;
+            }
 
             const Value* const value = BuildExpression(field->type, *named->value);
 
