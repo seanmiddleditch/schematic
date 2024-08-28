@@ -156,10 +156,10 @@ const Module* Generator::Compile(ModuleId moduleId, bool useBuiltins)
 
 bool Generator::HandleImport(const AstNodeImport& imp)
 {
-    const ModuleId moduleId = ctx.ResolveModule(imp.target.name, stack.Back()->moduleId);
+    const ModuleId moduleId = ctx.ResolveModule(imp.target->value, stack.Back()->moduleId);
     if (moduleId.value == ModuleId::InvalidValue)
     {
-        Error(imp.tokenIndex, "Module not found: {}", imp.target.name);
+        Error(imp.tokenIndex, "Module not found: {}", imp.target->value);
         return false;
     }
 

@@ -85,13 +85,26 @@ namespace potato::schematic::test
 
     ModuleId TestContext::ResolveModule(std::string_view name, ModuleId referrer)
     {
+        const EmbeddedTest& refTest = test_embeds[referrer.value];
+
+        if (referrer.value != ModuleId::InvalidValue)
+        {
+            std::string relative = refTest.name;
+            if (const auto sep = relative.rfind('/'); sep != std::string::npos)
+            {
+                relative.resize(sep + 1);
+                relative += name;
+            }
+
+            for (std::size_t i = 0; i != files.size(); ++i)
+                if (files[i].name == relative)
+                    return ModuleId{ i };
+        }
+
         for (std::size_t i = 0; i != files.size(); ++i)
             if (files[i].name == name)
                 return ModuleId{ i };
-        std::string filename = fmt::format("schemas/{}.sat", name);
-        for (std::size_t i = 0; i != files.size(); ++i)
-            if (files[i].name == filename)
-                return ModuleId{ i };
+
         return ModuleId{};
     }
 
