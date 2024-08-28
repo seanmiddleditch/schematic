@@ -903,5 +903,4 @@ void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
 
 void Deserializer::ReportVerifyFailure(const char* message)
 {
-
 }
