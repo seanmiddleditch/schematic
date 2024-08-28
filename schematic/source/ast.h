@@ -109,7 +109,7 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeImport, AstNode, AstNodeKind::Import);
 
-        AstIdentifier target;
+        const AstNodeLiteralString* target = nullptr;
     };
 
     struct AstNodeDecl : AstNode

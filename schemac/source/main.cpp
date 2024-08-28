@@ -314,14 +314,10 @@ std::string_view MainContext::GetFileName(ModuleId id)
 
 ModuleId MainContext::ResolveModule(std::string_view name, ModuleId referrer)
 {
-    std::filesystem::path filename;
+    std::filesystem::path filename = name;
 
     if (referrer.value < files.size())
-        filename = files[referrer.value].filename.parent_path() / name;
-    else
-        filename = name;
-
-    filename.replace_extension("sat");
+        filename = files[referrer.value].filename.parent_path() / filename;
 
     for (std::size_t i = 0; i != files.size(); ++i)
         if (files[i].filename == filename)
@@ -333,7 +329,6 @@ ModuleId MainContext::ResolveModule(std::string_view name, ModuleId referrer)
     for (const std::filesystem::path& s : search)
     {
         filename = s / name;
-        filename.replace_extension("sat");
         if (const ModuleId moduleId = TryLoadFile(filename); moduleId.value != ModuleId::InvalidValue)
             return moduleId;
     }

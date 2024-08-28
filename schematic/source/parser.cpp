@@ -159,8 +159,11 @@ bool Parser::ParseImport()
 {
     AstNodeImport* const local = arena_.New<AstNodeImport>(Pos());
 
-    if (!ExpectIdent(local->target))
+    if (!ConsumeString(local->target))
+    {
+        ErrorExpect("string");
         return false;
+    }
 
     if (!Expect(TokenType::SemiColon))
         return false;
@@ -710,14 +713,14 @@ void Parser::ErrorExpect(std::string_view expected)
 {
     if (next_ != 0)
     {
-        Error(fmt::format("Unexpected {} after {} expected {}",
+        Error(fmt::format("Unexpected {} after {}; expected {}",
             PrintToken{ .token = tokens_[next_], .source = contents_ },
             PrintToken{ .token = tokens_[next_ - 1], .source = contents_ },
             expected));
     }
     else
     {
-        Error(fmt::format("Unexpected {} expected {}",
+        Error(fmt::format("Unexpected {}; expected {}",
             PrintToken{ .token = tokens_[next_], .source = contents_ },
             expected));
     }

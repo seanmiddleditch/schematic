@@ -31,9 +31,9 @@ schematic_embed_tests(TARGET schematic_test TESTS
     "schemas/annotations.sat"
     "schemas/complete.sat"
     "schemas/enum.sat"
-    "schemas/imported.sat"
     "schemas/initializers.sat"
     "schemas/message.sat"
     "schemas/modifiers.sat"
     "schemas/struct.sat"
+    "schemas/sub/imported.sat"
 )
