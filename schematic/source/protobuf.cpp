@@ -529,6 +529,9 @@ bool Deserializer::Deserialize(Schema& out)
             case proto::Type::kMessage:
                 types_.PushBack(arena_, arena_.New<TypeMessage>());
                 continue;
+            case proto::Type::kNullable:
+                types_.PushBack(arena_, arena_.New<TypeNullable>());
+                continue;
             case proto::Type::kPointer:
                 types_.PushBack(arena_, arena_.New<TypePointer>());
                 continue;
