@@ -105,6 +105,8 @@ namespace
 
         void Deserialize(Annotation& out, const proto::Annotation& in);
 
+        void ReportVerifyFailure(const char* message);
+
         const proto::Schema& proto_;
         ArenaAllocator& arena_;
         Array<Module*> modules_;
@@ -469,7 +471,7 @@ void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
 // --- Deserializer ---
 
 #define VERIFY(EXPR) \
-    ((EXPR) || !(failed_ = true))
+    ((EXPR) || !(ReportVerifyFailure(#EXPR), failed_ = true))
 
 #define VERIFY_INDEX(ARRAY, INDEX) \
     VERIFY((INDEX) < (ARRAY).Size())
@@ -879,4 +881,9 @@ void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
             out_arg.value = Deserialize(arg.value());
     }
     out.arguments = args;
+}
+
+void Deserializer::ReportVerifyFailure(const char* message)
+{
+
 }
