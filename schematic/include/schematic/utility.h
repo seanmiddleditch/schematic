@@ -20,16 +20,18 @@ namespace potato::schematic
     struct Type;
     struct Value;
 
-    struct TypeStruct;
     struct TypeAttribute;
     struct TypeEnum;
+    struct TypeMessage;
+    struct TypeStruct;
 
     struct ValueObject;
 
     class Visitor;
 
-    const Field* FindField(const TypeStruct* type, std::string_view name) noexcept;
     const Field* FindField(const TypeAttribute* type, std::string_view name) noexcept;
+    const Field* FindField(const TypeMessage* type, std::string_view name) noexcept;
+    const Field* FindField(const TypeStruct* type, std::string_view name) noexcept;
 
     const EnumItem* FindItem(const TypeEnum* type, std::string_view name) noexcept;
 

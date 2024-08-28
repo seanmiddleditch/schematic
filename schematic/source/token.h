@@ -11,19 +11,29 @@ namespace potato::schematic::compiler
     enum class TokenType
     {
         Unknown,
+
+        // Literals
         Integer,
         HexInteger,
         BinaryInteger,
         Float,
+
+        // Identifier
         Identifier,
+
+        // Strings
         String,
         MultilineString,
+
+        // Pairs
         LBrace,
         RBrace,
         LBracket,
         RBracket,
         LParen,
         RParen,
+
+        // Symbols
         Dot,
         Comma,
         Equals,
@@ -34,6 +44,8 @@ namespace potato::schematic::compiler
         At,
         Star,
         Question,
+
+        // End
         End,
     };
 

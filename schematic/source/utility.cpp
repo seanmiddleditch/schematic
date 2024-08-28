@@ -6,6 +6,34 @@
 
 using namespace potato::schematic;
 
+const Field* potato::schematic::FindField(const TypeAttribute* type, std::string_view name) noexcept
+{
+    if (type == nullptr)
+        return nullptr;
+
+    for (auto& field : type->fields)
+    {
+        if (field.name == name)
+            return &field;
+    }
+
+    return nullptr;
+}
+
+const Field* potato::schematic::FindField(const TypeMessage* type, std::string_view name) noexcept
+{
+    if (type == nullptr)
+        return nullptr;
+
+    for (auto& field : type->fields)
+    {
+        if (field.name == name)
+            return &field;
+    }
+
+    return nullptr;
+}
+
 const Field* potato::schematic::FindField(const TypeStruct* type, std::string_view name) noexcept
 {
     if (type == nullptr)
@@ -19,20 +47,6 @@ const Field* potato::schematic::FindField(const TypeStruct* type, std::string_vi
 
     if (type->base != nullptr)
         return FindField(type->base, name);
-
-    return nullptr;
-}
-
-const Field* potato::schematic::FindField(const TypeAttribute* type, std::string_view name) noexcept
-{
-    if (type == nullptr)
-        return nullptr;
-
-    for (auto& field : type->fields)
-    {
-        if (field.name == name)
-            return &field;
-    }
 
     return nullptr;
 }
