@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "embed_tests.h"
 #include "location.h"
 
 #include "schematic/compiler.h"
@@ -11,18 +12,6 @@
 
 namespace potato::schematic::test
 {
-    struct TestSource final
-    {
-        TestSource(std::string name, std::string data) noexcept
-            : name(std::move(name))
-            , data(std::move(data))
-        {
-        }
-
-        std::string name;
-        std::string data;
-    };
-
     struct TestContext final : potato::schematic::CompileContext
     {
         inline void Error(ModuleId moduleId, const Range& range, std::string_view message) override;
@@ -31,9 +20,9 @@ namespace potato::schematic::test
         inline std::string_view GetFileName(ModuleId id) override;
         inline ModuleId ResolveModule(std::string_view name, ModuleId referrer) override;
 
-        inline void AddFile(std::string name, std::string source);
+        inline void AddEmbeds();
 
-        std::vector<TestSource> files;
+        std::vector<EmbeddedTest> files;
     };
 
     void TestContext::Error(ModuleId moduleId, const Range& range, std::string_view message)
@@ -83,7 +72,7 @@ namespace potato::schematic::test
         if (id.value >= files.size())
             return {};
 
-        return files[id.value].data;
+        return files[id.value].source;
     }
 
     std::string_view TestContext::GetFileName(ModuleId id)
@@ -99,11 +88,16 @@ namespace potato::schematic::test
         for (std::size_t i = 0; i != files.size(); ++i)
             if (files[i].name == name)
                 return ModuleId{ i };
+        std::string filename = fmt::format("schemas/{}.sat", name);
+        for (std::size_t i = 0; i != files.size(); ++i)
+            if (files[i].name == filename)
+                return ModuleId{ i };
         return ModuleId{};
     }
 
-    void TestContext::AddFile(std::string name, std::string source)
+    void TestContext::AddEmbeds()
     {
-        files.emplace_back(std::move(name), std::move(source));
+        for (std::size_t i = 0; i != test_embeds_count; ++i)
+            files.push_back(test_embeds[i]);
     }
 } // namespace potato::schematic::test

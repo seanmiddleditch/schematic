@@ -55,18 +55,14 @@ namespace
 
 Array<Token> potato::schematic::compiler::Lexer::Tokenize()
 {
-    if (moduleId_.value == ModuleId::InvalidValue)
-        return {};
-
     tokens_.Clear();
 
-    const std::string_view data = ctx_.ReadFileContents(moduleId_);
-    Input in(data.data(), data.size());
+    Input in(source_.data(), source_.size());
     bool result = true;
 
-    auto Error = [this, &data, &in, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
+    auto Error = [this, &in, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
     {
-        ctx_.Error(moduleId_, FindRange(data, in.Pos(), 1), fmt::vformat(format, fmt::make_format_args(args...)));
+        ctx_.Error(moduleId_, FindRange(source_, in.Pos(), 1), fmt::vformat(format, fmt::make_format_args(args...)));
         result = false;
     };
 

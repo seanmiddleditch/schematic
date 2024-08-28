@@ -1,7 +1,7 @@
 {
  "modules": [
   {
-   "filename": "schemas/test02.sat",
+   "filename": "input/test02.sat",
    "imports": [
     1
    ]

@@ -1,0 +1,2 @@
+struct unused {}
+struct base {}

@@ -19,7 +19,6 @@ TEST_CASE("Lexer", "[potato][schematic]")
 {
     TestContext ctx;
     ArenaAllocator arena;
-    Lexer lexer(ctx, arena, ModuleId{ 0 });
 
     SECTION("Numbers")
     {
@@ -65,12 +64,12 @@ World!""")",
 
     SECTION("Comments")
     {
-        Array<Token> tokens;
-        ctx.AddFile("<test>", R"--(
+        Lexer lexer(ctx, arena, ModuleId{ 0 }, R"--(
         // this is a comment
 
         // and another comment
 )--");
+        Array<Token> tokens;
         REQUIRE(!lexer.Tokenize().IsEmpty());
 
         CHECK_THAT("/", IsLexError());

@@ -105,6 +105,8 @@ namespace
 
         void Deserialize(Annotation& out, const proto::Annotation& in);
 
+        void ReportVerifyFailure(const char* message);
+
         const proto::Schema& proto_;
         ArenaAllocator& arena_;
         Array<Module*> modules_;
@@ -469,7 +471,7 @@ void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
 // --- Deserializer ---
 
 #define VERIFY(EXPR) \
-    ((EXPR) || !(failed_ = true))
+    ((EXPR) || !(ReportVerifyFailure(#EXPR), failed_ = true))
 
 #define VERIFY_INDEX(ARRAY, INDEX) \
     VERIFY((INDEX) < (ARRAY).Size())
@@ -528,6 +530,9 @@ bool Deserializer::Deserialize(Schema& out)
                 continue;
             case proto::Type::kMessage:
                 types_.PushBack(arena_, arena_.New<TypeMessage>());
+                continue;
+            case proto::Type::kNullable:
+                types_.PushBack(arena_, arena_.New<TypeNullable>());
                 continue;
             case proto::Type::kPointer:
                 types_.PushBack(arena_, arena_.New<TypePointer>());
@@ -798,6 +803,24 @@ Value* Deserializer::Deserialize(const proto::Value& in)
 ValueObject* Deserializer::Deserialize(const proto::Value::Object& in)
 {
     ValueObject* const value = arena_.New<ValueObject>();
+    if (VERIFY_INDEX(types_, in.type()))
+        value->type = types_[in.type()];
+
+    if (!VERIFY(value->type != nullptr))
+        return nullptr;
+
+    if (!VERIFY(value->type->kind == TypeKind::Struct))
+        return nullptr;
+
+    Array<Argument> args = arena_.NewArray<Argument>(in.arguments_size());
+    for (const proto::Argument& arg : in.arguments())
+    {
+        Argument& out_arg = args.EmplaceBack(arena_);
+        out_arg.field = FindField(static_cast<const TypeStruct*>(value->type), arg.field());
+        if (arg.has_value())
+            out_arg.value = Deserialize(arg.value());
+    }
+    value->fields = args;
     return value;
 }
 
@@ -876,4 +899,8 @@ void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
             out_arg.value = Deserialize(arg.value());
     }
     out.arguments = args;
+}
+
+void Deserializer::ReportVerifyFailure(const char* message)
+{
 }
