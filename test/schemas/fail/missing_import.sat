@@ -1,0 +1,2 @@
+// ERROR: schemas/fail/missing_import.sat(2): Module not found: does_not_exist.sat
+import "does_not_exist.sat";
