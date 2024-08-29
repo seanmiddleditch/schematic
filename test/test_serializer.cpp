@@ -22,7 +22,6 @@ TEST_CASE("Serialize", "[potato][schematic]")
     Compiler compiler(ctx, arena);
     compiler.SetUseBuiltins(true);
 
-    ctx.AddEmbeds();
     const Schema* const original = compiler.Compile(ctx.ResolveModule("schemas/complete.sat", ModuleId{ 0 }));
     REQUIRE(original != nullptr);
 

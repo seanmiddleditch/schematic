@@ -10,6 +10,9 @@
 #include <catch2/catch_test_macros.hpp>
 #include <fmt/core.h>
 
+#include <string>
+#include <vector>
+
 namespace potato::schematic::test
 {
     struct TestContext final : potato::schematic::CompileContext
@@ -20,22 +23,27 @@ namespace potato::schematic::test
         inline std::string_view GetFileName(ModuleId id) override;
         inline ModuleId ResolveModule(std::string_view name, ModuleId referrer) override;
 
-        inline void AddEmbeds();
-
-        std::vector<EmbeddedTest> files;
+        std::vector<std::string> errors;
     };
 
     void TestContext::Error(ModuleId moduleId, const Range& range, std::string_view message)
     {
-        UNSCOPED_INFO(message);
         if (moduleId.value == ModuleId::InvalidValue)
+        {
+            UNSCOPED_INFO(message);
             return;
+        }
 
         std::string_view source = ReadFileContents(moduleId);
-        std::string_view line = potato::schematic::compiler::ExtractLine(source, range.start.line);
         std::string buffer;
         fmt::format_to(std::back_inserter(buffer), "{}({}): ", GetFileName(moduleId), range.start.line);
         const auto prefix = buffer.size();
+        buffer.append(message);
+        UNSCOPED_INFO(buffer);
+        errors.push_back(buffer);
+
+        std::string_view line = potato::schematic::compiler::ExtractLine(source, range.start.line);
+        buffer.resize(prefix);
         buffer.append(line);
         UNSCOPED_INFO(buffer);
 
@@ -69,18 +77,18 @@ namespace potato::schematic::test
 
     std::string_view TestContext::ReadFileContents(ModuleId id)
     {
-        if (id.value >= files.size())
+        if (id.value >= test_embeds_count)
             return {};
 
-        return files[id.value].source;
+        return test_embeds[id.value].source;
     }
 
     std::string_view TestContext::GetFileName(ModuleId id)
     {
-        if (id.value >= files.size())
+        if (id.value >= test_embeds_count)
             return {};
 
-        return files[id.value].name;
+        return test_embeds[id.value].name;
     }
 
     ModuleId TestContext::ResolveModule(std::string_view name, ModuleId referrer)
@@ -96,21 +104,15 @@ namespace potato::schematic::test
                 relative += name;
             }
 
-            for (std::size_t i = 0; i != files.size(); ++i)
-                if (files[i].name == relative)
+            for (std::size_t i = 0; i != test_embeds_count; ++i)
+                if (test_embeds[i].name == relative)
                     return ModuleId{ i };
         }
 
-        for (std::size_t i = 0; i != files.size(); ++i)
-            if (files[i].name == name)
+        for (std::size_t i = 0; i != test_embeds_count; ++i)
+            if (test_embeds[i].name == name)
                 return ModuleId{ i };
 
         return ModuleId{};
-    }
-
-    void TestContext::AddEmbeds()
-    {
-        for (std::size_t i = 0; i != test_embeds_count; ++i)
-            files.push_back(test_embeds[i]);
     }
 } // namespace potato::schematic::test
