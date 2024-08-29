@@ -6,6 +6,7 @@
 #include "schematic/compiler.h"
 #include "schematic/schema.h"
 
+#include <sstream>
 #include <string>
 #include <vector>
 
