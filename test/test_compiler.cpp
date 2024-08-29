@@ -31,7 +31,6 @@ using namespace potato::schematic::test;
 TEST_CASE("Compiler", "[potato][schematic]")
 {
     TestContext ctx;
-    ctx.AddEmbeds();
     ArenaAllocator arena;
     Compiler compiler(ctx, arena);
     compiler.SetUseBuiltins(true);
