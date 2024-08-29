@@ -291,13 +291,25 @@ void Generator::BuildEnum(const AstNodeEnumDecl& ast)
 
     std::int64_t next = 0;
     Array<EnumItem> items = arena.NewArray<EnumItem>(ast.items.Size());
+
+    auto HasItem = [&items](const std::string_view name) -> bool
+    {
+        for (const EnumItem& item : items)
+            if (item.name == name)
+                return true;
+        return false;
+    };
+
     for (const AstNodeEnumItem* ast_item : ast.items)
     {
+        if (HasItem(ast_item->name.name))
+            Error(ast_item->tokenIndex, "Duplicate item name: {}.{}", type->name, ast_item->name.name);
+
         EnumItem& item = items.EmplaceBack(arena);
         item.owner = type;
         item.name = ast_item->name.name;
-        if (IsReserved(type->name))
-            Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type->name);
+        if (IsReserved(item.name))
+            Error(ast_item->name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", item.name);
         if (ast_item->value != nullptr)
         {
             item.value = BuildInteger(*ast_item->value);
@@ -314,14 +326,22 @@ void Generator::BuildEnum(const AstNodeEnumDecl& ast)
     type->items = items;
 }
 
-template <typename T>
-void Generator::BuildFields(std::span<const Field>& out, const T* owner, Array<const AstNodeField*> fields)
+void Generator::BuildFields(std::span<const Field>& out, const Type* owner, Array<const AstNodeField*> fields)
 {
     Array<Field> temp = arena.NewArray<Field>(fields.Size());
+
+    auto HasField = [&temp](const std::string_view name) -> bool
+    {
+        for (const Field& field : temp)
+            if (field.name == name)
+                return true;
+        return false;
+    };
+
     for (const AstNodeField* ast_field : fields)
     {
-        if (const Field* const field = FindField(owner, ast_field->name.name); field != nullptr)
-            Error(ast_field->tokenIndex, "Duplicate field name: {}.{}", owner->name, field->name);
+        if (HasField(ast_field->name.name))
+            Error(ast_field->tokenIndex, "Duplicate field name: {}.{}", owner->name, ast_field->name.name);
 
         Field& field = temp.EmplaceBack(arena);
         field.owner = owner;

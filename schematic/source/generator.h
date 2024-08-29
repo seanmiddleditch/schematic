@@ -36,8 +36,7 @@ namespace potato::schematic::compiler
         void BuildAttribute(const AstNodeAttributeDecl& ast);
         void BuildEnum(const AstNodeEnumDecl& ast);
 
-        template <typename T>
-        void BuildFields(std::span<const Field>& out, const T* owner, Array<const AstNodeField*> fields);
+        void BuildFields(std::span<const Field>& out, const Type* owner, Array<const AstNodeField*> fields);
         void BuildAnnotations(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast);
         void BuildArguments(std::span<const Argument>& out, const Type* type, const std::span<const Field>& fields, const TypeStruct* baseType, Array<const AstNode*> ast);
 
