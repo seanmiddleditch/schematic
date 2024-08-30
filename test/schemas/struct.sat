@@ -9,7 +9,7 @@ struct test : base
 }
 
 // CHECK: base.@kind is Struct
-// CHECK: test.@kind is Structx
+// CHECK: test.@kind is Struct
 // CHECK: test is-a base
 // CHECK: test.@fields is 4
 // CHECK: test.num is 42
