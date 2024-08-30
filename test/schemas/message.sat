@@ -1,3 +1,7 @@
-message Test {
+message test {
     int32 field @1;
 }
+
+// CHECK: test.@kind is Message
+// CHECK: test.field.@type is-a int32
+// CHECK: test.field.@proto is 1

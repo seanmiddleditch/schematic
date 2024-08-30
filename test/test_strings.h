@@ -36,6 +36,12 @@ struct Catch::StringMaker<const potato::schematic::EnumItem*>
 };
 
 template <>
+struct Catch::StringMaker<const potato::schematic::Field*>
+{
+    inline static std::string convert(const potato::schematic::Field* field);
+};
+
+template <>
 struct Catch::StringMaker<const potato::schematic::Value*>
 {
     inline static std::string convert(const potato::schematic::Value* value);
@@ -77,6 +83,14 @@ std::string Catch::StringMaker<const potato::schematic::EnumItem*>::convert(cons
     return fmt::format("{}({})", item->name, item->value->value);
 }
 
+std::string Catch::StringMaker<const potato::schematic::Field*>::convert(const potato::schematic::Field* field)
+{
+    if (field == nullptr)
+        return "{null}";
+
+    return fmt::format("{} {}.{}", field->type->name, field->owner->name, field->name);
+}
+
 std::string Catch::StringMaker<const potato::schematic::Value*>::convert(const potato::schematic::Value* value)
 {
     using namespace potato::schematic;
@@ -86,15 +100,15 @@ std::string Catch::StringMaker<const potato::schematic::Value*>::convert(const p
 
     switch (value->kind)
     {
-        case ValueKind::Array: return fmt::format("Array");
-        case ValueKind::Bool: return fmt::format("{}", CastTo<ValueBool>(value)->value);
-        case ValueKind::Enum: return Catch::StringMaker<const EnumItem*>::convert(CastTo<ValueEnum>(value)->item);
-        case ValueKind::Float: return fmt::format("{}", CastTo<ValueFloat>(value)->value);
-        case ValueKind::Int: return fmt::format("{}", CastTo<ValueInt>(value)->value);
-        case ValueKind::Null: return fmt::format("Null");
-        case ValueKind::Object: return fmt::format("Object");
-        case ValueKind::String: return fmt::format("String");
-        case ValueKind::Type: return fmt::format("Type");
+        case ValueKind::Array: return Catch::Detail::stringify(static_cast<const ValueArray*>(value)->elements);
+        case ValueKind::Bool: return Catch::Detail::stringify(static_cast<const ValueBool*>(value)->value);
+        case ValueKind::Enum: return Catch::Detail::stringify(static_cast<const ValueEnum*>(value)->item);
+        case ValueKind::Float: return Catch::Detail::stringify(static_cast<const ValueFloat*>(value)->value);
+        case ValueKind::Int: return Catch::Detail::stringify(static_cast<const ValueInt*>(value)->value);
+        case ValueKind::Null: return Catch::Detail::stringify(nullptr);
+        case ValueKind::Object: return fmt::format("Object(type={})", static_cast<const ValueObject*>(value)->type->name);
+        case ValueKind::String: return Catch::Detail::stringify(static_cast<const ValueString*>(value)->value);
+        case ValueKind::Type: return Catch::Detail::stringify(static_cast<const ValueType*>(value)->type);
     }
 
     return fmt::format("unknown(kind={})", std::to_underlying(value->kind));

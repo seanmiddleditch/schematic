@@ -12,7 +12,6 @@ target_sources(schematic_test PRIVATE
     "embed_tests.h"
     "evaluator.cpp"
     "evaluator.h"
-    "test_compiler.cpp"
     "test_context.h"
     "test_lexer.cpp"
     "test_matchers.h"

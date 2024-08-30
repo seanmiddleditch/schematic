@@ -15,4 +15,4 @@ struct test
 // CHECK: color.@items is 3
 // CHECK: color.red is 0
 // CHECK: color.green is 255
-// CHECK: test.c is green
+// CHECK: test.c.@default is green

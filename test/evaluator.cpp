@@ -11,6 +11,7 @@
 #include <catch2/matchers/catch_matchers_templated.hpp>
 #include <fmt/core.h>
 
+#include <charconv>
 #include <string>
 #include <string_view>
 
@@ -49,8 +50,8 @@ namespace potato::schematic::test
     template <typename T>
     struct CheckEvaluator::CatchFailedExpression final : Catch::ITransientExpression
     {
-        CatchFailedExpression(CheckEvaluator& evaluator, const T& value)
-            : ITransientExpression(true, false)
+        CatchFailedExpression(CheckEvaluator& evaluator, bool result, const T& value)
+            : ITransientExpression(true, result)
             , evaluator(evaluator)
             , value(value)
         {
@@ -157,7 +158,7 @@ namespace potato::schematic::test
                 case ValueKind::Int: return Check(static_cast<const ValueInt*>(value)->value, reference);
                 case ValueKind::Null: return Check(nullptr, reference);
                 case ValueKind::Object: return false;
-                case ValueKind::String: return Check(static_cast<const ValueInt*>(value)->value, reference);
+                case ValueKind::String: return Check(static_cast<const ValueString*>(value)->value, reference);
                 case ValueKind::Type: return Check(static_cast<const ValueType*>(value)->type, reference);
             }
 
@@ -190,9 +191,12 @@ namespace potato::schematic::test
             if (type == nullptr)
                 return false;
 
+            if (type->name == reference)
+                return true;
+
             if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
             {
-                for (const TypeStruct* comp = struct_; comp != nullptr; comp = comp->base)
+                for (const TypeStruct* comp = struct_->base; comp != nullptr; comp = comp->base)
                 {
                     if (comp->name == reference)
                         return true;
@@ -207,6 +211,23 @@ namespace potato::schematic::test
         }
     };
 
+    struct CheckEvaluator::MatchIndexResult
+    {
+        bool success = false;
+        std::size_t index = 0;
+    };
+
+    CheckEvaluator::MatchIndexResult CheckEvaluator::MatchIndex(std::size_t max)
+    {
+        std::size_t index = 0;
+        const auto result = std::from_chars(next.data(), next.data() + next.size(), index);
+        if (result.ptr != next.data() + next.size())
+            return { false, 0 };
+        if (index >= max)
+            return { false, 0 };
+        return { true, index };
+    }
+
     bool CheckEvaluator::Match(std::string_view name)
     {
         if (next == name)
@@ -219,7 +240,7 @@ namespace potato::schematic::test
 
     bool CheckEvaluator::IsEnd()
     {
-        return remaining.empty();
+        return next.empty();
     }
 
     void CheckEvaluator::Fail()
@@ -227,11 +248,25 @@ namespace potato::schematic::test
         Catch::AssertionHandler handler("EVALUATE", Catch::SourceLineInfo(filename_.c_str(), line_), test_, Catch::ResultDisposition::Normal);
 
         if (!next.empty())
-            handler.handleMessage(Catch::ResultWas::ExplicitFailure, fmt::format("Unknown component ", next));
+            handler.handleMessage(Catch::ResultWas::ExplicitFailure, fmt::format("Unknown component {}", next));
         else
             handler.handleMessage(Catch::ResultWas::ExplicitFailure, fmt::format("Invalid expression {}", expression));
 
         handler.complete();
+    }
+
+    template <typename T>
+    bool CheckEvaluator::DispatchOp(T value)
+    {
+        if (op == "is")
+        {
+            return OpIs::Check(value, reference);
+        }
+        if (op == "is-a")
+        {
+            return OpIsA::Check(value, reference);
+        }
+        return false;
     }
 
     template <typename T>
@@ -240,23 +275,10 @@ namespace potato::schematic::test
         if (!IsEnd())
             return Fail();
 
+        const bool result = DispatchOp(value);
+
         Catch::AssertionHandler handler("EVALUATE", Catch::SourceLineInfo(filename_.c_str(), line_), test_, Catch::ResultDisposition::ContinueOnFailure);
-
-        if (op == "is")
-        {
-            if (!OpIs::Check(value, reference))
-                handler.handleExpr(CatchFailedExpression(*this, value));
-        }
-        else if (op == "is-a")
-        {
-            if (!OpIsA::Check(value, reference))
-                handler.handleExpr(CatchFailedExpression(*this, value));
-        }
-        else
-        {
-            handler.handleMessage(Catch::ResultWas::ExplicitFailure, fmt::format("Unkwnown operator {}", op));
-        }
-
+        handler.handleExpr(CatchFailedExpression(*this, result, value));
         handler.complete();
     }
 
@@ -266,14 +288,64 @@ namespace potato::schematic::test
         Finish(value);
     }
 
+    void CheckEvaluator::Evaluate(const Annotation* annotation)
+    {
+        if (Match("@attribute"))
+            Evaluate(annotation->attribute);
+        else if (Match("@fields"))
+            Evaluate(annotation->arguments.size());
+
+        for (const Argument& arg : annotation->arguments)
+        {
+            if (Match(arg.field->name))
+                return Evaluate(&arg);
+        }
+
+        if (auto [success, index] = MatchIndex(annotation->arguments.size()); success)
+            return Evaluate(annotation->arguments[index]);
+
+        Fail();
+    }
+
+    void CheckEvaluator::Evaluate(Span<const Annotation*> annotations)
+    {
+        if (Match("@length"))
+            return Evaluate(annotations.size());
+
+        for (const Annotation* anno : annotations)
+        {
+            if (Match(anno->attribute->name))
+                return Evaluate(anno);
+        }
+
+        if (const auto [success, index] = MatchIndex(annotations.size()); success)
+            return Evaluate(annotations[index]);
+
+        Fail();
+    }
+
     void CheckEvaluator::Evaluate(const Field* field)
     {
         if (Match("@type"))
             Evaluate(field->type);
         else if (Match("@default"))
             Evaluate(field->value);
+        else if (Match("@proto"))
+            Evaluate(field->proto);
+        else if (Match("@annotations"))
+            Evaluate(field->annotations);
         else
-            Evaluate(field->value);
+            Evaluate(field->type);
+    }
+
+    void CheckEvaluator::Evaluate(const EnumItem* item)
+    {
+        if (Match("@value"))
+            Evaluate(item->value);
+        else if (Match("@annotations"))
+            Evaluate(item->annotations);
+        else
+            Finish(item);
     }
 
     void CheckEvaluator::Evaluate(const Argument* arg)
@@ -288,6 +360,8 @@ namespace potato::schematic::test
     {
         if (Match("@kind"))
             return Evaluate(type->kind);
+        else if (Match("@annotations"))
+            return Evaluate(type->annotations);
 
         if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
         {
@@ -297,6 +371,28 @@ namespace potato::schematic::test
                 return Evaluate(struct_->fields.size());
 
             for (const Field& field : struct_->fields)
+            {
+                if (Match(field.name))
+                    return Evaluate(&field);
+            }
+        }
+        else if (const TypeMessage* message = CastTo<TypeMessage>(type); message != nullptr)
+        {
+            if (Match("@fields"))
+                return Evaluate(message->fields.size());
+
+            for (const Field& field : message->fields)
+            {
+                if (Match(field.name))
+                    return Evaluate(&field);
+            }
+        }
+        else if (const TypeAttribute* attr = CastTo<TypeAttribute>(type); attr != nullptr)
+        {
+            if (Match("@fields"))
+                return Evaluate(attr->fields.size());
+
+            for (const Field& field : attr->fields)
             {
                 if (Match(field.name))
                     return Evaluate(&field);
@@ -344,8 +440,7 @@ namespace potato::schematic::test
             if (Match("@elements"))
                 return Evaluate(array->elements.size());
 
-            const std::size_t index = std::stoull(std::string(next));
-            if (index < array->elements.size() && Match(std::to_string(index)))
+            if (const auto [success, index] = MatchIndex(array->elements.size()); success)
                 return Evaluate(array->elements[index]);
         }
 

@@ -23,18 +23,26 @@ namespace potato::schematic::test
         struct OpIs;
         struct OpIsA;
 
+        struct MatchIndexResult;
+
+        MatchIndexResult MatchIndex(std::size_t max);
         bool Match(std::string_view name);
         bool IsEnd();
 
         void Fail();
 
         template <typename T>
+        bool DispatchOp(T value);
+        template <typename T>
         void Finish(T value);
 
         template <typename T>
         void Evaluate(T value);
 
+        void Evaluate(const Annotation* annotation);
+        void Evaluate(Span<const Annotation*> annotations);
         void Evaluate(const Field* field);
+        void Evaluate(const EnumItem* item);
         void Evaluate(const Argument* arg);
         void Evaluate(const Type* type);
         void Evaluate(const Value* value);

@@ -12,7 +12,7 @@ struct test : base
 // CHECK: test.@kind is Struct
 // CHECK: test is-a base
 // CHECK: test.@fields is 4
-// CHECK: test.num is 42
-// CHECK: test.b is true
-// CHECK: test.zero is 0
-// CHECK: test.thousand is 1000
+// CHECK: test.num.@default is 42
+// CHECK: test.b.@default is true
+// CHECK: test.zero.@default is 0
+// CHECK: test.thousand.@default is 1000
