@@ -1,8 +1,8 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
 #include "embed_tests.h"
-#include "test_context.h"
 #include "evaluator.h"
+#include "test_context.h"
 
 #include "schematic/compiler.h"
 #include "schematic/schema.h"

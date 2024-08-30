@@ -2,10 +2,10 @@
 
 #pragma once
 
+#include "schematic/schema.h"
+
 #include <string>
 #include <string_view>
-
-#include "schematic/schema.h"
 
 namespace potato::schematic::test
 {
@@ -27,7 +27,7 @@ namespace potato::schematic::test
         bool IsEnd();
 
         void Fail();
-        
+
         template <typename T>
         void Finish(T value);
 
