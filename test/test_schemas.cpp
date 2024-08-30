@@ -2,10 +2,13 @@
 
 #include "embed_tests.h"
 #include "test_context.h"
+#include "test_strings.h"
 
 #include "schematic/compiler.h"
 #include "schematic/schema.h"
 #include "schematic/utility.h"
+
+#include <catch2/matchers/catch_matchers_templated.hpp>
 
 #include <sstream>
 #include <string>
@@ -20,8 +23,13 @@ namespace potato::schematic::test
     class CheckEvaluator
     {
     public:
-        explicit CheckEvaluator(std::string_view input)
+        explicit CheckEvaluator(std::string_view test, std::string_view filename, std::size_t line)
+            : filename_(filename)
+            , line_(line)
+            , test_(test)
         {
+            std::string_view input = test_;
+
             auto space_pos = input.find(' ');
             expression = input.substr(0, space_pos);
 
@@ -50,77 +58,88 @@ namespace potato::schematic::test
         {
         };
 
-        struct OpExists;
         struct OpIs;
         struct OpIsA;
         struct OpIsKind;
 
-        struct OpExists
+        template <typename Impl>
+        struct OpBase : Catch::Matchers::MatcherGenericBase
         {
-            static void Check(Invalid, std::string_view)
+            explicit OpBase(std::string_view reference)
+                : reference(reference)
             {
-                FAIL("Expression has no result");
             }
 
             template <typename T>
-            static void Check(T, std::string_view)
+            bool match(T value) const
             {
-                SUCCEED("Expression has result");
+                return Impl::Check(value, reference);
             }
+
+            std::string describe() const final
+            {
+                return fmt::format("{} {}", Impl::Name, reference);
+            }
+
+            std::string_view reference;
         };
 
-        struct OpIs
+        struct OpIs : OpBase<OpIs>
         {
-            static void Check(Invalid, std::string_view)
+            using OpBase::OpBase;
+
+            static constexpr char Name[] = "is";
+
+            static bool Check(Invalid, std::string_view)
             {
-                FAIL("Expression did not evaluate");
+                return false;
             }
 
-            static void Check(bool value, std::string_view reference)
+            static bool Check(bool value, std::string_view reference)
             {
                 if (value)
-                    CHECK("true" == reference);
+                    return "true" == reference;
                 else
-                    CHECK("false" == reference);
+                    return "false" == reference;
             }
 
-            static void Check(std::nullptr_t, std::string_view reference)
+            static bool Check(std::nullptr_t, std::string_view reference)
             {
-                CHECK("null" == reference);
+                return "null" == reference;
             }
 
             template <typename T>
-            static void Check(T value, std::string_view reference)
+            static bool Check(T value, std::string_view reference)
                 requires std::is_integral_v<T> || std::is_floating_point_v<T>
             {
-                CHECK(fmt::format("{}", value) == reference);
+                return fmt::format("{}", value) == reference;
             }
 
-            static void Check(const EnumItem* item, std::string_view reference)
+            static bool Check(const EnumItem* item, std::string_view reference)
             {
                 if (reference == item->name)
-                    CHECK(item->name == reference);
-                else
-                    Check(item->value->value, reference);
+                    return true;
+
+                return Check(item->value->value, reference);
             }
 
-            static void Check(const Type* type, std::string_view reference)
+            static bool Check(const Type* type, std::string_view reference)
             {
                 if (type == nullptr)
                     return Check(Invalid{}, reference);
 
-                CHECK(type->name == reference);
+                return type->name == reference;
             }
 
-            static void Check(const Field* field, std::string_view reference)
+            static bool Check(const Field* field, std::string_view reference)
             {
                 if (field == nullptr)
-                    Check(Invalid{}, reference);
-                else
-                    Check(field->value, reference);
+                    return Check(Invalid{}, reference);
+
+                return Check(field->value, reference);
             }
 
-            static void Check(const Value* value, std::string_view reference)
+            static bool Check(const Value* value, std::string_view reference)
             {
                 if (value == nullptr)
                     return Check(Invalid{}, reference);
@@ -138,82 +157,86 @@ namespace potato::schematic::test
                     case ValueKind::Type: return Check(static_cast<const ValueType*>(value)->type, reference);
                 }
 
-                Check(Invalid{}, reference);
+                return Check(Invalid{}, reference);
             }
         };
 
-        struct OpIsA
+        struct OpIsA : OpBase<OpIsA>
         {
+            using OpBase::OpBase;
+
+            static constexpr char Name[] = "is-a";
+
             template <typename T>
-            static void Check(T, std::string_view)
+            static bool Check(T, std::string_view)
             {
-                FAIL("Expression is not a type");
+                return false;
             }
 
-            static void Check(const Field* field, std::string_view reference)
+            static bool Check(const Field* field, std::string_view reference)
             {
                 if (field == nullptr)
-                    return Check(Invalid{}, reference);
+                    return false;
 
-                Check(field->type, reference);
+                return Check(field->type, reference);
             }
 
-            static void Check(const Type* type, std::string_view reference)
+            static bool Check(const Type* type, std::string_view reference)
             {
                 if (type == nullptr)
-                    return Check(Invalid{}, reference);
+                    return false;
 
                 if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
                 {
                     for (const TypeStruct* comp = struct_; comp != nullptr; comp = comp->base)
                     {
                         if (comp->name == reference)
-                        {
-                            CHECK(comp->name == reference);
-                            return;
-                        }
+                            return true;
                     }
-                    FAIL(type->name << " is-a " << reference);
                 }
                 else if (const TypeEnum* enum_ = CastTo<TypeEnum>(type); enum_ != nullptr)
                 {
-                    Check(enum_->base, reference);
+                    return Check(enum_->base, reference);
                 }
 
-                Check(Invalid{}, reference);
+                return false;
             }
         };
 
-        struct OpIsKind
+        struct OpIsKind : OpBase<OpIsKind>
         {
+            using OpBase::OpBase;
+
+            static constexpr char Name[] = "is-kind";
+
             template <typename T>
-            static void Check(T, std::string_view)
+            static bool Check(T, std::string_view)
             {
-                FAIL("Expression has no kind");
+                return false;
             }
 
-            static void Check(const Type* type, std::string_view reference)
+            static bool Check(const Type* type, std::string_view reference)
             {
                 if (type == nullptr)
-                    return Check(Invalid{}, reference);
+                    return false;
 
                 switch (type->kind)
                 {
-                    case TypeKind::Array: CHECK("Array" == reference); return;
-                    case TypeKind::Attribute: CHECK("Attribute" == reference); return;
-                    case TypeKind::Bool: CHECK("Bool" == reference); return;
-                    case TypeKind::Enum: CHECK("Enum" == reference); return;
-                    case TypeKind::Float: CHECK("Float" == reference); return;
-                    case TypeKind::Int: CHECK("Int" == reference); return;
-                    case TypeKind::Message: CHECK("Message" == reference); return;
-                    case TypeKind::Nullable: CHECK("Nullable" == reference); return;
-                    case TypeKind::Pointer: CHECK("Pointer" == reference); return;
-                    case TypeKind::String: CHECK("String" == reference); return;
-                    case TypeKind::Struct: CHECK("Struct" == reference); return;
-                    case TypeKind::Type: CHECK("Type" == reference); return;
+                    case TypeKind::Array: return "Array" == reference;
+                    case TypeKind::Attribute: return "Attribute" == reference;
+                    case TypeKind::Bool: return "Bool" == reference;
+                    case TypeKind::Enum: return "Enum" == reference;
+                    case TypeKind::Float: return "Float" == reference;
+                    case TypeKind::Int: return "Int" == reference;
+                    case TypeKind::Message: return "Message" == reference;
+                    case TypeKind::Nullable: return "Nullable" == reference;
+                    case TypeKind::Pointer: return "Pointer" == reference;
+                    case TypeKind::String: return "String" == reference;
+                    case TypeKind::Struct: return "Struct" == reference;
+                    case TypeKind::Type: return "Type" == reference;
                 }
 
-                return Check(Invalid{}, reference);
+                return false;
             }
         };
 
@@ -232,12 +255,35 @@ namespace potato::schematic::test
             return remaining.empty();
         }
 
+        template <typename T>
+        struct CatchFailedExpression final : Catch::ITransientExpression
+        {
+            CatchFailedExpression(CheckEvaluator& evaluator, const T& value)
+                : ITransientExpression(true, false)
+                , evaluator(evaluator)
+                , value(value)
+            {
+            }
+
+            void streamReconstructedExpression(std::ostream& os) const override
+            {
+                os << Catch::Detail::stringify(value) << ' ' << evaluator.op << ' ' << evaluator.reference;
+            }
+
+            CheckEvaluator& evaluator;
+            const T& value;
+        };
+
         void Fail()
         {
+            Catch::AssertionHandler handler("EVALUATE", Catch::SourceLineInfo(filename_.c_str(), line_), test_, Catch::ResultDisposition::Normal);
+
             if (!next.empty())
-                FAIL("Unknown component " << next);
+                handler.handleMessage(Catch::ResultWas::ExplicitFailure, fmt::format("Unknown component ", next));
             else
-                FAIL("Invalid expression " << expression);
+                handler.handleMessage(Catch::ResultWas::ExplicitFailure, fmt::format("Invalid expression {}", expression));
+
+            handler.complete();
         }
 
         template <typename T>
@@ -246,16 +292,29 @@ namespace potato::schematic::test
             if (!IsEnd())
                 return Fail();
 
+            Catch::AssertionHandler handler("EVALUATE", Catch::SourceLineInfo(filename_.c_str(), line_), test_, Catch::ResultDisposition::Normal);
+
             if (op == "is")
-                return OpExists::Check(value, reference);
-            else if (op == "is")
-                return OpIs::Check(value, reference);
+            {
+                if (!OpIs::Check(value, reference))
+                    handler.handleExpr(CatchFailedExpression(*this, value));
+            }
             else if (op == "is-a")
-                return OpIsA::Check(value, reference);
+            {
+                if (!OpIsA::Check(value, reference))
+                    handler.handleExpr(CatchFailedExpression(*this, value));
+            }
             else if (op == "is-kind")
-                return OpIsKind::Check(value, reference);
+            {
+                if (!OpIsKind::Check(value, reference))
+                    handler.handleExpr(CatchFailedExpression(*this, value));
+            }
             else
-                FAIL("Unknown operator " << op);
+            {
+                handler.handleMessage(Catch::ResultWas::ExplicitFailure, fmt::format("Unkwnown operator {}", op));
+            }
+
+            handler.complete();
         }
 
         template <typename T>
@@ -393,7 +452,12 @@ namespace potato::schematic::test
             }
         }
 
+        // Source
+        std::string filename_;
+        std::size_t line_ = 1;
+
         // Inputs
+        std::string test_;
         std::string expression;
         std::string op;
         std::string reference;
@@ -421,8 +485,11 @@ TEST_CASE("Schemas", "[potato][schematic]")
 
             std::istringstream source(test.source);
             std::string line;
+            std::size_t number = 0;
             while (std::getline(source, line))
             {
+                ++number;
+
                 constexpr char error_prefix[] = "ERROR: ";
                 const auto error_pos = line.find(error_prefix);
                 if (error_pos != std::string::npos)
@@ -432,7 +499,7 @@ TEST_CASE("Schemas", "[potato][schematic]")
                 const auto check_pos = line.find(check_prefix);
                 if (check_pos != std::string::npos)
                 {
-                    checks.emplace_back(line.substr(check_pos + std::strlen(check_prefix)));
+                    checks.emplace_back(line.substr(check_pos + std::strlen(check_prefix)), test.name, number);
                 }
             }
 

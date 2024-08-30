@@ -41,6 +41,12 @@ struct Catch::StringMaker<const potato::schematic::Value*>
     inline static std::string convert(const potato::schematic::Value* value);
 };
 
+template <>
+struct Catch::StringMaker<const potato::schematic::Type*>
+{
+    inline static std::string convert(const potato::schematic::Type* type);
+};
+
 std::string Catch::StringMaker<potato::schematic::test::Buffer>::convert(const potato::schematic::test::Buffer& buffer)
 {
     std::string result;
@@ -54,7 +60,7 @@ std::string Catch::StringMaker<potato::schematic::test::Buffer>::convert(const p
 std::string Catch::StringMaker<const potato::schematic::EnumItem*>::convert(const potato::schematic::EnumItem* item)
 {
     if (item == nullptr)
-        return "invalid(nullptr)";
+        return "{null}";
 
     return fmt::format("{}({})", item->name, item->value->value);
 }
@@ -64,19 +70,30 @@ std::string Catch::StringMaker<const potato::schematic::Value*>::convert(const p
     using namespace potato::schematic;
 
     if (value == nullptr)
-        return "invalid";
+        return "{null}";
 
     switch (value->kind)
     {
-        using enum ValueKind;
-        case Bool: return fmt::format("{}", CastTo<ValueBool>(value)->value);
-        case Null: return fmt::format("nullptr");
-        case Int: return fmt::format("{}", CastTo<ValueInt>(value)->value);
-        case Enum: return Catch::StringMaker<const EnumItem*>::convert(CastTo<ValueEnum>(value)->item);
-        case Object: return fmt::format("object");
-        case Array: return fmt::format("array");
-        case Type: return fmt::format("type");
+        case ValueKind::Array: return fmt::format("Array");
+        case ValueKind::Bool: return fmt::format("{}", CastTo<ValueBool>(value)->value);
+        case ValueKind::Enum: return Catch::StringMaker<const EnumItem*>::convert(CastTo<ValueEnum>(value)->item);
+        case ValueKind::Float: return fmt::format("{}", CastTo<ValueFloat>(value)->value);
+        case ValueKind::Int: return fmt::format("{}", CastTo<ValueInt>(value)->value);
+        case ValueKind::Null: return fmt::format("Null");
+        case ValueKind::Object: return fmt::format("Object");
+        case ValueKind::String: return fmt::format("String");
+        case ValueKind::Type: return fmt::format("Type");
     }
 
     return fmt::format("unknown(kind={})", std::to_underlying(value->kind));
+}
+
+std::string Catch::StringMaker<const potato::schematic::Type*>::convert(const potato::schematic::Type* type)
+{
+    using namespace potato::schematic;
+
+    if (type == nullptr)
+        return "{null}";
+
+    return type->name;
 }
