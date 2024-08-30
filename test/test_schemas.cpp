@@ -85,53 +85,84 @@ namespace evaluate
     }
 
     template <typename T>
-    bool ExecuteIs(T value, std::string_view reference)
+    struct OpIsImpl
     {
-        if constexpr (std::is_same_v<T, bool>)
+        // static void Execute(T, std::string_view);
+    };
+
+    template <>
+    struct OpIsImpl<Invalid>
+    {
+        static void Execute(Invalid, std::string_view)
         {
-            const char* const bstr = value ? "true" : "false";
-            CHECK(bstr == reference);
-            return true;
+            FAIL("Expression did not evaluate");
         }
-        else if constexpr (std::is_integral_v<T>)
+    };
+
+    template <>
+    struct OpIsImpl<bool>
+    {
+        static void Execute(bool value, std::string_view reference)
         {
-            CHECK(std::to_string(value) == reference);
-            return true;
+            if (value)
+                CHECK("true" == reference);
+            else
+                CHECK("false" == reference);
         }
-        FAIL("<invalid>");
-        return false;
+    };
+
+    template <>
+    struct OpIsImpl<std::nullptr_t>
+    {
+        static void Execute(std::nullptr_t, std::string_view reference)
+        {
+            CHECK("null" == reference);
+        }
+    };
+
+    template <typename T>
+        requires std::is_integral_v<T> || std::is_floating_point_v<T>
+    struct OpIsImpl<T>
+    {
+        static void Execute(T value, std::string_view reference)
+        {
+            CHECK(fmt::format("{}", value) == reference);
+        }
+    };
+
+    template <typename T>
+    void ExecuteIs(T value, std::string_view reference)
+    {
+        return OpIsImpl<T>::Execute(value, reference);
     }
 
-    bool ExecuteIs(const EnumItem* item, std::string_view reference)
+    void ExecuteIs(const EnumItem* item, std::string_view reference)
     {
         if (reference == item->name)
-        {
             CHECK(item->name == reference);
-            return true;
-        }
-        return ExecuteIs(item->value->value, reference);
+        else
+            ExecuteIs(item->value->value, reference);
     }
 
-    bool ExecuteIs(const Type* type, std::string_view reference)
+    void ExecuteIs(const Type* type, std::string_view reference)
     {
         if (type == nullptr)
             return ExecuteIs(Invalid{}, reference);
 
         CHECK(type->name == reference);
-        return true;
     }
 
-    bool ExecuteIs(const Value* value, std::string_view reference);
+    void ExecuteIs(const Value* value, std::string_view reference);
 
-    bool ExecuteIs(const Field* field, std::string_view reference)
+    void ExecuteIs(const Field* field, std::string_view reference)
     {
         if (field == nullptr)
-            return ExecuteIs(Invalid{}, reference);
-
-        return ExecuteIs(field->value, reference);
+            ExecuteIs(Invalid{}, reference);
+        else
+            ExecuteIs(field->value, reference);
     }
 
-    bool ExecuteIs(const Value* value, std::string_view reference)
+    void ExecuteIs(const Value* value, std::string_view reference)
     {
         if (value == nullptr)
             return ExecuteIs(Invalid{}, reference);
@@ -150,17 +181,15 @@ namespace evaluate
         }
 
         REQUIRE(false);
-        return false;
     }
 
     template <typename T>
-    bool ExecuteIsA(T, std::string_view)
+    void ExecuteIsA(T, std::string_view)
     {
-        FAIL("<invalid>");
-        return false;
+        FAIL("Expression is not a type");
     }
 
-    bool ExecuteIsA(const Field* field, std::string_view reference)
+    void ExecuteIsA(const Field* field, std::string_view reference)
     {
         if (field == nullptr)
             return ExecuteIsA(Invalid{}, reference);
@@ -168,72 +197,66 @@ namespace evaluate
         return ExecuteIsA(field->type, reference);
     }
 
-    bool ExecuteIsA(const Type* type, std::string_view reference)
+    void ExecuteIsA(const Type* type, std::string_view reference)
     {
         if (type == nullptr)
-        {
-            CHECK("null" == reference);
-            return false;
-        }
+            return ExecuteIsA(Invalid{}, reference);
 
         if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
         {
-            while (const TypeStruct* base = struct_->base)
+            for (const TypeStruct* comp = struct_; comp != nullptr; comp = comp->base)
             {
-                if (type->name == reference)
-                    return true;
+                if (comp->name == reference)
+                {
+                    CHECK(comp->name == reference);
+                    return;
+                }
             }
             FAIL(type->name << " is-a " << reference);
         }
         else if (const TypeEnum* enum_ = CastTo<TypeEnum>(type); enum_ != nullptr)
         {
-            return ExecuteIsA(enum_->base, reference);
+            ExecuteIsA(enum_->base, reference);
         }
-        return false;
     }
 
     template <typename T>
-    bool ExecuteIsKind(T, std::string_view)
+    void ExecuteIsKind(T, std::string_view)
     {
-        FAIL("<invalid>");
-        return false;
+        FAIL("Expression has no kind");
     }
 
-    bool ExecuteIsKind(const Type* type, std::string_view reference)
+    void ExecuteIsKind(const Type* type, std::string_view reference)
     {
         if (type == nullptr)
-        {
-            CHECK("null" == reference);
-            return false;
-        }
+            return ExecuteIsKind(Invalid{}, reference);
 
         switch (type->kind)
         {
-            case TypeKind::Array: CHECK("Array" == reference); return true;
-            case TypeKind::Attribute: CHECK("Attribute" == reference); return true;
-            case TypeKind::Bool: CHECK("Bool" == reference); return true;
-            case TypeKind::Enum: CHECK("Enum" == reference); return true;
-            case TypeKind::Float: CHECK("Float" == reference); return true;
-            case TypeKind::Int: CHECK("Int" == reference); return true;
-            case TypeKind::Message: CHECK("Message" == reference); return true;
-            case TypeKind::Nullable: CHECK("Nullable" == reference); return true;
-            case TypeKind::Pointer: CHECK("Pointer" == reference); return true;
-            case TypeKind::String: CHECK("String" == reference); return true;
-            case TypeKind::Struct: CHECK("Struct" == reference); return true;
-            case TypeKind::Type: CHECK("Type" == reference); return true;
+            case TypeKind::Array: CHECK("Array" == reference); return;
+            case TypeKind::Attribute: CHECK("Attribute" == reference); return;
+            case TypeKind::Bool: CHECK("Bool" == reference); return;
+            case TypeKind::Enum: CHECK("Enum" == reference); return;
+            case TypeKind::Float: CHECK("Float" == reference); return;
+            case TypeKind::Int: CHECK("Int" == reference); return;
+            case TypeKind::Message: CHECK("Message" == reference); return;
+            case TypeKind::Nullable: CHECK("Nullable" == reference); return;
+            case TypeKind::Pointer: CHECK("Pointer" == reference); return;
+            case TypeKind::String: CHECK("String" == reference); return;
+            case TypeKind::Struct: CHECK("Struct" == reference); return;
+            case TypeKind::Type: CHECK("Type" == reference); return;
         }
 
         REQUIRE(false);
-        return false;
     }
 
     template <typename T>
-    bool Execute(T value, Op op, std::string_view reference)
+    void Execute(T value, Op op, std::string_view reference)
     {
         switch (op)
         {
             case Op::Invalid:
-                return false;
+                FAIL("Invalid operator");
             case Op::Is:
                 return ExecuteIs(value, reference);
             case Op::IsA:
@@ -241,40 +264,58 @@ namespace evaluate
             case Op::IsKind:
                 return ExecuteIsKind(value, reference);
         }
-        return false;
+        FAIL("Unknown operator");
     }
 
     template <typename T>
-    bool Evaluate(T value, std::string_view components, Op op, std::string_view reference)
+    void Evaluate(T value, std::string_view components, Op op, std::string_view reference)
     {
         if (!components.empty())
-            return false;
+        {
+            const auto comp = PullNext(components);
+            FAIL("Unknown component " << comp);
+            return;
+        }
 
-        return Execute(value, op, reference);
+        Execute(value, op, reference);
     }
 
-    bool Evaluate(Invalid, std::string_view components, Op op, std::string_view reference)
+    void Evaluate(Invalid, std::string_view components, Op op, std::string_view reference)
     {
-        return Execute(Invalid{}, op, reference);
+        Execute(Invalid{}, op, reference);
     }
 
-    bool Evaluate(const Type* type, std::string_view components, Op op, std::string_view reference);
+    void Evaluate(const Type* type, std::string_view components, Op op, std::string_view reference);
+    void Evaluate(const Value* value, std::string_view components, Op op, std::string_view reference);
 
-    bool Evaluate(const Field* field, std::string_view components, Op op, std::string_view reference)
+    void Evaluate(const Field* field, std::string_view components, Op op, std::string_view reference)
     {
-        const auto comp = PullNext(components);
+        std::string_view temp = components;
+        const auto comp = PullNext(temp);
         if (comp.empty())
             return Execute(field, op, reference);
 
         if (comp == "@type")
-            return Evaluate(field->type, components, op, reference);
-        if (comp == "@default")
-            return Evaluate(field->value, components, op, reference);
-
-        return Evaluate(Invalid{}, components, op, reference);
+            Evaluate(field->type, temp, op, reference);
+        else if (comp == "@default")
+            Evaluate(field->value, temp, op, reference);
+        else
+            Evaluate(field->value, components, op, reference);
     }
 
-    bool Evaluate(const Type* type, std::string_view components, Op op, std::string_view reference)
+    void Evaluate(const Argument* arg, std::string_view components, Op op, std::string_view reference)
+    {
+        const auto comp = PullNext(components);
+        if (comp.empty())
+            return Execute(arg->value, op, reference);
+
+        if (comp == "@field")
+            Evaluate(arg->field, components, op, reference);
+        else
+            Evaluate(arg->value, components, op, reference);
+    }
+
+    void Evaluate(const Type* type, std::string_view components, Op op, std::string_view reference)
     {
         const auto comp = PullNext(components);
         if (comp.empty())
@@ -283,7 +324,7 @@ namespace evaluate
         if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
         {
             if (comp == "@base")
-                return Evaluate(struct_->base, components, op, reference);
+                return Evaluate(static_cast<const Type*>(struct_->base), components, op, reference);
             if (comp == "@fields")
                 return Evaluate(struct_->fields.size(), components, op, reference);
 
@@ -307,22 +348,55 @@ namespace evaluate
             }
         }
 
-        return Evaluate(Invalid{}, components, op, reference);
+        Evaluate(Invalid{}, components, op, reference);
     }
 
-    bool Evaluate(const Schema* schema, std::string_view components, Op op, std::string_view reference)
+    void Evaluate(const Value* value, std::string_view components, Op op, std::string_view reference)
     {
         const auto comp = PullNext(components);
         if (comp.empty())
-            return Execute(schema, op, reference);
+            return Execute(value, op, reference);
 
-        for (const Type* type : schema->root->types)
+        if (const ValueObject* object = CastTo<ValueObject>(value); object != nullptr)
+        {
+            if (comp == "@type")
+                return Evaluate(object->type, components, op, reference);
+            if (comp == "@fields")
+                return Evaluate(object->fields.size(), components, op, reference);
+
+            for (const Argument& arg : object->fields)
+            {
+                if (arg.field->name == comp)
+                    return Evaluate(&arg, components, op, reference);
+            }
+        }
+        else if (const ValueArray* array = CastTo<ValueArray>(value); array != nullptr)
+        {
+            if (comp == "@element-type")
+                return Evaluate(array->type, components, op, reference);
+            if (comp == "@elements")
+                return Evaluate(array->elements.size(), components, op, reference);
+
+            const std::size_t index = std::stoull(std::string(comp));
+            if (index < array->elements.size())
+                return Evaluate(array->elements[index], components, op, reference);
+        }
+        Evaluate(Invalid{}, components, op, reference);
+    }
+
+    void Evaluate(const Schema* schema, std::string_view components, Op op, std::string_view reference)
+    {
+        const auto comp = PullNext(components);
+        if (comp.empty())
+            return Execute(Invalid{}, op, reference);
+
+        for (const Type* type : schema->types)
         {
             if (type->name == comp)
                 return Evaluate(type, components, op, reference);
         }
 
-        return Evaluate(Invalid{}, components, op, reference);
+        Evaluate(Invalid{}, components, op, reference);
     }
 } // namespace evaluate
 
@@ -369,7 +443,7 @@ TEST_CASE("Schemas", "[potato][schematic]")
                 for (const evaluate::Check& check : checks)
                 {
                     INFO(check.input);
-                    CHECK(evaluate::Evaluate(schema, check.components, check.op, check.reference));
+                    evaluate::Evaluate(schema, check.components, check.op, check.reference);
                 }
             }
             else
