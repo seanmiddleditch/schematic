@@ -17,13 +17,12 @@ namespace potato::schematic::test
         void Check(const Schema* schema);
 
     private:
-        struct Invalid;
+        template <typename T>
+        struct CatchFailedExpression;
+
         struct OpIs;
         struct OpIsA;
         struct OpIsKind;
-
-        template <typename T>
-        struct CatchFailedExpression;
 
         bool Match(std::string_view name);
         bool IsEnd();

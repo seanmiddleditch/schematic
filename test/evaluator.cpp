@@ -44,8 +44,23 @@ namespace potato::schematic::test
         Evaluate(schema);
     }
 
-    struct CheckEvaluator::Invalid
+    template <typename T>
+    struct CheckEvaluator::CatchFailedExpression final : Catch::ITransientExpression
     {
+        CatchFailedExpression(CheckEvaluator& evaluator, const T& value)
+            : ITransientExpression(true, false)
+            , evaluator(evaluator)
+            , value(value)
+        {
+        }
+
+        void streamReconstructedExpression(std::ostream& os) const override
+        {
+            os << Catch::Detail::stringify(value) << ' ' << evaluator.op << ' ' << evaluator.reference;
+        }
+
+        CheckEvaluator& evaluator;
+        const T& value;
     };
 
     template <typename Impl>
@@ -75,11 +90,6 @@ namespace potato::schematic::test
         using OpBase::OpBase;
 
         static constexpr char Name[] = "is";
-
-        static bool Check(Invalid, std::string_view)
-        {
-            return false;
-        }
 
         static bool Check(bool value, std::string_view reference)
         {
@@ -112,7 +122,7 @@ namespace potato::schematic::test
         static bool Check(const Type* type, std::string_view reference)
         {
             if (type == nullptr)
-                return Check(Invalid{}, reference);
+                return false;
 
             return type->name == reference;
         }
@@ -120,7 +130,7 @@ namespace potato::schematic::test
         static bool Check(const Field* field, std::string_view reference)
         {
             if (field == nullptr)
-                return Check(Invalid{}, reference);
+                return false;
 
             return Check(field->value, reference);
         }
@@ -128,22 +138,22 @@ namespace potato::schematic::test
         static bool Check(const Value* value, std::string_view reference)
         {
             if (value == nullptr)
-                return Check(Invalid{}, reference);
+                return false;
 
             switch (value->kind)
             {
-                case ValueKind::Array: return Check(Invalid{}, reference);
+                case ValueKind::Array: return false;
                 case ValueKind::Bool: return Check(static_cast<const ValueBool*>(value)->value, reference);
                 case ValueKind::Enum: return Check(static_cast<const ValueEnum*>(value)->item, reference);
                 case ValueKind::Float: return Check(static_cast<const ValueFloat*>(value)->value, reference);
                 case ValueKind::Int: return Check(static_cast<const ValueInt*>(value)->value, reference);
                 case ValueKind::Null: return Check(nullptr, reference);
-                case ValueKind::Object: return Check(Invalid{}, reference);
+                case ValueKind::Object: return false;
                 case ValueKind::String: return Check(static_cast<const ValueInt*>(value)->value, reference);
                 case ValueKind::Type: return Check(static_cast<const ValueType*>(value)->type, reference);
             }
 
-            return Check(Invalid{}, reference);
+            return false;
         }
     };
 
@@ -240,25 +250,6 @@ namespace potato::schematic::test
     {
         return remaining.empty();
     }
-
-    template <typename T>
-    struct CheckEvaluator::CatchFailedExpression final : Catch::ITransientExpression
-    {
-        CatchFailedExpression(CheckEvaluator& evaluator, const T& value)
-            : ITransientExpression(true, false)
-            , evaluator(evaluator)
-            , value(value)
-        {
-        }
-
-        void streamReconstructedExpression(std::ostream& os) const override
-        {
-            os << Catch::Detail::stringify(value) << ' ' << evaluator.op << ' ' << evaluator.reference;
-        }
-
-        CheckEvaluator& evaluator;
-        const T& value;
-    };
 
     void CheckEvaluator::Fail()
     {
