@@ -8,8 +8,8 @@ struct test : base
     float thousand = 1.0e3;
 }
 
-// CHECK: base is-kind Struct
-// CHECK: test is-kind Struct
+// CHECK: base.@kind is Struct
+// CHECK: test.@kind is Structx
 // CHECK: test is-a base
 // CHECK: test.@fields is 4
 // CHECK: test.num is 42

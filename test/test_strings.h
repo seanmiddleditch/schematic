@@ -47,6 +47,18 @@ struct Catch::StringMaker<const potato::schematic::Type*>
     inline static std::string convert(const potato::schematic::Type* type);
 };
 
+template <>
+struct Catch::StringMaker<potato::schematic::TypeKind>
+{
+    inline static std::string convert(potato::schematic::TypeKind kind);
+};
+
+template <>
+struct Catch::StringMaker<potato::schematic::ValueKind>
+{
+    inline static std::string convert(potato::schematic::ValueKind kind);
+};
+
 std::string Catch::StringMaker<potato::schematic::test::Buffer>::convert(const potato::schematic::test::Buffer& buffer)
 {
     std::string result;
@@ -96,4 +108,47 @@ std::string Catch::StringMaker<const potato::schematic::Type*>::convert(const po
         return "{null}";
 
     return type->name;
+}
+
+std::string Catch::StringMaker<potato::schematic::TypeKind>::convert(potato::schematic::TypeKind kind)
+{
+    using namespace potato::schematic;
+
+    switch (kind)
+    {
+        case TypeKind::Array: return "Array";
+        case TypeKind::Attribute: return "Attribute";
+        case TypeKind::Bool: return "Bool";
+        case TypeKind::Enum: return "Enum";
+        case TypeKind::Float: return "Float";
+        case TypeKind::Int: return "Int";
+        case TypeKind::Message: return "Message";
+        case TypeKind::Nullable: return "Nullable";
+        case TypeKind::Pointer: return "Pointer";
+        case TypeKind::String: return "String";
+        case TypeKind::Struct: return "Struct";
+        case TypeKind::Type: return "Type";
+    }
+
+    return "<invalid>";
+}
+
+std::string Catch::StringMaker<potato::schematic::ValueKind>::convert(potato::schematic::ValueKind kind)
+{
+    using namespace potato::schematic;
+
+    switch (kind)
+    {
+        case ValueKind::Array: return "Array";
+        case ValueKind::Bool: return "Bool";
+        case ValueKind::Enum: return "Enum";
+        case ValueKind::Float: return "Float";
+        case ValueKind::Int: return "Int";
+        case ValueKind::Null: return "Null";
+        case ValueKind::Object: return "Object";
+        case ValueKind::String: return "String";
+        case ValueKind::Type: return "Type";
+    }
+
+    return "<invalid>";
 }

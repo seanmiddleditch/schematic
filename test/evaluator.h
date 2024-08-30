@@ -22,7 +22,6 @@ namespace potato::schematic::test
 
         struct OpIs;
         struct OpIsA;
-        struct OpIsKind;
 
         bool Match(std::string_view name);
         bool IsEnd();

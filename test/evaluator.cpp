@@ -2,6 +2,8 @@
 
 #include "evaluator.h"
 
+#include "test_strings.h"
+
 #include "schematic/schema.h"
 #include "schematic/utility.h"
 
@@ -106,6 +108,12 @@ namespace potato::schematic::test
 
         template <typename T>
         static bool Check(T value, std::string_view reference)
+        {
+            return Catch::Detail::stringify(value) == reference;
+        }
+
+        template <typename T>
+        static bool Check(T value, std::string_view reference)
             requires std::is_integral_v<T> || std::is_floating_point_v<T>
         {
             return fmt::format("{}", value) == reference;
@@ -199,43 +207,6 @@ namespace potato::schematic::test
         }
     };
 
-    struct CheckEvaluator::OpIsKind : OpBase<OpIsKind>
-    {
-        using OpBase::OpBase;
-
-        static constexpr char Name[] = "is-kind";
-
-        template <typename T>
-        static bool Check(T, std::string_view)
-        {
-            return false;
-        }
-
-        static bool Check(const Type* type, std::string_view reference)
-        {
-            if (type == nullptr)
-                return false;
-
-            switch (type->kind)
-            {
-                case TypeKind::Array: return "Array" == reference;
-                case TypeKind::Attribute: return "Attribute" == reference;
-                case TypeKind::Bool: return "Bool" == reference;
-                case TypeKind::Enum: return "Enum" == reference;
-                case TypeKind::Float: return "Float" == reference;
-                case TypeKind::Int: return "Int" == reference;
-                case TypeKind::Message: return "Message" == reference;
-                case TypeKind::Nullable: return "Nullable" == reference;
-                case TypeKind::Pointer: return "Pointer" == reference;
-                case TypeKind::String: return "String" == reference;
-                case TypeKind::Struct: return "Struct" == reference;
-                case TypeKind::Type: return "Type" == reference;
-            }
-
-            return false;
-        }
-    };
-
     bool CheckEvaluator::Match(std::string_view name)
     {
         if (next == name)
@@ -269,7 +240,7 @@ namespace potato::schematic::test
         if (!IsEnd())
             return Fail();
 
-        Catch::AssertionHandler handler("EVALUATE", Catch::SourceLineInfo(filename_.c_str(), line_), test_, Catch::ResultDisposition::Normal);
+        Catch::AssertionHandler handler("EVALUATE", Catch::SourceLineInfo(filename_.c_str(), line_), test_, Catch::ResultDisposition::ContinueOnFailure);
 
         if (op == "is")
         {
@@ -279,11 +250,6 @@ namespace potato::schematic::test
         else if (op == "is-a")
         {
             if (!OpIsA::Check(value, reference))
-                handler.handleExpr(CatchFailedExpression(*this, value));
-        }
-        else if (op == "is-kind")
-        {
-            if (!OpIsKind::Check(value, reference))
                 handler.handleExpr(CatchFailedExpression(*this, value));
         }
         else
@@ -320,6 +286,9 @@ namespace potato::schematic::test
 
     void CheckEvaluator::Evaluate(const Type* type)
     {
+        if (Match("@kind"))
+            return Evaluate(type->kind);
+
         if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
         {
             if (Match("@base"))
@@ -352,6 +321,9 @@ namespace potato::schematic::test
 
     void CheckEvaluator::Evaluate(const Value* value)
     {
+        if (Match("@kind"))
+            return Evaluate(value->kind);
+
         if (const ValueObject* object = CastTo<ValueObject>(value); object != nullptr)
         {
             if (Match("@type"))
