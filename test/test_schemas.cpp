@@ -15,390 +15,394 @@ using namespace potato::schematic;
 using namespace potato::schematic::compiler;
 using namespace potato::schematic::test;
 
-namespace evaluate
+namespace potato::schematic::test
 {
-    enum class Op
+    class CheckEvaluator
     {
-        Invalid,
-        Is,
-        IsA,
-        IsKind,
-    };
-
-    struct Check
-    {
-        std::string input;
-        std::string components;
-        std::string reference;
-        Op op = Op::Invalid;
-    };
-
-    struct Invalid
-    {
-    };
-
-    Op ParseOp(std::string_view input)
-    {
-        if (input == "is")
-            return Op::Is;
-        if (input == "is-a")
-            return Op::IsA;
-        if (input == "is-kind")
-            return Op::IsKind;
-        return Op::Invalid;
-    }
-
-    void ParseCheck(Check& check, std::string_view input)
-    {
-        check.input = input;
-
-        auto space_pos = input.find(' ');
-        REQUIRE(space_pos != std::string_view::npos);
-        check.components = input.substr(0, space_pos);
-
-        input = input.substr(space_pos + 1);
-
-        space_pos = input.find(' ');
-        REQUIRE(space_pos != std::string_view::npos);
-        check.op = ParseOp(input.substr(0, space_pos));
-
-        check.reference = input.substr(space_pos + 1);
-    }
-
-    std::string_view PullNext(std::string_view& inout_components)
-    {
-        std::string_view result;
-
-        const auto pos = inout_components.find('.');
-        if (pos != std::string_view::npos)
+    public:
+        explicit CheckEvaluator(std::string_view input)
         {
-            result = inout_components.substr(0, pos);
-            inout_components = inout_components.substr(pos + 1);
-        }
-        else
-        {
-            result = inout_components;
-            inout_components = {};
+            auto space_pos = input.find(' ');
+            expression = input.substr(0, space_pos);
+
+            if (space_pos == std::string_view::npos)
+                return;
+
+            input = input.substr(space_pos + 1);
+            space_pos = input.find(' ');
+            op = input.substr(0, space_pos);
+
+            if (space_pos != std::string_view::npos)
+                reference = input.substr(space_pos + 1);
         }
 
-        return result;
-    }
-
-    template <typename T>
-    struct OpIsImpl
-    {
-        // static void Execute(T, std::string_view);
-    };
-
-    template <>
-    struct OpIsImpl<Invalid>
-    {
-        static void Execute(Invalid, std::string_view)
+        void Check(const Schema* schema)
         {
-            FAIL("Expression did not evaluate");
-        }
-    };
+            REQUIRE(schema != nullptr);
 
-    template <>
-    struct OpIsImpl<bool>
-    {
-        static void Execute(bool value, std::string_view reference)
-        {
-            if (value)
-                CHECK("true" == reference);
-            else
-                CHECK("false" == reference);
-        }
-    };
-
-    template <>
-    struct OpIsImpl<std::nullptr_t>
-    {
-        static void Execute(std::nullptr_t, std::string_view reference)
-        {
-            CHECK("null" == reference);
-        }
-    };
-
-    template <typename T>
-        requires std::is_integral_v<T> || std::is_floating_point_v<T>
-    struct OpIsImpl<T>
-    {
-        static void Execute(T value, std::string_view reference)
-        {
-            CHECK(fmt::format("{}", value) == reference);
-        }
-    };
-
-    template <typename T>
-    void ExecuteIs(T value, std::string_view reference)
-    {
-        return OpIsImpl<T>::Execute(value, reference);
-    }
-
-    void ExecuteIs(const EnumItem* item, std::string_view reference)
-    {
-        if (reference == item->name)
-            CHECK(item->name == reference);
-        else
-            ExecuteIs(item->value->value, reference);
-    }
-
-    void ExecuteIs(const Type* type, std::string_view reference)
-    {
-        if (type == nullptr)
-            return ExecuteIs(Invalid{}, reference);
-
-        CHECK(type->name == reference);
-    }
-
-    void ExecuteIs(const Value* value, std::string_view reference);
-
-    void ExecuteIs(const Field* field, std::string_view reference)
-    {
-        if (field == nullptr)
-            ExecuteIs(Invalid{}, reference);
-        else
-            ExecuteIs(field->value, reference);
-    }
-
-    void ExecuteIs(const Value* value, std::string_view reference)
-    {
-        if (value == nullptr)
-            return ExecuteIs(Invalid{}, reference);
-
-        switch (value->kind)
-        {
-            case ValueKind::Array: return ExecuteIs(Invalid{}, reference);
-            case ValueKind::Bool: return ExecuteIs(static_cast<const ValueBool*>(value)->value, reference);
-            case ValueKind::Enum: return ExecuteIs(static_cast<const ValueEnum*>(value)->item, reference);
-            case ValueKind::Float: return ExecuteIs(static_cast<const ValueFloat*>(value)->value, reference);
-            case ValueKind::Int: return ExecuteIs(static_cast<const ValueInt*>(value)->value, reference);
-            case ValueKind::Null: return ExecuteIs(nullptr, reference);
-            case ValueKind::Object: return ExecuteIs(Invalid{}, reference);
-            case ValueKind::String: return ExecuteIs(static_cast<const ValueInt*>(value)->value, reference);
-            case ValueKind::Type: return ExecuteIs(static_cast<const ValueType*>(value)->type, reference);
+            remaining = expression;
+            Advance();
+            Evaluate(schema);
         }
 
-        REQUIRE(false);
-    }
-
-    template <typename T>
-    void ExecuteIsA(T, std::string_view)
-    {
-        FAIL("Expression is not a type");
-    }
-
-    void ExecuteIsA(const Field* field, std::string_view reference)
-    {
-        if (field == nullptr)
-            return ExecuteIsA(Invalid{}, reference);
-
-        return ExecuteIsA(field->type, reference);
-    }
-
-    void ExecuteIsA(const Type* type, std::string_view reference)
-    {
-        if (type == nullptr)
-            return ExecuteIsA(Invalid{}, reference);
-
-        if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
+    private:
+        struct Invalid
         {
-            for (const TypeStruct* comp = struct_; comp != nullptr; comp = comp->base)
+        };
+
+        struct OpExists;
+        struct OpIs;
+        struct OpIsA;
+        struct OpIsKind;
+
+        struct OpExists
+        {
+            static void Check(Invalid, std::string_view)
             {
-                if (comp->name == reference)
+                FAIL("Expression has no result");
+            }
+
+            template <typename T>
+            static void Check(T, std::string_view)
+            {
+                SUCCEED("Expression has result");
+            }
+        };
+
+        struct OpIs
+        {
+            static void Check(Invalid, std::string_view)
+            {
+                FAIL("Expression did not evaluate");
+            }
+
+            static void Check(bool value, std::string_view reference)
+            {
+                if (value)
+                    CHECK("true" == reference);
+                else
+                    CHECK("false" == reference);
+            }
+
+            static void Check(std::nullptr_t, std::string_view reference)
+            {
+                CHECK("null" == reference);
+            }
+
+            template <typename T>
+            static void Check(T value, std::string_view reference)
+                requires std::is_integral_v<T> || std::is_floating_point_v<T>
+            {
+                CHECK(fmt::format("{}", value) == reference);
+            }
+
+            static void Check(const EnumItem* item, std::string_view reference)
+            {
+                if (reference == item->name)
+                    CHECK(item->name == reference);
+                else
+                    Check(item->value->value, reference);
+            }
+
+            static void Check(const Type* type, std::string_view reference)
+            {
+                if (type == nullptr)
+                    return Check(Invalid{}, reference);
+
+                CHECK(type->name == reference);
+            }
+
+            static void Check(const Field* field, std::string_view reference)
+            {
+                if (field == nullptr)
+                    Check(Invalid{}, reference);
+                else
+                    Check(field->value, reference);
+            }
+
+            static void Check(const Value* value, std::string_view reference)
+            {
+                if (value == nullptr)
+                    return Check(Invalid{}, reference);
+
+                switch (value->kind)
                 {
-                    CHECK(comp->name == reference);
-                    return;
+                    case ValueKind::Array: return Check(Invalid{}, reference);
+                    case ValueKind::Bool: return Check(static_cast<const ValueBool*>(value)->value, reference);
+                    case ValueKind::Enum: return Check(static_cast<const ValueEnum*>(value)->item, reference);
+                    case ValueKind::Float: return Check(static_cast<const ValueFloat*>(value)->value, reference);
+                    case ValueKind::Int: return Check(static_cast<const ValueInt*>(value)->value, reference);
+                    case ValueKind::Null: return Check(nullptr, reference);
+                    case ValueKind::Object: return Check(Invalid{}, reference);
+                    case ValueKind::String: return Check(static_cast<const ValueInt*>(value)->value, reference);
+                    case ValueKind::Type: return Check(static_cast<const ValueType*>(value)->type, reference);
+                }
+
+                Check(Invalid{}, reference);
+            }
+        };
+
+        struct OpIsA
+        {
+            template <typename T>
+            static void Check(T, std::string_view)
+            {
+                FAIL("Expression is not a type");
+            }
+
+            static void Check(const Field* field, std::string_view reference)
+            {
+                if (field == nullptr)
+                    return Check(Invalid{}, reference);
+
+                Check(field->type, reference);
+            }
+
+            static void Check(const Type* type, std::string_view reference)
+            {
+                if (type == nullptr)
+                    return Check(Invalid{}, reference);
+
+                if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
+                {
+                    for (const TypeStruct* comp = struct_; comp != nullptr; comp = comp->base)
+                    {
+                        if (comp->name == reference)
+                        {
+                            CHECK(comp->name == reference);
+                            return;
+                        }
+                    }
+                    FAIL(type->name << " is-a " << reference);
+                }
+                else if (const TypeEnum* enum_ = CastTo<TypeEnum>(type); enum_ != nullptr)
+                {
+                    Check(enum_->base, reference);
+                }
+
+                Check(Invalid{}, reference);
+            }
+        };
+
+        struct OpIsKind
+        {
+            template <typename T>
+            static void Check(T, std::string_view)
+            {
+                FAIL("Expression has no kind");
+            }
+
+            static void Check(const Type* type, std::string_view reference)
+            {
+                if (type == nullptr)
+                    return Check(Invalid{}, reference);
+
+                switch (type->kind)
+                {
+                    case TypeKind::Array: CHECK("Array" == reference); return;
+                    case TypeKind::Attribute: CHECK("Attribute" == reference); return;
+                    case TypeKind::Bool: CHECK("Bool" == reference); return;
+                    case TypeKind::Enum: CHECK("Enum" == reference); return;
+                    case TypeKind::Float: CHECK("Float" == reference); return;
+                    case TypeKind::Int: CHECK("Int" == reference); return;
+                    case TypeKind::Message: CHECK("Message" == reference); return;
+                    case TypeKind::Nullable: CHECK("Nullable" == reference); return;
+                    case TypeKind::Pointer: CHECK("Pointer" == reference); return;
+                    case TypeKind::String: CHECK("String" == reference); return;
+                    case TypeKind::Struct: CHECK("Struct" == reference); return;
+                    case TypeKind::Type: CHECK("Type" == reference); return;
+                }
+
+                return Check(Invalid{}, reference);
+            }
+        };
+
+        bool Match(std::string_view name)
+        {
+            if (next == name)
+            {
+                Advance();
+                return true;
+            }
+            return false;
+        }
+
+        bool IsEnd()
+        {
+            return remaining.empty();
+        }
+
+        void Fail()
+        {
+            if (!next.empty())
+                FAIL("Unknown component " << next);
+            else
+                FAIL("Invalid expression " << expression);
+        }
+
+        template <typename T>
+        void Finish(T value)
+        {
+            if (!IsEnd())
+                return Fail();
+
+            if (op == "is")
+                return OpExists::Check(value, reference);
+            else if (op == "is")
+                return OpIs::Check(value, reference);
+            else if (op == "is-a")
+                return OpIsA::Check(value, reference);
+            else if (op == "is-kind")
+                return OpIsKind::Check(value, reference);
+            else
+                FAIL("Unknown operator " << op);
+        }
+
+        template <typename T>
+        void Evaluate(T value)
+        {
+            Finish(value);
+        }
+
+        void Evaluate(const Field* field)
+        {
+            if (Match("@type"))
+                Evaluate(field->type);
+            else if (Match("@default"))
+                Evaluate(field->value);
+            else
+                Evaluate(field->value);
+        }
+
+        void Evaluate(const Argument* arg)
+        {
+            if (Match("@field"))
+                Evaluate(arg->field);
+            else
+                Evaluate(arg->value);
+        }
+
+        void Evaluate(const Type* type)
+        {
+            if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
+            {
+                if (Match("@base"))
+                    return Evaluate(static_cast<const Type*>(struct_->base));
+                if (Match("@fields"))
+                    return Evaluate(struct_->fields.size());
+
+                for (const Field& field : struct_->fields)
+                {
+                    if (Match(field.name))
+                        return Evaluate(&field);
                 }
             }
-            FAIL(type->name << " is-a " << reference);
-        }
-        else if (const TypeEnum* enum_ = CastTo<TypeEnum>(type); enum_ != nullptr)
-        {
-            ExecuteIsA(enum_->base, reference);
-        }
-    }
-
-    template <typename T>
-    void ExecuteIsKind(T, std::string_view)
-    {
-        FAIL("Expression has no kind");
-    }
-
-    void ExecuteIsKind(const Type* type, std::string_view reference)
-    {
-        if (type == nullptr)
-            return ExecuteIsKind(Invalid{}, reference);
-
-        switch (type->kind)
-        {
-            case TypeKind::Array: CHECK("Array" == reference); return;
-            case TypeKind::Attribute: CHECK("Attribute" == reference); return;
-            case TypeKind::Bool: CHECK("Bool" == reference); return;
-            case TypeKind::Enum: CHECK("Enum" == reference); return;
-            case TypeKind::Float: CHECK("Float" == reference); return;
-            case TypeKind::Int: CHECK("Int" == reference); return;
-            case TypeKind::Message: CHECK("Message" == reference); return;
-            case TypeKind::Nullable: CHECK("Nullable" == reference); return;
-            case TypeKind::Pointer: CHECK("Pointer" == reference); return;
-            case TypeKind::String: CHECK("String" == reference); return;
-            case TypeKind::Struct: CHECK("Struct" == reference); return;
-            case TypeKind::Type: CHECK("Type" == reference); return;
-        }
-
-        REQUIRE(false);
-    }
-
-    template <typename T>
-    void Execute(T value, Op op, std::string_view reference)
-    {
-        switch (op)
-        {
-            case Op::Invalid:
-                FAIL("Invalid operator");
-            case Op::Is:
-                return ExecuteIs(value, reference);
-            case Op::IsA:
-                return ExecuteIsA(value, reference);
-            case Op::IsKind:
-                return ExecuteIsKind(value, reference);
-        }
-        FAIL("Unknown operator");
-    }
-
-    template <typename T>
-    void Evaluate(T value, std::string_view components, Op op, std::string_view reference)
-    {
-        if (!components.empty())
-        {
-            const auto comp = PullNext(components);
-            FAIL("Unknown component " << comp);
-            return;
-        }
-
-        Execute(value, op, reference);
-    }
-
-    void Evaluate(Invalid, std::string_view components, Op op, std::string_view reference)
-    {
-        Execute(Invalid{}, op, reference);
-    }
-
-    void Evaluate(const Type* type, std::string_view components, Op op, std::string_view reference);
-    void Evaluate(const Value* value, std::string_view components, Op op, std::string_view reference);
-
-    void Evaluate(const Field* field, std::string_view components, Op op, std::string_view reference)
-    {
-        std::string_view temp = components;
-        const auto comp = PullNext(temp);
-        if (comp.empty())
-            return Execute(field, op, reference);
-
-        if (comp == "@type")
-            Evaluate(field->type, temp, op, reference);
-        else if (comp == "@default")
-            Evaluate(field->value, temp, op, reference);
-        else
-            Evaluate(field->value, components, op, reference);
-    }
-
-    void Evaluate(const Argument* arg, std::string_view components, Op op, std::string_view reference)
-    {
-        const auto comp = PullNext(components);
-        if (comp.empty())
-            return Execute(arg->value, op, reference);
-
-        if (comp == "@field")
-            Evaluate(arg->field, components, op, reference);
-        else
-            Evaluate(arg->value, components, op, reference);
-    }
-
-    void Evaluate(const Type* type, std::string_view components, Op op, std::string_view reference)
-    {
-        const auto comp = PullNext(components);
-        if (comp.empty())
-            return Execute(type, op, reference);
-
-        if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
-        {
-            if (comp == "@base")
-                return Evaluate(static_cast<const Type*>(struct_->base), components, op, reference);
-            if (comp == "@fields")
-                return Evaluate(struct_->fields.size(), components, op, reference);
-
-            for (const Field& field : struct_->fields)
+            else if (const TypeEnum* enum_ = CastTo<TypeEnum>(type); enum_ != nullptr)
             {
-                if (field.name == comp)
-                    return Evaluate(&field, components, op, reference);
+                if (Match("@base"))
+                    return Evaluate(enum_->base);
+                if (Match("@items"))
+                    return Evaluate(enum_->items.size());
+
+                for (const EnumItem& item : enum_->items)
+                {
+                    if (Match(item.name))
+                        return Evaluate(&item);
+                }
             }
-        }
-        else if (const TypeEnum* enum_ = CastTo<TypeEnum>(type); enum_ != nullptr)
-        {
-            if (comp == "@base")
-                return Evaluate(enum_->base, components, op, reference);
-            if (comp == "@items")
-                return Evaluate(enum_->items.size(), components, op, reference);
 
-            for (const EnumItem& item : enum_->items)
+            Finish(type);
+        }
+
+        void Evaluate(const Value* value)
+        {
+            if (const ValueObject* object = CastTo<ValueObject>(value); object != nullptr)
             {
-                if (item.name == comp)
-                    return Evaluate(&item, components, op, reference);
+                if (Match("@type"))
+                    return Evaluate(object->type);
+                if (Match("@fields"))
+                    return Evaluate(object->fields.size());
+
+                for (const Argument& arg : object->fields)
+                {
+                    if (Match(arg.field->name))
+                        return Evaluate(&arg);
+                }
+            }
+            else if (const ValueArray* array = CastTo<ValueArray>(value); array != nullptr)
+            {
+                if (Match("@element-type"))
+                    return Evaluate(array->type);
+                if (Match("@elements"))
+                    return Evaluate(array->elements.size());
+
+                const std::size_t index = std::stoull(std::string(next));
+                if (index < array->elements.size() && Match(std::to_string(index)))
+                    return Evaluate(array->elements[index]);
+            }
+
+            Finish(value);
+        }
+
+        void Evaluate(const Module* mod)
+        {
+            if (Match("@types"))
+                return Evaluate(mod->types.size());
+            if (Match("@imports"))
+                return Evaluate(mod->imports.size());
+
+            for (const Type* type : mod->types)
+            {
+                if (Match(type->name))
+                    return Evaluate(type);
+            }
+
+            Fail();
+        }
+
+        void Evaluate(const Schema* schema)
+        {
+            if (Match("@types"))
+                return Evaluate(schema->types.size());
+            if (Match("@modules"))
+                return Evaluate(schema->modules.size());
+            if (Match("@root"))
+                return Evaluate(schema->root);
+
+            for (const Type* type : schema->types)
+            {
+                if (Match(type->name))
+                    return Evaluate(type);
+            }
+
+            Fail();
+        }
+
+        void Advance()
+        {
+            const auto pos = remaining.find('.');
+            if (pos != std::string_view::npos)
+            {
+                next = remaining.substr(0, pos);
+                remaining = remaining.substr(pos + 1);
+            }
+            else
+            {
+                next = remaining;
+                remaining = {};
             }
         }
 
-        Evaluate(Invalid{}, components, op, reference);
-    }
+        // Inputs
+        std::string expression;
+        std::string op;
+        std::string reference;
 
-    void Evaluate(const Value* value, std::string_view components, Op op, std::string_view reference)
-    {
-        const auto comp = PullNext(components);
-        if (comp.empty())
-            return Execute(value, op, reference);
-
-        if (const ValueObject* object = CastTo<ValueObject>(value); object != nullptr)
-        {
-            if (comp == "@type")
-                return Evaluate(object->type, components, op, reference);
-            if (comp == "@fields")
-                return Evaluate(object->fields.size(), components, op, reference);
-
-            for (const Argument& arg : object->fields)
-            {
-                if (arg.field->name == comp)
-                    return Evaluate(&arg, components, op, reference);
-            }
-        }
-        else if (const ValueArray* array = CastTo<ValueArray>(value); array != nullptr)
-        {
-            if (comp == "@element-type")
-                return Evaluate(array->type, components, op, reference);
-            if (comp == "@elements")
-                return Evaluate(array->elements.size(), components, op, reference);
-
-            const std::size_t index = std::stoull(std::string(comp));
-            if (index < array->elements.size())
-                return Evaluate(array->elements[index], components, op, reference);
-        }
-        Evaluate(Invalid{}, components, op, reference);
-    }
-
-    void Evaluate(const Schema* schema, std::string_view components, Op op, std::string_view reference)
-    {
-        const auto comp = PullNext(components);
-        if (comp.empty())
-            return Execute(Invalid{}, op, reference);
-
-        for (const Type* type : schema->types)
-        {
-            if (type->name == comp)
-                return Evaluate(type, components, op, reference);
-        }
-
-        Evaluate(Invalid{}, components, op, reference);
-    }
-} // namespace evaluate
+        // State
+        std::string_view remaining;
+        std::string_view next;
+    };
+} // namespace potato::schematic::test
 
 TEST_CASE("Schemas", "[potato][schematic]")
 {
@@ -413,7 +417,7 @@ TEST_CASE("Schemas", "[potato][schematic]")
         DYNAMIC_SECTION(test.name)
         {
             std::vector<std::string> expected_errors;
-            std::vector<evaluate::Check> checks;
+            std::vector<CheckEvaluator> checks;
 
             std::istringstream source(test.source);
             std::string line;
@@ -428,8 +432,7 @@ TEST_CASE("Schemas", "[potato][schematic]")
                 const auto check_pos = line.find(check_prefix);
                 if (check_pos != std::string::npos)
                 {
-                    evaluate::Check& check = checks.emplace_back();
-                    evaluate::ParseCheck(check, line.substr(check_pos + std::strlen(check_prefix)));
+                    checks.emplace_back(line.substr(check_pos + std::strlen(check_prefix)));
                 }
             }
 
@@ -440,11 +443,8 @@ TEST_CASE("Schemas", "[potato][schematic]")
                 REQUIRE(schema != nullptr);
                 REQUIRE(schema->root != nullptr);
 
-                for (const evaluate::Check& check : checks)
-                {
-                    INFO(check.input);
-                    evaluate::Evaluate(schema, check.components, check.op, check.reference);
-                }
+                for (CheckEvaluator& check : checks)
+                    check.Check(schema);
             }
             else
             {
