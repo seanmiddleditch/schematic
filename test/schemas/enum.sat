@@ -9,3 +9,10 @@ struct test
 {
     color c = color.green;
 }
+
+// CHECK: color is-kind Enum
+// CHECK: color.@base is int8
+// CHECK: color.@items is 3
+// CHECK: color.red is 0
+// CHECK: color.green is 255
+// CHECK: test.c is green
