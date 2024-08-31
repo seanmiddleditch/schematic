@@ -64,6 +64,11 @@ int main(int argc, char** argv)
         return 3;
 
     const ModuleId root = ctx.TryLoadFile(ctx.input);
+    if (root.value == ModuleId::InvalidValue)
+    {
+        fmt::println(stderr, "Cannot open input file: {}", ctx.input);
+        return 1;
+    }
 
     NewDeleteAllocator alloc;
     ArenaAllocator arena(alloc);
