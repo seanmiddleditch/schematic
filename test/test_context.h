@@ -24,13 +24,16 @@ namespace potato::schematic::test
         inline ModuleId ResolveModule(std::string_view name, ModuleId referrer) override;
 
         std::vector<std::string> errors;
+        bool reportErrors = true;
     };
 
     void TestContext::Error(ModuleId moduleId, const Range& range, std::string_view message)
     {
         if (moduleId.value == ModuleId::InvalidValue)
         {
-            UNSCOPED_INFO(message);
+            errors.emplace_back(message);
+            if (reportErrors)
+                UNSCOPED_INFO(message);
             return;
         }
 
@@ -39,8 +42,13 @@ namespace potato::schematic::test
         fmt::format_to(std::back_inserter(buffer), "{}({}): ", GetFileName(moduleId), range.start.line);
         const auto prefix = buffer.size();
         buffer.append(message);
-        UNSCOPED_INFO(buffer);
         errors.push_back(buffer);
+
+        // everything after this is for logging full error information
+        if (!reportErrors)
+            return;
+
+        UNSCOPED_INFO(buffer);
 
         std::string_view line = potato::schematic::compiler::ExtractLine(source, range.start.line);
         buffer.resize(prefix);

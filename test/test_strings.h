@@ -80,7 +80,7 @@ std::string Catch::StringMaker<const potato::schematic::EnumItem*>::convert(cons
     if (item == nullptr)
         return "{null}";
 
-    return fmt::format("{}({})", item->name, item->value->value);
+    return fmt::format("{}.{}", item->owner->name, item->name);
 }
 
 std::string Catch::StringMaker<const potato::schematic::Field*>::convert(const potato::schematic::Field* field)

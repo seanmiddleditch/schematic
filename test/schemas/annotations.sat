@@ -15,8 +15,8 @@ enum enum
     [ignore, name("Item")] item
 }
 
-// CHECK: ignore.@kind is Attribute
-// CHECK: name.second is-a int32
-// CHECK: test.@annotations.name.first is "Toby"
-// CHECK: test.@annotations.reference.type is int32
-// CHECK: enum.item.@annotations.name.first is "Item"
+// CHECK: ignore.@kind == Attribute
+// CHECK: name.second == int32
+// CHECK: test.@annotations.name.first == "Toby"
+// CHECK: test.@annotations.reference.type == int32
+// CHECK: enum.item.@annotations.name.first == "Item"

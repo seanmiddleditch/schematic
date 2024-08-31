@@ -10,9 +10,9 @@ struct test
     color c = color.green;
 }
 
-// CHECK: color.@kind is Enum
-// CHECK: color.@base is int8
-// CHECK: color.@items is 3
-// CHECK: color.red is 0
-// CHECK: color.green is 255
-// CHECK: test.c.@default is green
+// CHECK: color.@kind == Enum
+// CHECK: color.@base == int8
+// CHECK: color.@count == 3
+// CHECK: color.red.@value == 0
+// CHECK: color.green.@value == 255
+// CHECK: test.c.@default == color.green

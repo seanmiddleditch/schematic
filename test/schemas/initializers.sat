@@ -11,15 +11,15 @@ struct test
     embed second = { 4, c = 6 };
 }
 
-// CHECK: test.first.@type is embed
-// CHECK: test.first.@default.@type is embed
+// CHECK: test.first.@type == embed
+// CHECK: test.first.@default.@type == embed
 
-// CHECK: test.first.@fields is 3
-// CHECK: test.first.@default.a is 1
-// CHECK: test.first.@default.b is 2
-// CHECK: test.first.@default.c is -3
+// CHECK: test.first.@fields == 3
+// CHECK: test.first.@default.a == 1
+// CHECK: test.first.@default.b == 2
+// CHECK: test.first.@default.c == -3
 
-// CHECK: test.second.@type is-a embed
-// CHECK: test.second.@default.@fields is 2
-// CHECK: test.second.@default.a is 4
-// CHECK: test.second.@default.c is 6
+// CHECK: test.second.@type ~= embed
+// CHECK: test.second.@default.@fields == 2
+// CHECK: test.second.@default.a == 4
+// CHECK: test.second.@default.c == 6
