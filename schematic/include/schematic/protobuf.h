@@ -15,4 +15,4 @@ namespace potato::schematic
     [[nodiscard]] const Schema* ParseSchemaProto(ArenaAllocator& arena, const proto::Schema* proto);
 } // namespace potato::schematic
 
-#endif SCHEMATIC_PROTOBUF_H
+#endif // SCHEMATIC_PROTOBUF_H

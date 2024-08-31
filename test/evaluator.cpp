@@ -339,13 +339,13 @@ namespace potato::schematic::test
 
         switch (value->kind)
         {
-            case ValueKind::Array: std::unreachable();
+            case ValueKind::Array: break; // unreachable
             case ValueKind::Bool: return Evaluate(static_cast<const ValueBool*>(value)->value);
             case ValueKind::Enum: return Evaluate(static_cast<const ValueEnum*>(value)->item);
             case ValueKind::Float: return Evaluate(static_cast<const ValueFloat*>(value)->value);
             case ValueKind::Int: return Evaluate(static_cast<const ValueInt*>(value)->value);
             case ValueKind::Null: return Finish(nullptr);
-            case ValueKind::Object: std::unreachable();
+            case ValueKind::Object: break; // unreachable
             case ValueKind::String: return Evaluate(static_cast<const ValueString*>(value)->value);
             case ValueKind::Type: return Evaluate(static_cast<const ValueType*>(value)->type);
         }
