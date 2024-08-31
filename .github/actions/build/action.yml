@@ -1,0 +1,42 @@
+name: 'Build'
+description: Build and test a single configuration
+inputs:
+  cxx:
+    description: "C++ compiler"
+    required: true
+  build-dir:
+    description: "Build directory"
+    required: true
+  config:
+    description: "CMake configuration level"
+    default: Debug
+  cmake-args:
+    description: "Optional additional CMake arguments"
+    required: false
+  install-dir:
+    description: "Optional location to install; no installation if not provided"
+
+runs:
+  using: composite
+  steps:
+    - name: Configure
+      shell: bash
+      env:
+        CXX: ${{ inputs.cxx }}
+      run: |
+        mkdir -p "${{ inputs.build-dir }}"
+        cd "${{ inputs.build-dir }}"
+        cmake -G Ninja "-DCMAKE_BUILD_TYPE=${{ inputs.config }}" "-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" ${{ inputs.cmake-args }} "${{ github.workspace }}"
+
+    - name: Build the project
+      shell: bash
+      run: cmake --build "${{ inputs.build-dir }}"
+
+    - name: Test the project
+      shell: bash
+      run: ctest --no-tests=error --output-on-failure --test-dir "${{ inputs.build-dir }}"
+
+    - name: Install the project
+      if: inputs.install != ''
+      shell: bash
+      run: cmake --install "${{ inputs.build-dir }}" --prefix "${{ inputs.install }}"

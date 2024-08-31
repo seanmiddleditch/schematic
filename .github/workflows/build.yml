@@ -8,23 +8,9 @@ on:
   pull_request:
 
 jobs:
-  build-project:
-    strategy:
-      fail-fast: true
-      matrix:
-        cxx: [g++, clang++]
-        cmake-defines: [""]
-        lint: [true]
-        include:
-          - name: g++ (no protobuf)
-            cxx: g++
-            cmake-defines: "-DSCHEMATIC_PROTOBUF=NO -DSCHEMATIC_SCHEMAC=NO"
-            lint: false
-
-    name: Ubuntu ${{ matrix.name || matrix.cxx }}
+  build:
+    name: Build
     runs-on: ubuntu-latest
-    env:
-      CXX: ${{ matrix.cxx }}
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v4
@@ -39,35 +25,42 @@ jobs:
 
       - name: Vcpkg
         id: vcpkg
-        uses: seanmiddleditch/vcpkg-action@master
+        uses: johnwason/vcpkg-action@v6
         with:
           manifest-dir: ${{ github.workspace }}
           triplet: x64-linux
           revision: master
           token: ${{ github.token }}
+          github-binarycache: true
+          fetch-depth: 0
 
-      - name: Set environment
-        run: |
-          echo "BUILD=out/build/linux-debug" | tee -a "$GITHUB_ENV"
+      - name: Build g++
+        uses: ./.github/actions/build
+        with:
+          cxx: g++
+          config: Release
+          build-dir: out/g++-release
+          install: ${{ github.workspace }}/out/install
 
-      - name: Configure the project
-        run: |
-          mkdir out
-          cmake -G Ninja --preset linux-debug ${{ matrix.cmake-defines }} ${{ steps.vcpkg.outputs.vcpkg-cmake-config }}
+      - name: Build clang++
+        uses: ./.github/actions/build
+        with:
+          cxx: clang++
+          config: Debug
+          build-dir: out/clang++-debug
+          cmake-args: -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
-      - name: Build the project
-        run: cmake --build ${BUILD}
-
-      - name: Test the project
-        run: ctest --no-tests=error --output-on-failure --test-dir ${BUILD}
-
-      - name: Install the project
-        run: cmake --install ${BUILD}
+      - name: Build clang++ (no protobuf)
+        uses: ./.github/actions/build
+        with:
+          cxx: clang++
+          config: Debug
+          build-dir: out/clang++-release-noproto
+          cmake-args: -DSCHEMATIC_PROTOBUF=OFF
 
       - name: Lint changes
         uses: cpp-linter/cpp-linter-action@v2.12.1
         id: linter
-        if: ${{ matrix.lint }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -77,12 +70,12 @@ jobs:
           version: 18
           verbosity: 20
           ignore: out|vcpkg
-          database: ${{ env.BUILD }}
+          database: out/clang++debug
           extra-args: -std=c++23
           step-summary: true
 
       - name: Lint fail check
-        if: ${{ matrix.lint && steps.linter.outputs.checks-failed != 0}}
+        if: ${{ steps.linter.outputs.checks-failed != 0}}
         run: |
           echo "Some linter checks failed. (${{ steps.linter.outputs.checks-failed }})"
           exit 1
