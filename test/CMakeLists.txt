@@ -2,29 +2,34 @@ find_package(Catch2 CONFIG REQUIRED)
 
 include(CTest)
 include(Catch)
-include(test.cmake)
+include(cmake/test.cmake)
 
 add_executable(schematic_test)
 target_link_libraries(schematic_test schematic::schematic Catch2::Catch2WithMain)
 target_compile_features(schematic_test PRIVATE cxx_std_23)
-target_include_directories(schematic_test PRIVATE "${PROJECT_SOURCE_DIR}/schematic/source" "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(schematic_test PRIVATE
+    "${PROJECT_SOURCE_DIR}/schematic/source"
+    include
+)
 target_sources(schematic_test PRIVATE
-    "embed_tests.h"
+    "include/embed_tests.h"
+    "include/evaluator.h"
+    "include/test_context.h"
+    "include/test_matchers.h"
+    "include/test_strings.h"
+)
+target_sources(schematic_test PRIVATE
     "evaluator.cpp"
-    "evaluator.h"
-    "test_context.h"
-    "test_lexer.cpp"
-    "test_matchers.h"
-    $<$<BOOL:${SCHEMATIC_PROTOBUF}>:test_serializer.cpp>
-    "test_schemas.cpp"
-    "test_strings.h"
+    "lexer_tests.cpp"
+    $<$<BOOL:${SCHEMATIC_PROTOBUF}>:protobuf_tests.cpp>
+    "schema_tests.cpp"
 )
 catch_discover_tests(schematic_test)
 
 if(SCHEMATIC_SCHEMAC)
-    schematic_add_tests(IMPORT_DIR input/ TESTS
-        "input/test01.sat"
-        "input/test02.sat"
+    schematic_add_tests(IMPORT_DIR schemas/ TESTS
+        "schemas/complete.sat"
+        "schemas/message.sat"
     )
 endif()
 
