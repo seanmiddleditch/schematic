@@ -1,7 +1,7 @@
 {
  "modules": [
   {
-   "filename": "input/test02.sat",
+   "filename": "schemas/message.sat",
    "imports": [
     1
    ]
@@ -30,7 +30,7 @@
   },
   {
    "message": {
-    "name": "Test",
+    "name": "test",
     "module": 0,
     "annotations": [],
     "fields": [

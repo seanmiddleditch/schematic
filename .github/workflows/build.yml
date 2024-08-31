@@ -14,10 +14,12 @@ jobs:
       matrix:
         cxx: [g++, clang++]
         cmake-defines: [""]
+        lint: [true]
         include:
           - name: g++ (no protobuf)
             cxx: g++
             cmake-defines: "-DSCHEMATIC_PROTOBUF=NO -DSCHEMATIC_SCHEMAC=NO"
+            lint: false
 
     name: Ubuntu ${{ matrix.name || matrix.cxx }}
     runs-on: ubuntu-latest
@@ -65,6 +67,7 @@ jobs:
       - name: Lint changes
         uses: cpp-linter/cpp-linter-action@v2.12.1
         id: linter
+        if: ${{ matrix.lint }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -79,7 +82,7 @@ jobs:
           step-summary: true
 
       - name: Lint fail check
-        if: ${{ steps.linter.outputs.checks-failed != 0}}
+        if: ${{ matrix.lint && steps.linter.outputs.checks-failed != 0}}
         run: |
           echo "Some linter checks failed. (${{ steps.linter.outputs.checks-failed }})"
           exit 1

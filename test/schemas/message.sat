@@ -1,3 +1,12 @@
-message Test {
-    int32 field @1;
+message test {
+    string name @1;
+    int32 payload1 @7;
+    int32 payload2 @4096;
 }
+
+// CHECK: test.@kind == Message
+// CHECK: test.name.@type == string
+// CHECK: test.name.@proto == 1
+// CHECK: test.payload1.@type == int32
+// CHECK: test.payload1.@proto == 7
+// CHECK: test.payload2.@proto == 4096 (0x1000)

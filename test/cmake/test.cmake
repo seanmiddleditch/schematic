@@ -1,6 +1,6 @@
 include(CMakeParseArguments)
 
-find_program(DIFF_PATH NAMES diff fc DOC "diff utility for displaying test output mismatch context")
+find_program(DIFF_PATH REQUIRED NAMES diff fc DOC "diff utility for displaying test output mismatch context")
 
 function(schematic_add_tests)
     cmake_parse_arguments(ARG "" "IMPORT_DIR" "TESTS" ${ARGN})
@@ -13,13 +13,12 @@ function(schematic_add_tests)
             NAME schematic_test_${NAME}
             WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
             COMMAND ${CMAKE_COMMAND}
-                "-DEXE=$<TARGET_FILE:schematic::schemac>"
-                "-DACCEPT=${CMAKE_CURRENT_SOURCE_DIR}/accept"
-                "-DSEARCH=${IMPORT_DIR}"
-                "-DDIFF=${DIFF_PATH}"
-                "-DTEST=${TEST}"
-                "-DOUT=${CMAKE_CURRENT_BINARY_DIR}"
-                -P "${CMAKE_CURRENT_SOURCE_DIR}/driver.cmake"
+                "-DSCHEMAC_PATH=$<TARGET_FILE:schematic::schemac>"
+                "-DDIFF_PATH=${DIFF_PATH}"
+                "-DSEARCH_DIR=${IMPORT_DIR}"
+                "-DOUT_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+                "-DINPUT=${TEST}"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/driver.cmake"
         )
     endforeach()
 endfunction(schematic_add_tests)
@@ -41,9 +40,9 @@ function(schematic_embed_tests)
                 "-DNAME=${NAME}"
                 "-DSOURCE=${CMAKE_CURRENT_SOURCE_DIR}/${TEST}"
                 "-DOUTPUT=${OUTPUT}"
-                -P "${CMAKE_CURRENT_SOURCE_DIR}/embed.cmake"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed.cmake"
             MAIN_DEPENDENCY "${TEST}"
-            DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/embed.cmake"
+            DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed.cmake"
         )
 
         set(INCLUDES "${INCLUDES}#include \"embed_${NAME}.inc\"\n")

@@ -1,0 +1,188 @@
+{
+ "modules": [
+  {
+   "filename": "schemas/complete.sat",
+   "imports": [
+    1,
+    2
+   ]
+  },
+  {
+   "filename": "$builtins",
+   "imports": []
+  },
+  {
+   "filename": "schemas/sub/imported.sat",
+   "imports": []
+  }
+ ],
+ "types": [
+  {
+   "int": {
+    "name": "int32",
+    "module": 1,
+    "annotations": [],
+    "width": 32,
+    "signed": true
+   }
+  },
+  {
+   "float": {
+    "name": "float",
+    "module": 1,
+    "annotations": [],
+    "width": 32
+   }
+  },
+  {
+   "struct": {
+    "name": "struct",
+    "module": 0,
+    "annotations": [],
+    "fields": [
+     {
+      "name": "i32",
+      "type": 0,
+      "annotations": [],
+      "default": {
+       "int": {
+        "value": "-7"
+       }
+      }
+     },
+     {
+      "name": "f32",
+      "type": 1,
+      "annotations": [],
+      "default": {
+       "float": {
+        "value": 1e-07
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "struct": {
+    "name": "base",
+    "module": 2,
+    "annotations": [],
+    "fields": []
+   }
+  },
+  {
+   "nullable": {
+    "name": "string?",
+    "module": 0,
+    "annotations": [],
+    "type": 7
+   }
+  },
+  {
+   "bool": {
+    "name": "bool",
+    "module": 1,
+    "annotations": []
+   }
+  },
+  {
+   "struct": {
+    "name": "derived",
+    "module": 0,
+    "annotations": [],
+    "fields": [
+     {
+      "name": "opt",
+      "type": 4,
+      "annotations": [],
+      "default": {
+       "null": {}
+      }
+     },
+     {
+      "name": "flag",
+      "type": 5,
+      "annotations": [],
+      "default": {
+       "bool": {
+        "value": false
+       }
+      }
+     },
+     {
+      "name": "s",
+      "type": 2,
+      "annotations": [],
+      "default": {
+       "object": {
+        "type": 2,
+        "arguments": [
+         {
+          "field": "i32",
+          "value": {
+           "int": {
+            "value": "6"
+           }
+          }
+         },
+         {
+          "field": "f32",
+          "value": {
+           "int": {
+            "value": "0"
+           }
+          }
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "base": 3
+   }
+  },
+  {
+   "string": {
+    "name": "string",
+    "module": 1,
+    "annotations": []
+   }
+  },
+  {
+   "array": {
+    "name": "string[]",
+    "module": 0,
+    "annotations": [],
+    "element": 7
+   }
+  },
+  {
+   "message": {
+    "name": "command",
+    "module": 0,
+    "annotations": [],
+    "fields": [
+     {
+      "name": "ids",
+      "type": 8,
+      "annotations": [],
+      "proto": 1
+     },
+     {
+      "name": "var",
+      "type": 0,
+      "annotations": [],
+      "default": {
+       "int": {
+        "value": "7"
+       }
+      },
+      "proto": 2
+     }
+    ]
+   }
+  }
+ ],
+ "root": 0
+}

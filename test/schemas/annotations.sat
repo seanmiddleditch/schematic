@@ -1,17 +1,22 @@
-attribute Ignore;
-attribute Name { string first; int32 second; int32 third = 7; }
-attribute More {}
-attribute Reference { $type type; }
+attribute ignore;
+attribute name { string first; int32 second; int32 third = 7; }
+attribute reference { $type type; }
 
-[Ignore, Name("Toby", second = -2) ]
-[More()]
+[ignore, name("Toby", second = -2)]
+[reference(int32)]
 struct test
 {
-    [Ignore] int32 field;
+    [ignore] int32 field;
 }
 
-[Reference(test)]
+[reference(test)]
 enum enum
 {
-    [Ignore] item
+    [ignore, name("Item")] item
 }
+
+// CHECK: ignore.@kind == Attribute
+// CHECK: name.second == int32
+// CHECK: test.@annotations.name.first == "Toby"
+// CHECK: test.@annotations.reference.type == int32
+// CHECK: enum.item.@annotations.name.first == "Item"

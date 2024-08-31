@@ -7,3 +7,12 @@ struct test : base
     float zero = .0;
     float thousand = 1.0e3;
 }
+
+// CHECK: base.@kind == Struct
+// CHECK: test.@kind == Struct
+// CHECK: test ~= base
+// CHECK: test.@fields == 4
+// CHECK: test.num.@default == 42
+// CHECK: test.b.@default == true
+// CHECK: test.zero.@default == 0.0
+// CHECK: test.thousand.@default == 1000.0
