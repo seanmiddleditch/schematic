@@ -40,7 +40,7 @@ jobs:
           cxx: g++
           config: Release
           build-dir: out/g++-release
-          install: ${{ github.workspace }}/out/install
+          install-dir: ${{ github.workspace }}/out/install
 
       - name: Build clang++
         uses: ./.github/actions/build

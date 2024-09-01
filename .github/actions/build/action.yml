@@ -37,6 +37,6 @@ runs:
       run: ctest --no-tests=error --output-on-failure --test-dir "${{ inputs.build-dir }}"
 
     - name: Install the project
-      if: inputs.install != ''
+      if: inputs.install-dir != ''
       shell: bash
-      run: cmake --install "${{ inputs.build-dir }}" --prefix "${{ inputs.install }}"
+      run: cmake --install "${{ inputs.build-dir }}" --prefix "${{ inputs.install-dir }}"
