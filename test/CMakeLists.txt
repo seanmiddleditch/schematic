@@ -35,6 +35,8 @@ endif()
 
 schematic_embed_tests(TARGET schematic_test TESTS
     "schemas/annotations.sat"
+    "schemas/array.sat"
+    "schemas/builtin.sat"
     "schemas/complete.sat"
     "schemas/enum.sat"
     "schemas/fail/duplicates.sat"

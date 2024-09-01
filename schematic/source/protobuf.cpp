@@ -259,8 +259,7 @@ void Serializer::Serialize(proto::Type::Array& out, const TypeArray& in)
     SerializeTypeCommon(out, in);
 
     out.set_element(IndexOfType(in.type));
-    if (in.isFixed)
-        out.set_size(in.size);
+    out.set_size(in.size);
 }
 
 void Serializer::Serialize(proto::Type::String& out, const TypeString& in)
@@ -668,10 +667,7 @@ void Deserializer::Deserialize(TypeArray& out, const proto::Type::Array& in)
 {
     DeserializeTypeCommon(out, in);
     if (in.has_size())
-    {
-        out.isFixed = true;
         out.size = in.size();
-    }
 
     if (VERIFY_INDEX(types_, in.element()))
         out.type = types_[in.element()];

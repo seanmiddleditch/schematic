@@ -1,0 +1,33 @@
+struct test
+{
+    bool bool;
+    int8 int8;
+    uint8 uint8;
+    int16 int16;
+    uint16 uint16;
+    int32 int32;
+    uint32 uint32;
+    int64 int64;
+    uint64 uint64;
+    float32 float32;
+    float64 float64;
+    string string;
+}
+
+// CHECK: bool.@kind == Bool
+
+// CHECK: int32.@kind == Int
+// CHECK: int32.@width == 32
+// CHECK: int32.@signed == true
+
+// CHECK: uint64.@kind == Int
+// CHECK: uint64.@width == 64
+// CHECK: uint64.@signed == false
+
+// CHECK: float32.@kind == Float
+// CHECK: float32.@width == 32
+
+// CHECK: float64.@kind == Float
+// CHECK: float64.@width == 64
+
+// CHECK: string.@kind == String

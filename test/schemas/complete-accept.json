@@ -28,7 +28,7 @@
   },
   {
    "float": {
-    "name": "float",
+    "name": "float32",
     "module": 1,
     "annotations": [],
     "width": 32

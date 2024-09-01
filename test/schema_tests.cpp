@@ -18,8 +18,6 @@ using namespace potato::schematic::test;
 TEST_CASE("Schemas", "[potato][schematic]")
 {
     TestContext ctx;
-    ctx.reportErrors = false;
-
     ArenaAllocator arena;
     Compiler compiler(ctx, arena);
     compiler.SetUseBuiltins(true);
@@ -52,6 +50,9 @@ TEST_CASE("Schemas", "[potato][schematic]")
                         checks.emplace_back(line.substr(check_pos + std::strlen(check_prefix)), test.name, number);
                 }
             }
+
+            if (!expected_errors.empty())
+                ctx.reportErrors = false;
 
             const Schema* const schema = compiler.Compile(ModuleId{ i });
 

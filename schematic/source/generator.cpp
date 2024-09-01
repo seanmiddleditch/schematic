@@ -220,8 +220,8 @@ const Module* Generator::CreateBuiltins()
     AddInt("int64", std::int64_t{});
     AddInt("uint64", std::uint64_t{});
 
-    AddFloat("float", float{});
-    AddFloat("double", double{});
+    AddFloat("float32", float{});
+    AddFloat("float64", double{});
 
     stack.PopBack();
     return builtins;
@@ -658,15 +658,14 @@ const Type* Generator::Resolve(const AstNodeType* type)
         if (inner == nullptr)
             return nullptr;
 
-        const char* const name = arena.NewString(fmt::format("{}[]", inner->name));
+        const char* const name = array->size == nullptr
+            ? arena.NewString(fmt::format("{}[]", inner->name))
+            : arena.NewString(fmt::format("{}[{}]", inner->name, array->size->value));
         TypeArray* const type = AddType<TypeArray>(array->tokenIndex, name);
         type->type = inner;
 
         if (array->size != nullptr)
-        {
-            type->isFixed = true;
             type->size = array->size->value;
-        }
 
         return type;
     }

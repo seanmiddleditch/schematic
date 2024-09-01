@@ -1,0 +1,9 @@
+struct type
+{
+    int32[] dynamic = { -10, 20 };
+    int32[3] fixed = { 1, 2, 3 };
+}
+
+// CHECK: type.dynamic.@type == int32[]
+// CHECK: type.fixed.@type == int32[3]
+// CHECK: type.fixed.@size == 3
