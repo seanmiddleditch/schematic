@@ -220,8 +220,8 @@ const Module* Generator::CreateBuiltins()
     AddInt("int64", std::int64_t{});
     AddInt("uint64", std::uint64_t{});
 
-    AddFloat("float", float{});
-    AddFloat("double", double{});
+    AddFloat("float32", float{});
+    AddFloat("float64", double{});
 
     stack.PopBack();
     return builtins;
@@ -308,6 +308,7 @@ void Generator::BuildEnum(const AstNodeEnumDecl& ast)
         EnumItem& item = items.EmplaceBack(arena);
         item.owner = type;
         item.name = ast_item->name.name;
+        item.line = TokenLine(ast_item->tokenIndex);
         if (IsReserved(item.name))
             Error(ast_item->name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", item.name);
         if (ast_item->value != nullptr)
@@ -345,8 +346,9 @@ void Generator::BuildFields(std::span<const Field>& out, const Type* owner, Arra
 
         Field& field = temp.EmplaceBack(arena);
         field.owner = owner;
-        field.type = Resolve(ast_field->type);
         field.name = ast_field->name.name;
+        field.type = Resolve(ast_field->type);
+        field.line = TokenLine(ast_field->tokenIndex);
         if (IsReserved(field.name))
             Error(ast_field->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", field.name);
         if (ast_field->proto != nullptr)
@@ -375,12 +377,13 @@ void Generator::BuildAnnotations(std::span<const Annotation* const>& out, Array<
             continue;
         }
 
-        Annotation* const attr = arena.New<Annotation>();
-        temp.PushBack(arena, attr);
+        Annotation* const annotation = arena.New<Annotation>();
+        temp.PushBack(arena, annotation);
 
-        attr->attribute = attrType;
+        annotation->attribute = attrType;
+        annotation->line = astAttr->tokenIndex;
 
-        BuildArguments(attr->arguments, attrType, attrType->fields, nullptr, astAttr->arguments);
+        BuildArguments(annotation->arguments, attrType, attrType->fields, nullptr, astAttr->arguments);
     }
 
     out = temp;
@@ -441,7 +444,7 @@ void Generator::BuildArguments(std::span<const Argument>& out, const Type* type,
 
             const Value* const value = BuildExpression(field->type, *named->value);
 
-            temp.PushBack(arena, Argument{ .field = field, .value = value });
+            temp.PushBack(arena, Argument{ .field = field, .value = value, .line = TokenLine(named->tokenIndex) });
         }
         else if (hasNamed)
         {
@@ -469,7 +472,7 @@ void Generator::BuildArguments(std::span<const Argument>& out, const Type* type,
         {
             const Field& field = fields[index++];
             const Value* const value = BuildExpression(field.type, *elem);
-            temp.PushBack(arena, Argument{ .field = &field, .value = value });
+            temp.PushBack(arena, Argument{ .field = &field, .value = value, .line = TokenLine(elem->tokenIndex) });
         }
     }
 
@@ -480,6 +483,7 @@ const ValueBool* Generator::BuildBool(const AstNodeLiteralBool& lit)
 {
     ValueBool* const value = arena.New<ValueBool>();
     value->value = lit.value;
+    value->line = TokenLine(lit.tokenIndex);
     return value;
 }
 
@@ -487,6 +491,7 @@ const ValueInt* Generator::BuildInteger(const AstNodeLiteralInt& lit)
 {
     ValueInt* const value = arena.New<ValueInt>();
     value->value = lit.value;
+    value->line = TokenLine(lit.tokenIndex);
     return value;
 }
 
@@ -494,6 +499,14 @@ const ValueFloat* Generator::BuildFloat(const AstNodeLiteralFloat& lit)
 {
     ValueFloat* const value = arena.New<ValueFloat>();
     value->value = lit.value;
+    value->line = TokenLine(lit.tokenIndex);
+    return value;
+}
+
+const ValueNull* Generator::BuildNull(const AstNodeLiteralNull& lit)
+{
+    ValueNull* const value = arena.New<ValueNull>();
+    value->line = TokenLine(lit.tokenIndex);
     return value;
 }
 
@@ -501,6 +514,7 @@ const ValueString* Generator::BuildString(const AstNodeLiteralString& lit)
 {
     ValueString* const value = arena.New<ValueString>();
     value->value = lit.value;
+    value->line = TokenLine(lit.tokenIndex);
     return value;
 }
 
@@ -514,10 +528,10 @@ const Value* Generator::BuildExpression(const Type* type, const AstNode& expr)
             return BuildInteger(*expr.CastTo<AstNodeLiteralInt>());
         case AstNodeKind::LiteralFloat:
             return BuildFloat(*expr.CastTo<AstNodeLiteralFloat>());
+        case AstNodeKind::LiteralNull:
+            return BuildNull(*expr.CastTo<AstNodeLiteralNull>());
         case AstNodeKind::LiteralString:
             return BuildString(*expr.CastTo<AstNodeLiteralString>());
-        case AstNodeKind::LiteralNull:
-            return arena.New<ValueNull>();
         case AstNodeKind::QualifiedId:
             return BuildQualifiedId(*expr.CastTo<AstNodeQualifiedId>());
         case AstNodeKind::InitializerList:
@@ -541,6 +555,7 @@ const Value* Generator::BuildQualifiedId(const AstNodeQualifiedId& id)
         {
             ValueType* value = arena.New<ValueType>();
             value->type = type;
+            value->line = TokenLine(id.tokenIndex);
             return value;
         }
     }
@@ -577,6 +592,7 @@ const Value* Generator::BuildQualifiedId(const AstNodeQualifiedId& id)
 
     ValueEnum* enumValue = arena.New<ValueEnum>();
     enumValue->item = enumItem;
+    enumValue->line = TokenLine(id.tokenIndex);
     return enumValue;
 }
 
@@ -584,6 +600,7 @@ const ValueArray* Generator::BuildArray(const Type* type, const AstNodeInitializ
 {
     ValueArray* const value = arena.New<ValueArray>();
     value->type = type;
+    value->line = TokenLine(expr.tokenIndex);
 
     Array elements = arena.NewArray<const Value*>(expr.elements.Size());
 
@@ -601,19 +618,20 @@ const ValueArray* Generator::BuildArray(const Type* type, const AstNodeInitializ
 
 const ValueObject* Generator::BuildObject(const TypeStruct* type, const AstNodeInitializerList& expr)
 {
-    ValueObject* const obj = arena.New<ValueObject>();
-    obj->type = type;
+    ValueObject* const value = arena.New<ValueObject>();
+    value->type = type;
+    value->line = TokenLine(expr.tokenIndex);
 
     if (expr.type.parts)
     {
-        obj->type = Resolve(expr.type);
-        if (obj->type != nullptr && !IsA(obj->type, type))
-            Error(expr.tokenIndex, "Type is not compatible: {}", obj->type->name);
+        value->type = Resolve(expr.type);
+        if (value->type != nullptr && !IsA(value->type, type))
+            Error(expr.tokenIndex, "Type is not compatible: {}", value->type->name);
     }
 
-    BuildArguments(obj->fields, type, type->fields, type->base, expr.elements);
+    BuildArguments(value->fields, type, type->fields, type->base, expr.elements);
 
-    return obj;
+    return value;
 }
 
 const Type* Generator::Resolve(const AstQualifiedName& name)
@@ -658,15 +676,14 @@ const Type* Generator::Resolve(const AstNodeType* type)
         if (inner == nullptr)
             return nullptr;
 
-        const char* const name = arena.NewString(fmt::format("{}[]", inner->name));
+        const char* const name = array->size == nullptr
+            ? arena.NewString(fmt::format("{}[]", inner->name))
+            : arena.NewString(fmt::format("{}[{}]", inner->name, array->size->value));
         TypeArray* const type = AddType<TypeArray>(array->tokenIndex, name);
         type->type = inner;
 
         if (array->size != nullptr)
-        {
-            type->isFixed = true;
             type->size = array->size->value;
-        }
 
         return type;
     }
@@ -718,7 +735,7 @@ void Generator::Error(std::uint32_t tokenIndex, fmt::format_string<Args...> form
         const Token& token = stack.Back()->tokens[tokenIndex];
 
         const std::string_view source = ctx.ReadFileContents(stack.Back()->moduleId);
-        ctx.Error(stack.Back()->moduleId, FindRange(source, token.offset, token.length), fmt::vformat(format, fmt::make_format_args(args...)));
+        ctx.Error(stack.Back()->moduleId, FindRange(source, token), fmt::vformat(format, fmt::make_format_args(args...)));
     }
     else
     {
@@ -729,18 +746,28 @@ void Generator::Error(std::uint32_t tokenIndex, fmt::format_string<Args...> form
 template <typename T>
 T* Generator::AddType(std::uint32_t tokenIndex, const char* name)
 {
-    if (const Type* const previous = FindType(stack.Back()->mod, name); previous != nullptr)
+    State* const state = stack.Back();
+
+    if (const Type* const previous = FindType(state->mod, name); previous != nullptr)
     {
         Error(tokenIndex, "Type already defined: {}", name);
         return nullptr;
     }
 
     T* const type = arena.New<T>();
-    State* const state = stack.Back();
     state->types.PushBack(arena, type);
     state->mod->types = state->types;
     type->name = name;
-    type->owner = stack.Back()->mod;
+    type->owner = state->mod;
+    type->line = TokenLine(tokenIndex);
 
     return type;
+}
+
+std::uint16_t Generator::TokenLine(std::uint32_t tokenIndex) const noexcept
+{
+    const State* const state = stack.Back();
+    if (tokenIndex >= state->tokens.Size())
+        return 0;
+    return state->tokens[tokenIndex].line;
 }

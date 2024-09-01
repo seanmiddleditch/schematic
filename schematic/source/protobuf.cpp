@@ -44,6 +44,8 @@ namespace
 
         template <typename T>
         void SerializeTypeCommon(T& out, const Type& in);
+        template <typename T>
+        void SerializeValueCommon(T& out, const Value& in);
 
         void Serialize(proto::Value& out, const Value& in);
         void Serialize(proto::Value::Array& out, const ValueArray& in);
@@ -91,6 +93,8 @@ namespace
 
         template <typename T>
         void DeserializeTypeCommon(Type& out, const T& in);
+        template <typename T>
+        void DeserializeValueCommon(Value& out, const T& in);
 
         Value* Deserialize(const proto::Value& in);
         ValueObject* Deserialize(const proto::Value::Object& in);
@@ -259,8 +263,7 @@ void Serializer::Serialize(proto::Type::Array& out, const TypeArray& in)
     SerializeTypeCommon(out, in);
 
     out.set_element(IndexOfType(in.type));
-    if (in.isFixed)
-        out.set_size(in.size);
+    out.set_size(in.size);
 }
 
 void Serializer::Serialize(proto::Type::String& out, const TypeString& in)
@@ -279,6 +282,7 @@ void Serializer::Serialize(proto::Type::Enum& out, const TypeEnum& in)
     {
         proto::EnumItem& out_item = *out.add_items();
         out_item.set_name(item.name);
+        out_item.set_line(item.line);
         if (item.value != nullptr)
             out_item.set_value(item.value->value);
 
@@ -328,6 +332,7 @@ void Serializer::SerializeField(proto::Field& out, const Field& in)
 {
     out.set_name(in.name);
     out.set_type(IndexOfType(in.type));
+    out.set_line(in.line);
 
     if (in.proto != 0)
         out.set_proto(in.proto);
@@ -347,6 +352,14 @@ void Serializer::SerializeTypeCommon(T& out, const Type& in)
 
     for (const Annotation* const annotation : in.annotations)
         Serialize(*out.add_annotations(), *annotation);
+
+    out.set_line(in.line);
+}
+
+template <typename T>
+void Serializer::SerializeValueCommon(T& out, const Value& in)
+{
+    out.set_line(in.line);
 }
 
 void Serializer::Serialize(proto::Value& out, const Value& in)
@@ -386,12 +399,14 @@ void Serializer::Serialize(proto::Value& out, const Value& in)
 
 void Serializer::Serialize(proto::Value::Object& out, const ValueObject& in)
 {
+    SerializeValueCommon(out, in);
     out.set_type(IndexOfType(in.type));
 
     for (const Argument& arg : in.fields)
     {
         proto::Argument& out_arg = *out.add_arguments();
         out_arg.set_field(arg.field->name);
+        out_arg.set_line(arg.line);
 
         if (arg.value != nullptr)
             Serialize(*out_arg.mutable_value(), *arg.value);
@@ -400,26 +415,31 @@ void Serializer::Serialize(proto::Value::Object& out, const ValueObject& in)
 
 void Serializer::Serialize(proto::Value::Bool& out, const ValueBool& in)
 {
+    SerializeValueCommon(out, in);
     out.set_value(in.value);
 }
 
 void Serializer::Serialize(proto::Value::Int& out, const ValueInt& in)
 {
+    SerializeValueCommon(out, in);
     out.set_value(in.value);
 }
 
 void Serializer::Serialize(proto::Value::Float& out, const ValueFloat& in)
 {
+    SerializeValueCommon(out, in);
     out.set_value(in.value);
 }
 
 void Serializer::Serialize(proto::Value::String& out, const ValueString& in)
 {
+    SerializeValueCommon(out, in);
     out.set_value(in.value);
 }
 
 void Serializer::Serialize(proto::Value::Array& out, const ValueArray& in)
 {
+    SerializeValueCommon(out, in);
     out.set_type(IndexOfType(in.type));
 
     for (const Value* const value : in.elements)
@@ -428,6 +448,7 @@ void Serializer::Serialize(proto::Value::Array& out, const ValueArray& in)
 
 void Serializer::Serialize(proto::Value::Enum& out, const ValueEnum& in)
 {
+    SerializeValueCommon(out, in);
     if (in.item != nullptr)
     {
         out.set_type(IndexOfType(in.item->owner));
@@ -447,21 +468,25 @@ void Serializer::Serialize(proto::Value::Enum& out, const ValueEnum& in)
 
 void Serializer::Serialize(proto::Value::Type& out, const ValueType& in)
 {
+    SerializeValueCommon(out, in);
     out.set_type(IndexOfType(in.type));
 }
 
 void Serializer::Serialize(proto::Value::Null& out, const ValueNull& in)
 {
+    SerializeValueCommon(out, in);
 }
 
 void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
 {
     out.set_attribute(IndexOfType(in.attribute));
+    out.set_line(in.line);
 
     for (const Argument& arg : in.arguments)
     {
         proto::Argument& out_arg = *out.add_arguments();
         out_arg.set_field(arg.field->name);
+        out_arg.set_line(arg.line);
 
         if (arg.value != nullptr)
             Serialize(*out_arg.mutable_value(), *arg.value);
@@ -668,10 +693,7 @@ void Deserializer::Deserialize(TypeArray& out, const proto::Type::Array& in)
 {
     DeserializeTypeCommon(out, in);
     if (in.has_size())
-    {
-        out.isFixed = true;
         out.size = in.size();
-    }
 
     if (VERIFY_INDEX(types_, in.element()))
         out.type = types_[in.element()];
@@ -702,6 +724,7 @@ void Deserializer::Deserialize(TypeEnum& out, const proto::Type::Enum& in)
         EnumItem& out_item = items.EmplaceBack(arena_);
         out_item.name = arena_.NewString(item.name());
         out_item.owner = &out;
+        out_item.line = item.line();
 
         ValueInt* const value = arena_.New<ValueInt>();
         value->value = item.value();
@@ -755,6 +778,7 @@ void Deserializer::DeserializeField(Field& out, const Type* owner, const proto::
 {
     out.name = arena_.NewString(in.name());
     out.owner = owner;
+    out.line = in.line();
 
     if (in.has_proto())
         out.proto = in.proto();
@@ -781,6 +805,14 @@ void Deserializer::DeserializeTypeCommon(Type& out, const T& in)
         annotations.PushBack(arena_, out_anno);
     }
     out.annotations = annotations;
+
+    out.line = in.line();
+}
+
+template <typename T>
+void Deserializer::DeserializeValueCommon(Value& out, const T& in)
+{
+    out.line = in.line();
 }
 
 Value* Deserializer::Deserialize(const proto::Value& in)
@@ -803,6 +835,8 @@ Value* Deserializer::Deserialize(const proto::Value& in)
 ValueObject* Deserializer::Deserialize(const proto::Value::Object& in)
 {
     ValueObject* const value = arena_.New<ValueObject>();
+    DeserializeValueCommon(*value, in);
+
     if (VERIFY_INDEX(types_, in.type()))
         value->type = types_[in.type()];
 
@@ -816,6 +850,7 @@ ValueObject* Deserializer::Deserialize(const proto::Value::Object& in)
     for (const proto::Argument& arg : in.arguments())
     {
         Argument& out_arg = args.EmplaceBack(arena_);
+        out_arg.line = arg.line();
         out_arg.field = FindField(static_cast<const TypeStruct*>(value->type), arg.field());
         if (arg.has_value())
             out_arg.value = Deserialize(arg.value());
@@ -827,6 +862,7 @@ ValueObject* Deserializer::Deserialize(const proto::Value::Object& in)
 ValueBool* Deserializer::Deserialize(const proto::Value::Bool& in)
 {
     ValueBool* const value = arena_.New<ValueBool>();
+    DeserializeValueCommon(*value, in);
     value->value = in.value();
     return value;
 }
@@ -834,6 +870,7 @@ ValueBool* Deserializer::Deserialize(const proto::Value::Bool& in)
 ValueInt* Deserializer::Deserialize(const proto::Value::Int& in)
 {
     ValueInt* const value = arena_.New<ValueInt>();
+    DeserializeValueCommon(*value, in);
     value->value = in.value();
     return value;
 }
@@ -841,6 +878,7 @@ ValueInt* Deserializer::Deserialize(const proto::Value::Int& in)
 ValueFloat* Deserializer::Deserialize(const proto::Value::Float& in)
 {
     ValueFloat* const value = arena_.New<ValueFloat>();
+    DeserializeValueCommon(*value, in);
     value->value = in.value();
     return value;
 }
@@ -848,6 +886,7 @@ ValueFloat* Deserializer::Deserialize(const proto::Value::Float& in)
 ValueString* Deserializer::Deserialize(const proto::Value::String& in)
 {
     ValueString* const value = arena_.New<ValueString>();
+    DeserializeValueCommon(*value, in);
     value->value = arena_.NewString(in.value());
     return value;
 }
@@ -855,6 +894,7 @@ ValueString* Deserializer::Deserialize(const proto::Value::String& in)
 ValueArray* Deserializer::Deserialize(const proto::Value::Array& in)
 {
     ValueArray* const value = arena_.New<ValueArray>();
+    DeserializeValueCommon(*value, in);
     Array<Value*> elements = arena_.NewArray<Value*>(in.elements_size());
     for (const proto::Value& element : in.elements())
         elements.PushBack(arena_, Deserialize(element));
@@ -865,6 +905,7 @@ ValueArray* Deserializer::Deserialize(const proto::Value::Array& in)
 ValueEnum* Deserializer::Deserialize(const proto::Value::Enum& in)
 {
     ValueEnum* const value = arena_.New<ValueEnum>();
+    DeserializeValueCommon(*value, in);
     if (VERIFY_INDEX(types_, in.type()) && VERIFY(types_[in.type()]->kind == TypeKind::Enum))
     {
         const TypeEnum* const enum_ = static_cast<const TypeEnum*>(types_[in.type()]);
@@ -876,12 +917,16 @@ ValueEnum* Deserializer::Deserialize(const proto::Value::Enum& in)
 
 ValueType* Deserializer::Deserialize(const proto::Value::Type& in)
 {
-    return arena_.New<ValueType>();
+    ValueType* const value = arena_.New<ValueType>();
+    DeserializeValueCommon(*value, in);
+    return value;
 }
 
 ValueNull* Deserializer::Deserialize(const proto::Value::Null& in)
 {
-    return arena_.New<ValueNull>();
+    ValueNull* const value = arena_.New<ValueNull>();
+    DeserializeValueCommon(*value, in);
+    return value;
 }
 
 void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
@@ -894,11 +939,15 @@ void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
     for (const proto::Argument& arg : in.arguments())
     {
         Argument& out_arg = args.EmplaceBack(arena_);
+        out_arg.line = arg.line();
         out_arg.field = FindField(out.attribute, arg.field());
         if (arg.has_value())
             out_arg.value = Deserialize(arg.value());
+        out_arg.line = arg.line();
     }
     out.arguments = args;
+
+    out.line = in.line();
 }
 
 void Deserializer::ReportVerifyFailure(const char* message)

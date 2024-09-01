@@ -251,30 +251,14 @@ namespace potato::schematic::test
         if (Match("@annotations"))
             return Evaluate(type->annotations);
 
-        if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
+        if (const TypeArray* array = CastTo<TypeArray>(type); array != nullptr)
         {
-            if (Match("@base"))
-                return Evaluate(static_cast<const Type*>(struct_->base));
-            if (Match("@fields"))
-                return Evaluate(struct_->fields.size());
-
-            for (const Field& field : struct_->fields)
-            {
-                if (Match(field.name))
-                    return Evaluate(&field);
-            }
+            if (Match("@element"))
+                return Evaluate(array->type);
+            if (Match("@size"))
+                return Evaluate(array->size);
         }
-        else if (const TypeMessage* message = CastTo<TypeMessage>(type); message != nullptr)
-        {
-            if (Match("@fields"))
-                return Evaluate(message->fields.size());
 
-            for (const Field& field : message->fields)
-            {
-                if (Match(field.name))
-                    return Evaluate(&field);
-            }
-        }
         else if (const TypeAttribute* attr = CastTo<TypeAttribute>(type); attr != nullptr)
         {
             if (Match("@fields"))
@@ -286,6 +270,7 @@ namespace potato::schematic::test
                     return Evaluate(&field);
             }
         }
+
         else if (const TypeEnum* enum_ = CastTo<TypeEnum>(type); enum_ != nullptr)
         {
             if (Match("@base"))
@@ -297,6 +282,52 @@ namespace potato::schematic::test
             {
                 if (Match(item.name))
                     return Evaluate(&item);
+            }
+        }
+
+        else if (const TypeFloat* float_ = CastTo<TypeFloat>(type); float_ != nullptr)
+        {
+            if (Match("@width"))
+                return Evaluate(float_->width);
+        }
+
+        else if (const TypeInt* int_ = CastTo<TypeInt>(type); int_ != nullptr)
+        {
+            if (Match("@width"))
+                return Evaluate(int_->width);
+            if (Match("@signed"))
+                return Evaluate(int_->isSigned);
+        }
+
+        else if (const TypeMessage* message = CastTo<TypeMessage>(type); message != nullptr)
+        {
+            if (Match("@fields"))
+                return Evaluate(message->fields.size());
+
+            for (const Field& field : message->fields)
+            {
+                if (Match(field.name))
+                    return Evaluate(&field);
+            }
+        }
+
+        else if (const TypePointer* pointer = CastTo<TypePointer>(type); pointer != nullptr)
+        {
+            if (Match("@type"))
+                return Evaluate(pointer->type);
+        }
+
+        else if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
+        {
+            if (Match("@base"))
+                return Evaluate(static_cast<const Type*>(struct_->base));
+            if (Match("@fields"))
+                return Evaluate(struct_->fields.size());
+
+            for (const Field& field : struct_->fields)
+            {
+                if (Match(field.name))
+                    return Evaluate(&field);
             }
         }
 

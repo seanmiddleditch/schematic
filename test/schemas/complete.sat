@@ -2,7 +2,7 @@ import "sub/imported.sat";
 
 struct struct {
     int32 i32 = -7;
-    float f32 = 1.0e-7;
+    float32 f32 = 1.0e-7;
 }
 
 struct derived : base {

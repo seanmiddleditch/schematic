@@ -80,57 +80,64 @@ namespace potato::schematic
     {
         const Field* field = nullptr;
         const Value* value = nullptr;
+        std::uint16_t line = 0; // if non-zero, the line within the owner module of the value
     };
 
     struct Annotation
     {
         const TypeAttribute* attribute = nullptr;
         Span<Argument> arguments;
+        std::uint16_t line = 0; // if non-zero, the line within owner module of the owner type
     };
 
     struct EnumItem
     {
-        const char* name = nullptr;
-        const TypeEnum* owner = nullptr;
-        const ValueInt* value = nullptr;
         Span<const Annotation*> annotations;
+        const char* name = nullptr;
+        const ValueInt* value = nullptr;
+        const TypeEnum* owner = nullptr;
+        std::uint16_t line = 0; // if non-zero, the line within the owner module of the owner enum
     };
 
     struct Field
     {
+        Span<const Annotation*> annotations;
         const char* name = nullptr;
         const Type* owner = nullptr;
         const Type* type = nullptr;
         const Value* value = nullptr;
         std::uint32_t proto = 0;
-        Span<const Annotation*> annotations;
+        std::uint16_t line = 0; // if non-zero, the line within the owner module of the owner type
     };
 
     struct Module
     {
-        const char* filename = nullptr;
         Span<const Module*> imports;
         Span<const Type*> types;
+        const char* filename = nullptr;
     };
 
     struct Schema
     {
-        const Module* root = nullptr;
         Span<const Module*> modules;
         Span<const Type*> types;
+        const Module* root = nullptr;
     };
 
     struct Type
     {
-        TypeKind kind = TypeKind::Bool;
+        Span<const Annotation*> annotations;
         const char* name = nullptr;
         const Module* owner = nullptr;
-        Span<const Annotation*> annotations;
+        TypeKind kind = TypeKind::Bool;
+        std::uint16_t line = 0; // if non-zero, the line within the owner module of the declaration
     };
 
     struct Value
     {
         ValueKind kind = ValueKind::Null;
+        const Module* owner = nullptr;
+        std::uint16_t line = 0; // if non-zero, the line within the owner module
     };
 
 #define SCHEMATIC_TYPE(KIND) \
@@ -142,8 +149,7 @@ namespace potato::schematic
         SCHEMATIC_TYPE(Array);
 
         const Type* type = nullptr;
-        bool isFixed = false;
-        std::uint32_t size = 0; // only non-zero if isFixed is true
+        std::uint32_t size = 0; // if non-zero, array if of a fixed size; otherwise dynamically-sized
     };
 
     struct TypeAttribute : Type
@@ -211,8 +217,8 @@ namespace potato::schematic
     {
         SCHEMATIC_TYPE(Struct);
 
-        const TypeStruct* base = nullptr;
         Span<Field> fields;
+        const TypeStruct* base = nullptr;
     };
 
     struct TypeType : Type
@@ -230,8 +236,8 @@ namespace potato::schematic
     {
         SCHEMATIC_VALUE(Array);
 
-        const Type* type = nullptr;
         Span<const Value*> elements;
+        const Type* type = nullptr;
     };
 
     struct ValueBool : Value
@@ -271,8 +277,8 @@ namespace potato::schematic
     {
         SCHEMATIC_VALUE(Object);
 
-        const Type* type = nullptr;
         Span<Argument> fields;
+        const Type* type = nullptr;
     };
 
     struct ValueString : Value

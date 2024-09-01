@@ -21,12 +21,14 @@ message Field
     repeated Annotation annotations = 3;
     Value default = 4;
     optional uint32 proto = 5;
+    uint32 line = 6;
 }
 
 message Argument
 {
     string field = 1;
     Value value = 2;
+    uint32 line = 3;
 }
 
 message EnumItem
@@ -34,12 +36,14 @@ message EnumItem
     string name = 1;
     repeated Annotation annotations = 2;
     int64 value = 3;
+    uint32 line = 4;
 }
 
 message Annotation
 {
     uint32 attribute = 1;
     repeated Argument arguments = 2;
+    uint32 line = 3;
 }
 
 message Type
@@ -49,6 +53,7 @@ message Type
         string name = 1;
         uint32 module = 2;
         repeated Annotation annotations = 3;
+        uint32 line = 4;
 
         uint32 element = 10;
         optional uint32 size = 11;
@@ -59,6 +64,7 @@ message Type
         string name = 1;
         uint32 module = 2;
         repeated Annotation annotations = 3;
+        uint32 line = 4;
 
         repeated Field fields = 10;
     }
@@ -68,6 +74,7 @@ message Type
         string name = 1;
         uint32 module = 2;
         repeated Annotation annotations = 3;
+        uint32 line = 4;
     }
 
     message Enum
@@ -75,6 +82,7 @@ message Type
         string name = 1;
         uint32 module = 2;
         repeated Annotation annotations = 3;
+        uint32 line = 4;
 
         optional uint32 base = 10;
         repeated EnumItem items = 11;
@@ -85,6 +93,7 @@ message Type
         string name = 1;
         uint32 module = 2;
         repeated Annotation annotations = 3;
+        uint32 line = 4;
 
         uint32 width = 10;
     }
@@ -94,6 +103,7 @@ message Type
         string name = 1;
         uint32 module = 2;
         repeated Annotation annotations = 3;
+        uint32 line = 4;
 
         uint32 width = 10;
         bool signed = 11;
@@ -104,6 +114,7 @@ message Type
         string name = 1;
         uint32 module = 2;
         repeated Annotation annotations = 3;
+        uint32 line = 4;
 
         repeated Field fields = 10;
     }
@@ -113,6 +124,7 @@ message Type
         string name = 1;
         uint32 module = 2;
         repeated Annotation annotations = 3;
+        uint32 line = 4;
 
         uint32 type = 10;
     }
@@ -122,6 +134,7 @@ message Type
         string name = 1;
         uint32 module = 2;
         repeated Annotation annotations = 3;
+        uint32 line = 4;
 
         uint32 type = 10;
     }
@@ -131,6 +144,7 @@ message Type
         string name = 1;
         uint32 module = 2;
         repeated Annotation annotations = 3;
+        uint32 line = 4;
     }
 
     message Struct
@@ -138,6 +152,7 @@ message Type
         string name = 1;
         uint32 module = 2;
         repeated Annotation annotations = 3;
+        uint32 line = 4;
 
         optional uint32 base = 10;
         repeated Field fields = 11;
@@ -148,6 +163,7 @@ message Type
         string name = 1;
         uint32 module = 2;
         repeated Annotation annotations = 3;
+        uint32 line = 4;
     }
 
     oneof Types
@@ -173,47 +189,56 @@ message Value
     {
         uint32 type = 1;
         repeated Value elements = 2;
+        uint32 line = 3;
     }
 
     message Bool
     {
         bool value = 1;
+        uint32 line = 2;
     }
 
     message Enum
     {
         uint32 type = 1;
         uint32 item = 2;
+        uint32 line = 3;
     }
 
     message Float
     {
         double value = 1;
+        uint32 line = 2;
     }
 
     message Int
     {
         int64 value = 1;
+        uint32 line = 2;
     }
 
     message Null
     {
+        uint32 line = 1;
     }
 
     message Object
     {
         uint32 type = 1;
         repeated Argument arguments = 2;
+        uint32 line = 3;
     }
 
     message String
     {
         string value = 1;
+        uint32 line = 2;
     }
 
     message Type
     {
         uint32 type = 1;
+        uint32 line = 2;
     }
 
     oneof Values

@@ -4,8 +4,8 @@ struct test : base
 {
     int32 num = 42;
     bool b = true;
-    float zero = .0;
-    float thousand = 1.0e3;
+    float32 zero = .0;
+    float32 thousand = 1.0e3;
 }
 
 // CHECK: base.@kind == Struct

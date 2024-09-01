@@ -43,6 +43,7 @@ namespace potato::schematic::compiler
         const ValueBool* BuildBool(const AstNodeLiteralBool& lit);
         const ValueInt* BuildInteger(const AstNodeLiteralInt& lit);
         const ValueFloat* BuildFloat(const AstNodeLiteralFloat& lit);
+        const ValueNull* BuildNull(const AstNodeLiteralNull& lit);
         const ValueString* BuildString(const AstNodeLiteralString& lit);
         const Value* BuildExpression(const Type* type, const AstNode& expr);
         const Value* BuildQualifiedId(const AstNodeQualifiedId& id);
@@ -59,6 +60,8 @@ namespace potato::schematic::compiler
 
         template <typename T>
         T* AddType(std::uint32_t tokenIndex, const char* name);
+
+        std::uint16_t TokenLine(std::uint32_t tokenIndex) const noexcept;
 
         CompileContext& ctx;
         ArenaAllocator& arena;

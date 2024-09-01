@@ -2,63 +2,35 @@
 
 #pragma once
 
+#include "token.h"
+
 #include "schematic/compiler.h"
 
 namespace potato::schematic::compiler
 {
-    constexpr Location FindLocation(std::string_view source, std::size_t offset) noexcept
-    {
-        Location result;
-
-        const char* pos = source.data();
-        const char* lineStart = pos;
-        const char* const end = pos + source.size();
-
-        while (pos != end && offset-- != 0)
-        {
-            if (*pos++ == '\n')
-            {
-                ++result.line;
-                lineStart = pos;
-            }
-        }
-
-        result.column = static_cast<std::uint32_t>(pos - lineStart) + 1;
-
-        return result;
-    }
-
-    constexpr Range FindRange(std::string_view source, std::size_t offset, std::size_t length) noexcept
+    constexpr Range FindRange(std::string_view source, const Token& token) noexcept
     {
         Range result;
+        result.start.line = token.line;
 
-        const char* pos = source.data();
-        const char* lineStart = pos;
-        const char* const end = pos + source.size();
-
-        while (pos != end && offset-- != 0)
+        const char* const text = source.data();
+        std::size_t col = 0;
+        for (col = token.offset; col != 0; --col)
         {
-            if (*pos++ == '\n')
+            if (text[col - 1] == '\n')
+                break;
+        }
+        result.start.column = token.offset - col + 1;
+
+        result.end = result.start;
+        for (std::size_t i = 0; i != token.length; ++i)
+        {
+            if (text[i + token.offset] == '\n')
             {
                 ++result.start.line;
-                lineStart = pos;
+                result.end.column = 1;
             }
         }
-
-        result.start.column = static_cast<std::uint32_t>(pos - lineStart) + 1;
-
-        result.end.line = result.start.line;
-
-        while (pos != end && length-- != 0)
-        {
-            if (*pos++ == '\n')
-            {
-                ++result.end.line;
-                lineStart = pos;
-            }
-        }
-
-        result.end.column = static_cast<std::uint32_t>(pos - lineStart) + 1;
 
         return result;
     }
