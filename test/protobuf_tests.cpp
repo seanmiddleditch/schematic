@@ -36,7 +36,7 @@ TEST_CASE("Serialize", "[potato][schematic]")
             const proto::Schema* const proto = SerializeSchemaProto(pb_arena, original);
             REQUIRE(proto != nullptr);
 
-            const Schema* const deserialized = ParseSchemaProto(arena, proto);
+            const Schema* const deserialized = ParseSchemaProto(arena, ctx, proto);
             REQUIRE(deserialized != nullptr);
 
             const proto::Schema* const proto2 = SerializeSchemaProto(pb_arena, deserialized);
@@ -73,5 +73,5 @@ TEST_CASE("ParseSchemaProto Error", "[potato][schematic]")
     const proto::Schema* const proto = SerializeSchemaProto(pb_arena, &schema);
     REQUIRE(proto != nullptr);
 
-    CHECK(ParseSchemaProto(arena, proto) == nullptr);
+    CHECK(ParseSchemaProto(arena, ctx, proto) == nullptr);
 }

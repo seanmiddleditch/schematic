@@ -9,10 +9,11 @@
 
 namespace potato::schematic
 {
+    class Logger;
     struct Schema;
 
     [[nodiscard]] const proto::Schema* SerializeSchemaProto(google::protobuf::Arena& arena, const Schema* schema);
-    [[nodiscard]] const Schema* ParseSchemaProto(ArenaAllocator& arena, const proto::Schema* proto);
+    [[nodiscard]] const Schema* ParseSchemaProto(ArenaAllocator& arena, Logger& logger, const proto::Schema* proto);
 } // namespace potato::schematic
 
 #endif // SCHEMATIC_PROTOBUF_H
