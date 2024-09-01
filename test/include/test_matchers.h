@@ -3,7 +3,7 @@
 #pragma once
 
 #include "lexer.h"
-#include "test_context.h"
+#include "test_logger.h"
 #include "test_strings.h"
 #include "token.h"
 
@@ -90,10 +90,10 @@ namespace potato::schematic::test
         {
             using namespace potato::schematic::compiler;
 
-            TestContext ctx;
+            TestLogger logger;
             ArenaAllocator arena;
 
-            Lexer lexer(arena, ctx, "<test>", text);
+            Lexer lexer(arena, logger, "<test>", text);
             Array<Token> tokens = lexer.Tokenize();
 
             if (tokens.IsEmpty())
@@ -223,11 +223,11 @@ namespace potato::schematic::test
         {
             using namespace potato::schematic::compiler;
 
-            TestContext ctx;
+            TestLogger logger;
             ArenaAllocator arena;
             Array<Token> tokens;
 
-            Lexer lexer(arena, ctx, "<test>", text);
+            Lexer lexer(arena, logger, "<test>", text);
             tokens = lexer.Tokenize();
             return !tokens.IsEmpty();
         }
