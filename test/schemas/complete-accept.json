@@ -154,7 +154,8 @@
     "name": "string[]",
     "module": 0,
     "annotations": [],
-    "element": 7
+    "element": 7,
+    "size": 0
    }
   },
   {
