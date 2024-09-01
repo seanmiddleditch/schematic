@@ -42,36 +42,16 @@ namespace potato::schematic
         ~CompileContext() = default;
     };
 
-    class Compiler final
-    {
-    public:
-        explicit Compiler(ArenaAllocator& arena, Logger& logger, CompileContext& ctx);
-
-        Compiler(const Compiler&) = delete;
-        Compiler& operator=(const Compiler&) = delete;
-
-        void SetUseBuiltins(bool useBuiltins = true) noexcept;
-
-        const Schema* Compile(std::string_view filename);
-
-    private:
-        ArenaAllocator& arena_;
-        Logger& logger_;
-        CompileContext& ctx_;
-        bool useBuiltins_ = false;
-    };
-
-    struct Location
-    {
-        std::uint16_t line = 1;
-        std::uint16_t column = 1;
-    };
-
     struct Range
     {
-        Location start;
-        Location end;
+        struct
+        {
+            std::uint16_t line = 1;
+            std::uint16_t column = 1;
+        } start, end;
     };
+
+    const Schema* Compile(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, std::string_view filename, std::string_view source);
 } // namespace potato::schematic
 
 #endif // SCHEMATIC_COMPILER_H

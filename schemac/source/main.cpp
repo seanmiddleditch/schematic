@@ -69,9 +69,7 @@ int main(int argc, char** argv)
 
     NewDeleteAllocator alloc;
     ArenaAllocator arena(alloc);
-    Compiler compiler(arena, Logger::Default(), ctx);
-    compiler.SetUseBuiltins(true);
-    const Schema* const schema = compiler.Compile(root->name);
+    const Schema* const schema = Compile(arena, Logger::Default(), ctx, root->name, root->source);
     if (schema == nullptr)
         return 1;
 

@@ -23,11 +23,11 @@
 using namespace potato::schematic;
 using namespace potato::schematic::compiler;
 
-namespace potato::schematic::compiler
+namespace
 {
     struct SchemaBuilder final
     {
-        CompileContext& ctx;
+        // CompileContext& ctx;
         ArenaAllocator& arena;
 
         void VisitTypes(const Module* mod, Array<const Type*>& visited);
@@ -62,7 +62,7 @@ namespace potato::schematic::compiler
             fmt::println(stderr, "{}({},{}): {}", filename, range.start.line, range.start.column, message);
         }
     };
-} // namespace potato::schematic::compiler
+} // namespace
 
 Logger& Logger::Default() noexcept
 {
@@ -70,30 +70,18 @@ Logger& Logger::Default() noexcept
     return logger;
 }
 
-potato::schematic::Compiler::Compiler(ArenaAllocator& arena, Logger& logger, CompileContext& ctx)
-    : arena_(arena)
-    , logger_(logger)
-    , ctx_(ctx)
+const Schema* potato::schematic::Compile(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, std::string_view filename, std::string_view source)
 {
-}
+    Generator generator(arena, logger, ctx);
 
-void potato::schematic::Compiler::SetUseBuiltins(bool useBuiltins) noexcept
-{
-    useBuiltins_ = useBuiltins;
-}
-
-const Schema* potato::schematic::Compiler::Compile(std::string_view filename)
-{
-    Generator generator(arena_, logger_, ctx_);
-
-    const Module* const root = generator.Compile(filename, useBuiltins_);
+    const Module* const root = generator.Compile(filename, source, true);
     if (root == nullptr)
         return nullptr;
 
-    Schema* const schema = arena_.New<Schema>();
+    Schema* const schema = arena.New<Schema>();
     schema->root = root;
 
-    SchemaBuilder builder{ .ctx = ctx_, .arena = arena_ };
+    SchemaBuilder builder{ .arena = arena };
 
     {
         Array<const Type*> visited;
@@ -110,7 +98,7 @@ const Schema* potato::schematic::Compiler::Compile(std::string_view filename)
     return schema;
 }
 
-void potato::schematic::compiler::SchemaBuilder::VisitTypes(const Module* mod, Array<const Type*>& visited)
+void SchemaBuilder::VisitTypes(const Module* mod, Array<const Type*>& visited)
 {
     if (mod == nullptr)
         return;
@@ -119,7 +107,7 @@ void potato::schematic::compiler::SchemaBuilder::VisitTypes(const Module* mod, A
         VisitTypes(type, visited);
 }
 
-void potato::schematic::compiler::SchemaBuilder::VisitTypes(const Type* type, Array<const Type*>& visited)
+void SchemaBuilder::VisitTypes(const Type* type, Array<const Type*>& visited)
 {
     if (type == nullptr)
         return;
@@ -188,7 +176,7 @@ void potato::schematic::compiler::SchemaBuilder::VisitTypes(const Type* type, Ar
     visited.PushBack(arena, type);
 }
 
-void potato::schematic::compiler::SchemaBuilder::VisitTypes(const Annotation* annotation, Array<const Type*>& visited)
+void SchemaBuilder::VisitTypes(const Annotation* annotation, Array<const Type*>& visited)
 {
     if (annotation == nullptr)
         return;
@@ -199,7 +187,7 @@ void potato::schematic::compiler::SchemaBuilder::VisitTypes(const Annotation* an
         VisitTypes(arg.value, visited);
 }
 
-void potato::schematic::compiler::SchemaBuilder::VisitTypes(const Value* value, Array<const Type*>& visited)
+void SchemaBuilder::VisitTypes(const Value* value, Array<const Type*>& visited)
 {
     if (value == nullptr)
         return;
@@ -208,7 +196,7 @@ void potato::schematic::compiler::SchemaBuilder::VisitTypes(const Value* value, 
         VisitTypes(type->type, visited);
 }
 
-void potato::schematic::compiler::SchemaBuilder::VisitModules(const Module* mod, Array<const Module*>& visited)
+void SchemaBuilder::VisitModules(const Module* mod, Array<const Module*>& visited)
 {
     if (mod == nullptr)
         return;

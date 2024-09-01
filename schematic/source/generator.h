@@ -22,7 +22,7 @@ namespace potato::schematic::compiler
         {
         }
 
-        const Module* Compile(std::string_view filename, bool useBuiltins);
+        const Module* Compile(std::string_view filename, std::string_view source, bool useBuiltins);
 
     private:
         struct State;

@@ -19,8 +19,6 @@ TEST_CASE("Schemas", "[potato][schematic]")
 {
     TestContext ctx;
     ArenaAllocator arena;
-    Compiler compiler(arena, ctx, ctx);
-    compiler.SetUseBuiltins(true);
 
     for (std::size_t i = 0; i != test_embeds_count; ++i)
     {
@@ -54,7 +52,7 @@ TEST_CASE("Schemas", "[potato][schematic]")
             if (!expected_errors.empty())
                 ctx.reportErrors = false;
 
-            const Schema* const schema = compiler.Compile(test.name);
+            const Schema* const schema = Compile(arena, ctx, ctx, test.name, test.source);
 
             if (!checks.empty())
             {

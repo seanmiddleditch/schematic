@@ -119,7 +119,7 @@ const Module* Generator::CompileModule()
     return state.mod;
 }
 
-const Module* Generator::Compile(std::string_view filename, bool useBuiltins)
+const Module* Generator::Compile(std::string_view filename, std::string_view source, bool useBuiltins)
 {
     builtins = nullptr;
     schema = nullptr;
@@ -137,7 +137,7 @@ const Module* Generator::Compile(std::string_view filename, bool useBuiltins)
 
     state->mod = arena.New<Module>();
     state->mod->filename = arena.NewString(filename);
-    state->source = arena.NewString(ctx.ReadFileContents(arena, state->mod->filename));
+    state->source = arena.NewString(source);
 
     if (useBuiltins)
     {

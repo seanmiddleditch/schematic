@@ -6,10 +6,6 @@ add_library(schematic::schematic_core ALIAS schematic_core)
 set_target_properties(schematic_core PROPERTIES OUTPUT_NAME schematic)
 target_compile_features(schematic_core PUBLIC cxx_std_23)
 target_link_libraries(schematic_core PRIVATE fmt::fmt)
-target_include_directories(schematic_core PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
 target_sources(schematic_core PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
     "include/schematic/allocator.h"
     "include/schematic/schema.h"
@@ -26,12 +22,9 @@ add_library(schematic_compiler)
 add_library(schematic::schematic_compiler ALIAS schematic_compiler)
 target_compile_features(schematic_compiler PUBLIC cxx_std_23)
 target_link_libraries(schematic_compiler PUBLIC schematic_core PRIVATE fmt::fmt protobuf::libprotobuf)
-target_include_directories(schematic_compiler PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
 target_sources(schematic_compiler PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
     "include/schematic/compiler.h"
+    "include/schematic/logger.h"
 )
 target_sources(schematic_compiler PRIVATE
     "source/array.h"
@@ -55,10 +48,6 @@ if(SCHEMATIC_PROTOBUF)
     add_library(schematic::schematic_protobuf ALIAS schematic_protobuf)
     target_compile_features(schematic_protobuf PUBLIC cxx_std_23)
     target_link_libraries(schematic_protobuf PUBLIC schematic_core PRIVATE protobuf::libprotobuf)
-    target_include_directories(schematic_protobuf PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-    )
     target_sources(schematic_protobuf PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
         "include/schematic/protobuf.h"
     )
@@ -67,7 +56,6 @@ if(SCHEMATIC_PROTOBUF)
     )
     
     file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic")
-    target_include_directories(schematic_protobuf PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/protobuf>)
     add_custom_command(
         OUTPUT
             "${CMAKE_CURRENT_BINARY_DIR}/protobuf/schematic/schematic.pb.h"
