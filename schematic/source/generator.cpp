@@ -44,9 +44,9 @@ struct fmt::formatter<AstQualifiedName> : fmt::formatter<const char*>
 
 struct Generator::State
 {
-    ModuleId moduleId;
     const AstNodeModule* ast = nullptr;
     Module* mod = nullptr;
+    std::string_view source;
     Array<const Module*> imports;
     Array<const Type*> types;
     Array<Token> tokens;
@@ -56,12 +56,12 @@ const Module* Generator::CompileModule()
 {
     State& state = *stack.Back();
 
-    Lexer lexer(ctx, arena, state.moduleId, ctx.ReadFileContents(state.moduleId));
+    Lexer lexer(arena, logger_, state.mod->filename, state.source);
     state.tokens = lexer.Tokenize();
     if (state.tokens.IsEmpty())
         return nullptr;
 
-    Parser parser(ctx, arena, state.moduleId, state.tokens);
+    Parser parser(arena, logger_, state.mod->filename, state.source, state.tokens);
     state.ast = parser.Parse();
 
     if (state.ast == nullptr)
@@ -119,14 +119,14 @@ const Module* Generator::CompileModule()
     return state.mod;
 }
 
-const Module* Generator::Compile(ModuleId moduleId, bool useBuiltins)
+const Module* Generator::Compile(std::string_view filename, std::string_view source, bool useBuiltins)
 {
     builtins = nullptr;
     schema = nullptr;
     result = true;
     stack = Array<State*>{};
 
-    if (moduleId.value == ModuleId::InvalidValue)
+    if (filename.empty())
         return nullptr;
 
     if (useBuiltins && builtins == nullptr)
@@ -135,9 +135,9 @@ const Module* Generator::Compile(ModuleId moduleId, bool useBuiltins)
     State* const state = arena.New<State>();
     stack.PushBack(arena, state);
 
-    state->moduleId = moduleId;
     state->mod = arena.New<Module>();
-    state->mod->filename = arena.NewString(ctx.GetFileName(moduleId));
+    state->mod->filename = arena.NewString(filename);
+    state->source = arena.NewString(source);
 
     if (useBuiltins)
     {
@@ -156,17 +156,17 @@ const Module* Generator::Compile(ModuleId moduleId, bool useBuiltins)
 
 bool Generator::HandleImport(const AstNodeImport& imp)
 {
-    const ModuleId moduleId = ctx.ResolveModule(imp.target->value, stack.Back()->moduleId);
-    if (moduleId.value == ModuleId::InvalidValue)
+    const std::string_view filename = ctx.ResolveModule(arena, imp.target->value, stack.Back()->mod->filename);
+    if (filename.empty())
     {
         Error(imp.tokenIndex, "Module not found: {}", imp.target->value);
         return false;
     }
 
     State* const state = arena.New<State>();
-    state->moduleId = moduleId;
     state->mod = arena.New<Module>();
-    state->mod->filename = arena.NewString(ctx.GetFileName(moduleId));
+    state->mod->filename = arena.NewString(filename);
+    state->source = arena.NewString(ctx.ReadFileContents(arena, state->mod->filename));
 
     stack.PushBack(arena, state);
     const bool success = CompileModule() != nullptr;
@@ -733,13 +733,11 @@ void Generator::Error(std::uint32_t tokenIndex, fmt::format_string<Args...> form
     if (tokenIndex < stack.Back()->tokens.Size())
     {
         const Token& token = stack.Back()->tokens[tokenIndex];
-
-        const std::string_view source = ctx.ReadFileContents(stack.Back()->moduleId);
-        ctx.Error(stack.Back()->moduleId, FindRange(source, token), fmt::vformat(format, fmt::make_format_args(args...)));
+        logger_.Error(stack.Back()->mod->filename, FindRange(stack.Back()->source, token), fmt::vformat(format, fmt::make_format_args(args...)));
     }
     else
     {
-        ctx.Error(stack.Back()->moduleId, {}, fmt::vformat(format, fmt::make_format_args(args...)));
+        logger_.Error(stack.Back()->mod->filename, {}, fmt::vformat(format, fmt::make_format_args(args...)));
     }
 }
 

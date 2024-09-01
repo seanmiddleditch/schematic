@@ -8,30 +8,31 @@
 
 #include <string_view>
 
-namespace potato::schematic::compiler
-{
-    class Generator;
-}
-
 namespace potato::schematic
 {
     struct Range;
     struct Schema;
 
-    struct ModuleId
+    class Logger
     {
-        static constexpr std::size_t InvalidValue = ~0;
-        std::size_t value = InvalidValue;
+    public:
+        virtual void Error(std::string_view filename, const Range& range, std::string_view message) = 0;
+
+        static Logger& Default() noexcept;
+
+        Logger(const Logger&) = delete;
+        Logger& operator=(const Logger&) = delete;
+
+    protected:
+        Logger() = default;
+        ~Logger() = default;
     };
 
     class CompileContext
     {
     public:
-        virtual void Error(ModuleId moduleId, const Range& range, std::string_view message) = 0;
-
-        virtual std::string_view ReadFileContents(ModuleId id) = 0;
-        virtual std::string_view GetFileName(ModuleId id) = 0;
-        virtual ModuleId ResolveModule(std::string_view name, ModuleId referrer) = 0;
+        virtual std::string_view ReadFileContents(ArenaAllocator& arena, std::string_view filename) = 0;
+        virtual std::string_view ResolveModule(ArenaAllocator& arena, std::string_view name, std::string_view referrer) = 0;
 
         CompileContext(const CompileContext&) = delete;
         CompileContext& operator=(const CompileContext&) = delete;
@@ -41,36 +42,16 @@ namespace potato::schematic
         ~CompileContext() = default;
     };
 
-    class Compiler final
-    {
-    public:
-        explicit Compiler(CompileContext& ctx, ArenaAllocator& arena);
-
-        Compiler(const Compiler&) = delete;
-        Compiler& operator=(const Compiler&) = delete;
-
-        void SetUseBuiltins(bool useBuiltins = true);
-
-        const Schema* Compile(ModuleId moduleId);
-
-    private:
-        CompileContext& ctx_;
-        ArenaAllocator& arena_;
-        compiler::Generator* generator_ = nullptr;
-        bool useBuiltins_ = false;
-    };
-
-    struct Location
-    {
-        std::uint16_t line = 1;
-        std::uint16_t column = 1;
-    };
-
     struct Range
     {
-        Location start;
-        Location end;
+        struct
+        {
+            std::uint16_t line = 1;
+            std::uint16_t column = 1;
+        } start, end;
     };
+
+    const Schema* Compile(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, std::string_view filename, std::string_view source);
 } // namespace potato::schematic
 
 #endif // SCHEMATIC_COMPILER_H

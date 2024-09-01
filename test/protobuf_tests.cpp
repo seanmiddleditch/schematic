@@ -19,25 +19,35 @@ TEST_CASE("Serialize", "[potato][schematic]")
     TestContext ctx;
     ArenaAllocator arena;
     google::protobuf::Arena pb_arena;
-    Compiler compiler(ctx, arena);
-    compiler.SetUseBuiltins(true);
 
-    const Schema* const original = compiler.Compile(ctx.ResolveModule("schemas/complete.sat", ModuleId{ 0 }));
-    REQUIRE(original != nullptr);
+    for (std::size_t i = 0; i != test_embeds_count; ++i)
+    {
+        const EmbeddedTest& test = test_embeds[i];
 
-    const proto::Schema* const proto = SerializeSchemaProto(pb_arena, original);
-    REQUIRE(proto != nullptr);
+        // can't serialize tests that won't compile
+        if (std::strstr(test.source, "ERROR: ") != nullptr)
+            continue;
 
-    const Schema* const deserialized = ParseSchemaProto(arena, proto);
-    REQUIRE(deserialized != nullptr);
+        DYNAMIC_SECTION(test.name)
+        {
+            const Schema* const original = Compile(arena, ctx, ctx, test.name, test.source);
+            REQUIRE(original != nullptr);
 
-    const proto::Schema* const proto2 = SerializeSchemaProto(pb_arena, deserialized);
-    REQUIRE(proto2 != nullptr);
+            const proto::Schema* const proto = SerializeSchemaProto(pb_arena, original);
+            REQUIRE(proto != nullptr);
 
-    CHECK(proto->ShortDebugString() == proto2->ShortDebugString());
+            const Schema* const deserialized = ParseSchemaProto(arena, proto);
+            REQUIRE(deserialized != nullptr);
+
+            const proto::Schema* const proto2 = SerializeSchemaProto(pb_arena, deserialized);
+            REQUIRE(proto2 != nullptr);
+
+            CHECK(proto->ShortDebugString() == proto2->ShortDebugString());
+        }
+    }
 }
 
-TEST_CASE("ParseError", "[potato][schematic]")
+TEST_CASE("ParseSchemaProto Error", "[potato][schematic]")
 {
     TestContext ctx;
     ArenaAllocator arena;
