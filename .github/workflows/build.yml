@@ -34,7 +34,7 @@ jobs:
           github-binarycache: true
           fetch-depth: 0
 
-      - name: Build g++
+      - name: Build g++ release
         uses: ./.github/actions/build
         with:
           cxx: g++
@@ -42,7 +42,7 @@ jobs:
           build-dir: out/g++-release
           install-dir: ${{ github.workspace }}/out/install
 
-      - name: Build clang++
+      - name: Build clang++ debug
         uses: ./.github/actions/build
         with:
           cxx: clang++
@@ -50,7 +50,7 @@ jobs:
           build-dir: out/clang++-debug
           cmake-args: -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
-      - name: Build clang++ (no protobuf)
+      - name: Build clang++ debug (no protobuf)
         uses: ./.github/actions/build
         with:
           cxx: clang++
