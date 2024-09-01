@@ -19,7 +19,7 @@ TEST_CASE("Schemas", "[potato][schematic]")
 {
     TestContext ctx;
     ArenaAllocator arena;
-    Compiler compiler(ctx, arena);
+    Compiler compiler(arena, ctx, ctx);
     compiler.SetUseBuiltins(true);
 
     for (std::size_t i = 0; i != test_embeds_count; ++i)

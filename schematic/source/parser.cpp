@@ -703,7 +703,7 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
 void Parser::Error(std::string_view message)
 {
     const Token& token = tokens_[next_];
-    ctx_.Error(filename_, FindRange(source_, token), message);
+    logger_.Error(filename_, FindRange(source_, token), message);
     failed_ = true;
 }
 

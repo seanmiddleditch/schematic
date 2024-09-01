@@ -15,9 +15,10 @@ namespace potato::schematic::compiler
     class Generator final
     {
     public:
-        explicit Generator(CompileContext& ctx, ArenaAllocator& arena) noexcept
-            : ctx(ctx)
-            , arena(arena)
+        explicit Generator(ArenaAllocator& arena, Logger& logger, CompileContext& ctx) noexcept
+            : arena(arena)
+            , logger_(logger)
+            , ctx(ctx)
         {
         }
 
@@ -63,8 +64,9 @@ namespace potato::schematic::compiler
 
         std::uint16_t TokenLine(std::uint32_t tokenIndex) const noexcept;
 
-        CompileContext& ctx;
         ArenaAllocator& arena;
+        Logger& logger_;
+        CompileContext& ctx;
         bool result = true;
         const Module* builtins = nullptr;
         const Schema* schema = nullptr;

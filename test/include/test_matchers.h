@@ -93,7 +93,7 @@ namespace potato::schematic::test
             TestContext ctx;
             ArenaAllocator arena;
 
-            Lexer lexer(ctx, arena, "<test>", text);
+            Lexer lexer(arena, ctx, "<test>", text);
             Array<Token> tokens = lexer.Tokenize();
 
             if (tokens.IsEmpty())
@@ -227,7 +227,7 @@ namespace potato::schematic::test
             ArenaAllocator arena;
             Array<Token> tokens;
 
-            Lexer lexer(ctx, arena, "<test>", text);
+            Lexer lexer(arena, ctx, "<test>", text);
             tokens = lexer.Tokenize();
             return !tokens.IsEmpty();
         }

@@ -15,9 +15,9 @@ namespace potato::schematic::compiler
     class Parser final
     {
     public:
-        Parser(CompileContext& ctx, ArenaAllocator& arena, std::string_view filename, std::string_view source, const Array<Token>& tokens) noexcept
-            : ctx_(ctx)
-            , arena_(arena)
+        Parser(ArenaAllocator& arena, Logger& logger, std::string_view filename, std::string_view source, const Array<Token>& tokens) noexcept
+            : arena_(arena)
+            , logger_(logger)
             , filename_(filename)
             , source_(source)
             , tokens_(tokens)
@@ -78,8 +78,8 @@ namespace potato::schematic::compiler
 
         std::uint32_t Pos(const Token* token = nullptr) const;
 
-        CompileContext& ctx_;
         ArenaAllocator& arena_;
+        Logger& logger_;
         std::string_view filename_;
         std::string_view source_;
         std::span<const Token> tokens_;

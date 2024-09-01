@@ -56,12 +56,12 @@ const Module* Generator::CompileModule()
 {
     State& state = *stack.Back();
 
-    Lexer lexer(ctx, arena, state.mod->filename, state.source);
+    Lexer lexer(arena, logger_, state.mod->filename, state.source);
     state.tokens = lexer.Tokenize();
     if (state.tokens.IsEmpty())
         return nullptr;
 
-    Parser parser(ctx, arena, state.mod->filename, state.source, state.tokens);
+    Parser parser(arena, logger_, state.mod->filename, state.source, state.tokens);
     state.ast = parser.Parse();
 
     if (state.ast == nullptr)
@@ -733,11 +733,11 @@ void Generator::Error(std::uint32_t tokenIndex, fmt::format_string<Args...> form
     if (tokenIndex < stack.Back()->tokens.Size())
     {
         const Token& token = stack.Back()->tokens[tokenIndex];
-        ctx.Error(stack.Back()->mod->filename, FindRange(stack.Back()->source, token), fmt::vformat(format, fmt::make_format_args(args...)));
+        logger_.Error(stack.Back()->mod->filename, FindRange(stack.Back()->source, token), fmt::vformat(format, fmt::make_format_args(args...)));
     }
     else
     {
-        ctx.Error(stack.Back()->mod->filename, {}, fmt::vformat(format, fmt::make_format_args(args...)));
+        logger_.Error(stack.Back()->mod->filename, {}, fmt::vformat(format, fmt::make_format_args(args...)));
     }
 }
 

@@ -16,7 +16,7 @@
 
 namespace potato::schematic::test
 {
-    struct TestContext final : potato::schematic::CompileContext
+    struct TestContext final : potato::schematic::CompileContext, potato::schematic::Logger
     {
         inline void Error(std::string_view filename, const Range& range, std::string_view message) override;
 

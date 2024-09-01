@@ -35,8 +35,6 @@ namespace
 
     struct MainContext final : potato::schematic::CompileContext
     {
-        void Error(std::string_view filename, const Range& range, std::string_view message) override;
-
         std::string_view ReadFileContents(ArenaAllocator& arena, std::string_view filename) override;
         std::string_view ResolveModule(ArenaAllocator& arena, std::string_view name, std::string_view referrer) override;
 
@@ -71,7 +69,7 @@ int main(int argc, char** argv)
 
     NewDeleteAllocator alloc;
     ArenaAllocator arena(alloc);
-    Compiler compiler(ctx, arena);
+    Compiler compiler(arena, Logger::Default(), ctx);
     compiler.SetUseBuiltins(true);
     const Schema* const schema = compiler.Compile(root->name);
     if (schema == nullptr)
@@ -281,29 +279,6 @@ bool ParseArguments(MainContext& ctx, std::span<char*> args)
     }
 
     return true;
-}
-
-void MainContext::Error(std::string_view filename, const Range& range, std::string_view message)
-{
-    if (filename.empty())
-    {
-        fmt::println(stderr, "{}", message);
-        return;
-    }
-
-    if (range.start.line == 0)
-    {
-        fmt::println(stderr, "{}: {}", filename, message);
-        return;
-    }
-
-    if (range.start.column == 0)
-    {
-        fmt::println(stderr, "{}({}): {}", filename, range.start.line, message);
-        return;
-    }
-
-    fmt::println(stderr, "{}({},{}): {}", filename, range.start.line, range.start.column, message);
 }
 
 std::string_view MainContext::ReadFileContents(ArenaAllocator& arena, std::string_view filename)

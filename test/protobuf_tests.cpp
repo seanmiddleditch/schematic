@@ -19,7 +19,7 @@ TEST_CASE("Serialize", "[potato][schematic]")
     TestContext ctx;
     ArenaAllocator arena;
     google::protobuf::Arena pb_arena;
-    Compiler compiler(ctx, arena);
+    Compiler compiler(arena, ctx, ctx);
     compiler.SetUseBuiltins(true);
 
     const Schema* const original = compiler.Compile(ctx.ResolveModule(arena, "schemas/complete.sat", {}));

@@ -25,7 +25,7 @@ using namespace potato::schematic::compiler;
 
 namespace potato::schematic::compiler
 {
-    struct SchemaBuilder
+    struct SchemaBuilder final
     {
         CompileContext& ctx;
         ArenaAllocator& arena;
@@ -36,25 +36,57 @@ namespace potato::schematic::compiler
         void VisitTypes(const Value* value, Array<const Type*>& visited);
         void VisitModules(const Module* mod, Array<const Module*>& visited);
     };
+
+    struct DefaultLogger final : Logger
+    {
+        void Error(std::string_view filename, const Range& range, std::string_view message) override
+        {
+            if (filename.empty())
+            {
+                fmt::println(stderr, "{}", message);
+                return;
+            }
+
+            if (range.start.line == 0)
+            {
+                fmt::println(stderr, "{}: {}", filename, message);
+                return;
+            }
+
+            if (range.start.column == 0)
+            {
+                fmt::println(stderr, "{}({}): {}", filename, range.start.line, message);
+                return;
+            }
+
+            fmt::println(stderr, "{}({},{}): {}", filename, range.start.line, range.start.column, message);
+        }
+    };
 } // namespace potato::schematic::compiler
 
-potato::schematic::Compiler::Compiler(CompileContext& ctx, ArenaAllocator& arena)
-    : ctx_(ctx)
-    , arena_(arena)
+Logger& Logger::Default() noexcept
+{
+    static DefaultLogger logger;
+    return logger;
+}
+
+potato::schematic::Compiler::Compiler(ArenaAllocator& arena, Logger& logger, CompileContext& ctx)
+    : arena_(arena)
+    , logger_(logger)
+    , ctx_(ctx)
 {
 }
 
-void potato::schematic::Compiler::SetUseBuiltins(bool useBuiltins)
+void potato::schematic::Compiler::SetUseBuiltins(bool useBuiltins) noexcept
 {
     useBuiltins_ = useBuiltins;
 }
 
 const Schema* potato::schematic::Compiler::Compile(std::string_view filename)
 {
-    if (generator_ == nullptr)
-        generator_ = arena_.New<Generator>(ctx_, arena_);
+    Generator generator(arena_, logger_, ctx_);
 
-    const Module* const root = generator_->Compile(filename, useBuiltins_);
+    const Module* const root = generator.Compile(filename, useBuiltins_);
     if (root == nullptr)
         return nullptr;
 

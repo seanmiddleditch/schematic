@@ -8,21 +8,29 @@
 
 #include <string_view>
 
-namespace potato::schematic::compiler
-{
-    class Generator;
-}
-
 namespace potato::schematic
 {
     struct Range;
     struct Schema;
 
-    class CompileContext
+    class Logger
     {
     public:
         virtual void Error(std::string_view filename, const Range& range, std::string_view message) = 0;
 
+        static Logger& Default() noexcept;
+
+        Logger(const Logger&) = delete;
+        Logger& operator=(const Logger&) = delete;
+
+    protected:
+        Logger() = default;
+        ~Logger() = default;
+    };
+
+    class CompileContext
+    {
+    public:
         virtual std::string_view ReadFileContents(ArenaAllocator& arena, std::string_view filename) = 0;
         virtual std::string_view ResolveModule(ArenaAllocator& arena, std::string_view name, std::string_view referrer) = 0;
 
@@ -37,19 +45,19 @@ namespace potato::schematic
     class Compiler final
     {
     public:
-        explicit Compiler(CompileContext& ctx, ArenaAllocator& arena);
+        explicit Compiler(ArenaAllocator& arena, Logger& logger, CompileContext& ctx);
 
         Compiler(const Compiler&) = delete;
         Compiler& operator=(const Compiler&) = delete;
 
-        void SetUseBuiltins(bool useBuiltins = true);
+        void SetUseBuiltins(bool useBuiltins = true) noexcept;
 
         const Schema* Compile(std::string_view filename);
 
     private:
-        CompileContext& ctx_;
         ArenaAllocator& arena_;
-        compiler::Generator* generator_ = nullptr;
+        Logger& logger_;
+        CompileContext& ctx_;
         bool useBuiltins_ = false;
     };
 
