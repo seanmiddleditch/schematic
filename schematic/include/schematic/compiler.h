@@ -10,23 +10,8 @@
 
 namespace potato::schematic
 {
-    struct Range;
+    class Logger;
     struct Schema;
-
-    class Logger
-    {
-    public:
-        virtual void Error(std::string_view filename, const Range& range, std::string_view message) = 0;
-
-        static Logger& Default() noexcept;
-
-        Logger(const Logger&) = delete;
-        Logger& operator=(const Logger&) = delete;
-
-    protected:
-        Logger() = default;
-        ~Logger() = default;
-    };
 
     class CompileContext
     {
@@ -40,15 +25,6 @@ namespace potato::schematic
     protected:
         CompileContext() = default;
         ~CompileContext() = default;
-    };
-
-    struct Range
-    {
-        struct
-        {
-            std::uint16_t line = 1;
-            std::uint16_t column = 1;
-        } start, end;
     };
 
     const Schema* Compile(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, std::string_view filename, std::string_view source);

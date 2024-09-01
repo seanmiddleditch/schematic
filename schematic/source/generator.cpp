@@ -10,6 +10,7 @@
 
 #include "schematic/allocator.h"
 #include "schematic/compiler.h"
+#include "schematic/logger.h"
 #include "schematic/schema.h"
 #include "schematic/utility.h"
 
