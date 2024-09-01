@@ -3,6 +3,7 @@
 #include "embed_tests.h"
 #include "evaluator.h"
 #include "test_context.h"
+#include "test_logger.h"
 
 #include "schematic/compiler.h"
 #include "schematic/schema.h"
@@ -12,12 +13,12 @@
 #include <vector>
 
 using namespace potato::schematic;
-using namespace potato::schematic::compiler;
 using namespace potato::schematic::test;
 
 TEST_CASE("Schemas", "[potato][schematic]")
 {
     TestContext ctx;
+    TestLogger logger;
     ArenaAllocator arena;
 
     for (std::size_t i = 0; i != test_embeds_count; ++i)
@@ -52,7 +53,7 @@ TEST_CASE("Schemas", "[potato][schematic]")
             if (!expected_errors.empty())
                 ctx.reportErrors = false;
 
-            const Schema* const schema = Compile(arena, ctx, ctx, test.name, test.source);
+            const Schema* const schema = Compile(arena, logger, ctx, test.name, test.source);
 
             if (!checks.empty())
             {
@@ -66,7 +67,7 @@ TEST_CASE("Schemas", "[potato][schematic]")
             if (!expected_errors.empty())
             {
                 std::size_t next = 0;
-                for (const std::string& error : ctx.errors)
+                for (const std::string& error : logger.errors)
                 {
                     if (next < expected_errors.size())
                     {

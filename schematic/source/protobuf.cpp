@@ -4,6 +4,7 @@
 
 #include "array.h"
 
+#include "schematic/logger.h"
 #include "schematic/schema.h"
 #include "schematic/schematic.pb.h"
 #include "schematic/utility.h"
@@ -66,9 +67,10 @@ namespace
     class Deserializer
     {
     public:
-        explicit Deserializer(const proto::Schema& proto, ArenaAllocator& arena)
-            : proto_(proto)
-            , arena_(arena)
+        explicit Deserializer(ArenaAllocator& arena, Logger& logger, const proto::Schema& proto)
+            : arena_(arena)
+            , logger_(logger)
+            , proto_(proto)
         {
         }
 
@@ -112,10 +114,11 @@ namespace
 
         void Deserialize(Annotation& out, const proto::Annotation& in);
 
-        void ReportVerifyFailure(const char* message);
+        void ReportVerifyFailure(std::string_view expr);
 
-        const proto::Schema& proto_;
         ArenaAllocator& arena_;
+        Logger& logger_;
+        const proto::Schema& proto_;
         Array<Module*> modules_;
         Array<Type*> types_;
         bool failed_ = false;
@@ -132,12 +135,12 @@ const proto::Schema* potato::schematic::SerializeSchemaProto(google::protobuf::A
     return proto;
 }
 
-const Schema* potato::schematic::ParseSchemaProto(ArenaAllocator& arena, const proto::Schema* proto)
+const Schema* potato::schematic::ParseSchemaProto(ArenaAllocator& arena, Logger& logger, const proto::Schema* proto)
 {
     if (proto == nullptr)
         return nullptr;
     Schema* const schema = arena.New<Schema>();
-    Deserializer serializer(*proto, arena);
+    Deserializer serializer(arena, logger, *proto);
     if (!serializer.Deserialize(*schema))
         return nullptr;
     return schema;
@@ -498,11 +501,11 @@ void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
 
 // --- Deserializer ---
 
-#define VERIFY(EXPR) \
-    ((EXPR) || !(ReportVerifyFailure(#EXPR), failed_ = true))
+#define VERIFY(EXPR, MESSAGE) \
+    ((EXPR) || !(ReportVerifyFailure("" MESSAGE ""), failed_ = true))
 
-#define VERIFY_INDEX(ARRAY, INDEX) \
-    VERIFY((INDEX) < (ARRAY).Size())
+#define VERIFY_INDEX(ARRAY, INDEX, MESSAGE) \
+    VERIFY((INDEX) < (ARRAY).Size(), "" MESSAGE "")
 
 bool Deserializer::Deserialize(Schema& out)
 {
@@ -512,7 +515,7 @@ bool Deserializer::Deserialize(Schema& out)
         modules_.PushBack(arena_, arena_.New<Module>());
 
     const std::size_t root_index = proto_.root();
-    if (VERIFY_INDEX(modules_, proto_.root()))
+    if (VERIFY_INDEX(modules_, proto_.root(), "Invalid root module index"))
         out.root = modules_[proto_.root()];
 
     std::size_t module_index = 0;
@@ -524,7 +527,7 @@ bool Deserializer::Deserialize(Schema& out)
         Array<const Module*> imports = arena_.NewArray<const Module*>(mod.imports_size());
         for (std::uint32_t target_index : mod.imports())
         {
-            if (VERIFY_INDEX(modules_, target_index))
+            if (VERIFY_INDEX(modules_, target_index, "Invalid import index"))
                 imports.EmplaceBack(arena_, modules_[target_index]);
         }
         out_mod.imports = imports;
@@ -575,7 +578,7 @@ bool Deserializer::Deserialize(Schema& out)
                 types_.PushBack(arena_, arena_.New<TypeType>());
                 continue;
         }
-        return false; // unknown tag
+        return VERIFY(false, "Uknown type kind tag");
     }
     out.types = types_;
 
@@ -660,10 +663,10 @@ void Deserializer::Deserialize(TypeStruct& out, const proto::Type::Struct& in)
 
     if (in.has_base())
     {
-        if (VERIFY_INDEX(types_, in.base()))
+        if (VERIFY_INDEX(types_, in.base(), "Invalid base type index"))
         {
             const Type* const base = types_[in.base()];
-            if (VERIFY(base->kind == TypeKind::Struct))
+            if (VERIFY(base->kind == TypeKind::Struct, "Invalid base type kind"))
                 out.base = static_cast<const TypeStruct*>(base);
         }
     }
@@ -698,7 +701,7 @@ void Deserializer::Deserialize(TypeArray& out, const proto::Type::Array& in)
     if (in.has_size())
         out.size = in.size();
 
-    if (VERIFY_INDEX(types_, in.element()))
+    if (VERIFY_INDEX(types_, in.element(), "Invalid element type index"))
         out.type = types_[in.element()];
 }
 
@@ -713,10 +716,10 @@ void Deserializer::Deserialize(TypeEnum& out, const proto::Type::Enum& in)
 
     if (in.has_base())
     {
-        if (VERIFY_INDEX(types_, in.base()))
+        if (VERIFY_INDEX(types_, in.base(), "Invalid enum base type index"))
         {
             const Type* const base = types_[in.base()];
-            if (VERIFY(base->kind == TypeKind::Int))
+            if (VERIFY(base->kind == TypeKind::Int, "Invalid enum base type kind"))
                 out.base = base;
         }
     }
@@ -757,7 +760,7 @@ void Deserializer::Deserialize(TypeNullable& out, const proto::Type::Nullable& i
 {
     DeserializeTypeCommon(out, in);
 
-    if (VERIFY_INDEX(types_, in.type()))
+    if (VERIFY_INDEX(types_, in.type(), "Invalid type index"))
         out.type = types_[in.type()];
 }
 
@@ -765,7 +768,7 @@ void Deserializer::Deserialize(TypePointer& out, const proto::Type::Pointer& in)
 {
     DeserializeTypeCommon(out, in);
 
-    if (VERIFY_INDEX(types_, in.type()))
+    if (VERIFY_INDEX(types_, in.type(), "Invalid pointer type index"))
         out.type = types_[in.type()];
 }
 
@@ -788,7 +791,7 @@ void Deserializer::DeserializeField(Field& out, const Type* owner, const proto::
     if (in.has_proto())
         out.proto = in.proto();
 
-    if (VERIFY_INDEX(types_, in.type()))
+    if (VERIFY_INDEX(types_, in.type(), "Invalid field type index"))
         out.type = types_[in.type()];
 
     if (in.has_default_())
@@ -814,7 +817,7 @@ template <typename T>
 void Deserializer::DeserializeTypeCommon(Type& out, const T& in)
 {
     out.name = arena_.NewString(in.name());
-    if (VERIFY_INDEX(modules_, in.module()))
+    if (VERIFY_INDEX(modules_, in.module(), "Invalid module index"))
         out.owner = modules_[in.module()];
 
     out.annotations = DeserializeAnnotations(in);
@@ -851,13 +854,12 @@ ValueObject* Deserializer::Deserialize(const proto::Value::Object& in)
     ValueObject* const value = arena_.New<ValueObject>();
     DeserializeValueCommon(*value, in);
 
-    if (VERIFY_INDEX(types_, in.type()))
-        value->type = types_[in.type()];
-
-    if (!VERIFY(value->type != nullptr))
+    if (!VERIFY_INDEX(types_, in.type(), "Invalid object type index"))
         return nullptr;
 
-    if (!VERIFY(value->type->kind == TypeKind::Struct))
+    value->type = types_[in.type()];
+
+    if (!VERIFY(value->type->kind == TypeKind::Struct, "Invalid object type kind"))
         return nullptr;
 
     Array<Argument> args = arena_.NewArray<Argument>(in.arguments_size());
@@ -909,7 +911,7 @@ ValueArray* Deserializer::Deserialize(const proto::Value::Array& in)
 {
     ValueArray* const value = arena_.New<ValueArray>();
     DeserializeValueCommon(*value, in);
-    if (VERIFY_INDEX(types_, in.type()))
+    if (VERIFY_INDEX(types_, in.type(), "Invalid array element index"))
         value->type = types_[in.type()];
     Array<Value*> elements = arena_.NewArray<Value*>(in.elements_size());
     for (const proto::Value& element : in.elements())
@@ -922,12 +924,19 @@ ValueEnum* Deserializer::Deserialize(const proto::Value::Enum& in)
 {
     ValueEnum* const value = arena_.New<ValueEnum>();
     DeserializeValueCommon(*value, in);
-    if (VERIFY_INDEX(types_, in.type()) && VERIFY(types_[in.type()]->kind == TypeKind::Enum))
-    {
-        const TypeEnum* const enum_ = static_cast<const TypeEnum*>(types_[in.type()]);
-        if (VERIFY(in.item() < enum_->items.size()))
-            value->item = &enum_->items[in.item()];
-    }
+    if (!VERIFY_INDEX(types_, in.type(), "Invalid enum value type index"))
+        return nullptr;
+
+    if (!VERIFY(types_[in.type()]->kind == TypeKind::Enum, "Invalid enum value type kind"))
+        return nullptr;
+
+    const TypeEnum* const enum_ = static_cast<const TypeEnum*>(types_[in.type()]);
+
+    if (!VERIFY(in.item() < enum_->items.size(), "Invalid enum value item index"))
+        return nullptr;
+
+    value->item = &enum_->items[in.item()];
+
     return value;
 }
 
@@ -935,8 +944,9 @@ ValueType* Deserializer::Deserialize(const proto::Value::Type& in)
 {
     ValueType* const value = arena_.New<ValueType>();
     DeserializeValueCommon(*value, in);
-    if (VERIFY(in.type() < types_.Size()))
-        value->type = types_[in.type()];
+    if (!VERIFY(in.type() < types_.Size(), "Invalid type value type index"))
+        return nullptr;
+    value->type = types_[in.type()];
     return value;
 }
 
@@ -949,9 +959,13 @@ ValueNull* Deserializer::Deserialize(const proto::Value::Null& in)
 
 void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
 {
-    if (VERIFY_INDEX(types_, in.attribute()))
-        if (VERIFY(types_[in.attribute()]->kind == TypeKind::Attribute))
-            out.attribute = static_cast<const TypeAttribute*>(types_[in.attribute()]);
+    if (!VERIFY_INDEX(types_, in.attribute(), "Invalid attribute index"))
+        return;
+
+    if (!VERIFY(types_[in.attribute()]->kind == TypeKind::Attribute, "Invalid attribute kind"))
+        return;
+
+    out.attribute = static_cast<const TypeAttribute*>(types_[in.attribute()]);
 
     Array<Argument> args = arena_.NewArray<Argument>(in.arguments_size());
     for (const proto::Argument& arg : in.arguments())
@@ -968,6 +982,7 @@ void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
     out.line = in.line();
 }
 
-void Deserializer::ReportVerifyFailure(const char* message)
+void Deserializer::ReportVerifyFailure(std::string_view expr)
 {
+    logger_.Error("<ParseSchemaProto>", {}, expr);
 }

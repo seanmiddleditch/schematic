@@ -1,7 +1,7 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
 #include "lexer.h"
-#include "test_context.h"
+#include "test_logger.h"
 #include "test_matchers.h"
 #include "test_strings.h"
 
@@ -17,7 +17,7 @@ using namespace potato::schematic::test;
 
 TEST_CASE("Lexer", "[potato][schematic]")
 {
-    TestContext ctx;
+    TestLogger logger;
     ArenaAllocator arena;
 
     SECTION("Numbers")
@@ -64,7 +64,7 @@ World!""")",
 
     SECTION("Comments")
     {
-        Lexer lexer(arena, ctx, "<test>", R"--(
+        Lexer lexer(arena, logger, "<test>", R"--(
         // this is a comment
 
         // and another comment

@@ -7,14 +7,12 @@ include(cmake/test.cmake)
 add_executable(schematic_test)
 target_link_libraries(schematic_test schematic::schematic Catch2::Catch2WithMain)
 target_compile_features(schematic_test PRIVATE cxx_std_23)
-target_include_directories(schematic_test PRIVATE
-    "${PROJECT_SOURCE_DIR}/schematic/source"
-    include
-)
-target_sources(schematic_test PRIVATE
+target_include_directories(schematic_test PRIVATE "${PROJECT_SOURCE_DIR}/schematic/source")
+target_sources(schematic_test PRIVATE FILE_SET HEADERS BASE_DIRS include FILES
     "include/embed_tests.h"
     "include/evaluator.h"
     "include/test_context.h"
+    "include/test_logger.h"
     "include/test_matchers.h"
     "include/test_strings.h"
 )
@@ -27,13 +25,13 @@ target_sources(schematic_test PRIVATE
 catch_discover_tests(schematic_test)
 
 if(SCHEMATIC_SCHEMAC)
-    schematic_add_tests(IMPORT_DIR schemas/ TESTS
+    schematic_add_schemac_tests(IMPORT_DIR schemas/ SCHEMAS
         "schemas/complete.sat"
         "schemas/message.sat"
     )
 endif()
 
-schematic_embed_tests(TARGET schematic_test TESTS
+schematic_embed_schemas(TARGET schematic_test SCHEMAS
     "schemas/annotations.sat"
     "schemas/array.sat"
     "schemas/builtin.sat"

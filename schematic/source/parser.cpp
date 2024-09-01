@@ -6,6 +6,7 @@
 #include "location.h"
 
 #include "schematic/allocator.h"
+#include "schematic/logger.h"
 
 #include <fmt/core.h>
 

@@ -1,7 +1,9 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
 #include "schematic/compiler.h"
+#include "schematic/logger.h"
 #include "schematic/protobuf.h"
+#include "schematic/schema.h"
 
 #include <fmt/core.h>
 #include <fmt/std.h>

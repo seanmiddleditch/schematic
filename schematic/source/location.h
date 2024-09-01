@@ -5,6 +5,7 @@
 #include "token.h"
 
 #include "schematic/compiler.h"
+#include "schematic/logger.h"
 
 namespace potato::schematic::compiler
 {

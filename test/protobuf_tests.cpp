@@ -1,6 +1,7 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
 #include "test_context.h"
+#include "test_logger.h"
 
 #include "schematic/compiler.h"
 #include "schematic/protobuf.h"
@@ -17,6 +18,7 @@ using namespace potato::schematic::test;
 TEST_CASE("Serialize", "[potato][schematic]")
 {
     TestContext ctx;
+    TestLogger logger;
     ArenaAllocator arena;
     google::protobuf::Arena pb_arena;
 
@@ -30,13 +32,13 @@ TEST_CASE("Serialize", "[potato][schematic]")
 
         DYNAMIC_SECTION(test.name)
         {
-            const Schema* const original = Compile(arena, ctx, ctx, test.name, test.source);
+            const Schema* const original = Compile(arena, logger, ctx, test.name, test.source);
             REQUIRE(original != nullptr);
 
             const proto::Schema* const proto = SerializeSchemaProto(pb_arena, original);
             REQUIRE(proto != nullptr);
 
-            const Schema* const deserialized = ParseSchemaProto(arena, proto);
+            const Schema* const deserialized = ParseSchemaProto(arena, logger, proto);
             REQUIRE(deserialized != nullptr);
 
             const proto::Schema* const proto2 = SerializeSchemaProto(pb_arena, deserialized);
@@ -49,7 +51,7 @@ TEST_CASE("Serialize", "[potato][schematic]")
 
 TEST_CASE("ParseSchemaProto Error", "[potato][schematic]")
 {
-    TestContext ctx;
+    TestLogger logger;
     ArenaAllocator arena;
     google::protobuf::Arena pb_arena;
 
@@ -73,5 +75,5 @@ TEST_CASE("ParseSchemaProto Error", "[potato][schematic]")
     const proto::Schema* const proto = SerializeSchemaProto(pb_arena, &schema);
     REQUIRE(proto != nullptr);
 
-    CHECK(ParseSchemaProto(arena, proto) == nullptr);
+    CHECK(ParseSchemaProto(arena, logger, proto) == nullptr);
 }
