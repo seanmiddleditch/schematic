@@ -70,7 +70,7 @@ jobs:
           version: 18
           verbosity: 20
           ignore: out|vcpkg
-          database: out/clang++debug
+          database: out/clang++-debug
           extra-args: -std=c++23
           step-summary: true
 
