@@ -92,6 +92,9 @@ namespace
         void DeserializeField(Field& out, const Type* owner, const proto::Field& in);
 
         template <typename T>
+        Array<Annotation*> DeserializeAnnotations(const T& in);
+
+        template <typename T>
         void DeserializeTypeCommon(Type& out, const T& in);
         template <typename T>
         void DeserializeValueCommon(Value& out, const T& in);
@@ -729,6 +732,8 @@ void Deserializer::Deserialize(TypeEnum& out, const proto::Type::Enum& in)
         ValueInt* const value = arena_.New<ValueInt>();
         value->value = item.value();
         out_item.value = value;
+
+        out_item.annotations = DeserializeAnnotations(item);
     }
     out.items = items;
 }
@@ -788,6 +793,21 @@ void Deserializer::DeserializeField(Field& out, const Type* owner, const proto::
 
     if (in.has_default_())
         out.value = Deserialize(in.default_());
+
+    out.annotations = DeserializeAnnotations(in);
+}
+
+template <typename T>
+Array<Annotation*> Deserializer::DeserializeAnnotations(const T& in)
+{
+    Array<Annotation*> annotations = arena_.NewArray<Annotation*>(in.annotations_size());
+    for (const proto::Annotation& anno : in.annotations())
+    {
+        Annotation* const out_anno = arena_.New<Annotation>();
+        Deserialize(*out_anno, anno);
+        annotations.PushBack(arena_, out_anno);
+    }
+    return annotations;
 }
 
 template <typename T>
@@ -797,14 +817,7 @@ void Deserializer::DeserializeTypeCommon(Type& out, const T& in)
     if (VERIFY_INDEX(modules_, in.module()))
         out.owner = modules_[in.module()];
 
-    Array<Annotation*> annotations = arena_.NewArray<Annotation*>(in.annotations_size());
-    for (const proto::Annotation& anno : in.annotations())
-    {
-        Annotation* const out_anno = arena_.New<Annotation>();
-        Deserialize(*out_anno, anno);
-        annotations.PushBack(arena_, out_anno);
-    }
-    out.annotations = annotations;
+    out.annotations = DeserializeAnnotations(in);
 
     out.line = in.line();
 }
@@ -819,14 +832,15 @@ Value* Deserializer::Deserialize(const proto::Value& in)
 {
     switch (in.Values_case())
     {
-        case proto::Value::kNull: return Deserialize(in.null());
-        case proto::Value::kBool: return Deserialize(in.bool_());
-        case proto::Value::kInt: return Deserialize(in.int_());
-        case proto::Value::kFloat: return Deserialize(in.float_());
-        case proto::Value::kString: return Deserialize(in.string());
-        case proto::Value::kEnum: return Deserialize(in.enum_());
         case proto::Value::kArray: return Deserialize(in.array());
+        case proto::Value::kBool: return Deserialize(in.bool_());
+        case proto::Value::kEnum: return Deserialize(in.enum_());
+        case proto::Value::kFloat: return Deserialize(in.float_());
+        case proto::Value::kInt: return Deserialize(in.int_());
+        case proto::Value::kNull: return Deserialize(in.null());
         case proto::Value::kObject: return Deserialize(in.object());
+        case proto::Value::kString: return Deserialize(in.string());
+        case proto::Value::kType: return Deserialize(in.type());
     }
     failed_ = true; // unknown type tag
     return nullptr;
@@ -895,6 +909,8 @@ ValueArray* Deserializer::Deserialize(const proto::Value::Array& in)
 {
     ValueArray* const value = arena_.New<ValueArray>();
     DeserializeValueCommon(*value, in);
+    if (VERIFY_INDEX(types_, in.type()))
+        value->type = types_[in.type()];
     Array<Value*> elements = arena_.NewArray<Value*>(in.elements_size());
     for (const proto::Value& element : in.elements())
         elements.PushBack(arena_, Deserialize(element));
@@ -919,6 +935,8 @@ ValueType* Deserializer::Deserialize(const proto::Value::Type& in)
 {
     ValueType* const value = arena_.New<ValueType>();
     DeserializeValueCommon(*value, in);
+    if (VERIFY(in.type() < types_.Size()))
+        value->type = types_[in.type()];
     return value;
 }
 
