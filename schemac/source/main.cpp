@@ -313,7 +313,7 @@ std::string_view MainContext::ReadFileContents(ArenaAllocator& arena, std::strin
         if (file.filename == filename)
             return file.source;
     }
-    return { };
+    return {};
 }
 
 std::string_view MainContext::ResolveModule(ArenaAllocator& arena, std::string_view name, std::string_view referrer)

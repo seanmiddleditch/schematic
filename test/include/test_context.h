@@ -102,7 +102,7 @@ namespace potato::schematic::test
             if (test.name == filename)
                 return test.source;
         }
-        return { };
+        return {};
     }
 
     std::string_view TestContext::ResolveModule(ArenaAllocator& arena, std::string_view name, std::string_view referrer)
