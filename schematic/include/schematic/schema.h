@@ -80,12 +80,14 @@ namespace potato::schematic
     {
         const Field* field = nullptr;
         const Value* value = nullptr;
+        std::uint16_t line = 0; // if non-zero, the line within the owner module of the value
     };
 
     struct Annotation
     {
         const TypeAttribute* attribute = nullptr;
         Span<Argument> arguments;
+        std::uint16_t line = 0; // if non-zero, the line within owner module of the owner type
     };
 
     struct EnumItem
@@ -94,7 +96,7 @@ namespace potato::schematic
         const char* name = nullptr;
         const ValueInt* value = nullptr;
         const TypeEnum* owner = nullptr;
-        std::uint16_t line = 0; // if non-zero, the line within the owner module of the value
+        std::uint16_t line = 0; // if non-zero, the line within the owner module of the owner enum
     };
 
     struct Field
@@ -105,7 +107,7 @@ namespace potato::schematic
         const Type* type = nullptr;
         const Value* value = nullptr;
         std::uint32_t proto = 0;
-        std::uint16_t line = 0; // if non-zero, the line within the owner module of the value
+        std::uint16_t line = 0; // if non-zero, the line within the owner module of the owner type
     };
 
     struct Module
@@ -134,7 +136,8 @@ namespace potato::schematic
     struct Value
     {
         ValueKind kind = ValueKind::Null;
-        std::uint16_t line = 0; // if non-zero, the line within the owner module of the value
+        const Module* owner = nullptr;
+        std::uint16_t line = 0; // if non-zero, the line within the owner module
     };
 
 #define SCHEMATIC_TYPE(KIND) \

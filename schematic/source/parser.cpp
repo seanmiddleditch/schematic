@@ -705,7 +705,7 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
 void Parser::Error(std::string_view message)
 {
     const Token& token = tokens_[next_];
-    ctx_.Error(moduleId_, FindRange(contents_, token.offset, token.length), message);
+    ctx_.Error(moduleId_, FindRange(contents_, token), message);
     failed_ = true;
 }
 

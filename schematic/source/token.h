@@ -8,7 +8,7 @@ namespace potato::schematic::compiler
 {
     class Source;
 
-    enum class TokenType
+    enum class TokenType : std::uint8_t
     {
         Unknown,
 
@@ -52,6 +52,7 @@ namespace potato::schematic::compiler
     struct Token
     {
         TokenType type = TokenType::Unknown;
+        std::uint32_t line = 0;
         std::uint32_t offset = 0;
         std::uint32_t length = 0;
     };

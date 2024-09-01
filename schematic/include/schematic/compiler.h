@@ -62,8 +62,8 @@ namespace potato::schematic
 
     struct Location
     {
-        std::uint32_t line = 1;
-        std::uint32_t column = 1;
+        std::uint16_t line = 1;
+        std::uint16_t column = 1;
     };
 
     struct Range

@@ -26,9 +26,9 @@ namespace
     struct Input
     {
         Input(const char* text, std::size_t size) noexcept
-            : cur(text)
-            , start(text)
-            , sentinel(text + size)
+            : cur_(text)
+            , start_(text)
+            , sentinel_(text + size)
         {
         }
 
@@ -43,13 +43,16 @@ namespace
         char Peek() const noexcept;
 
         std::uint32_t Pos() const noexcept;
+        std::uint16_t Line() const noexcept { return line_; }
 
         void Advance() noexcept;
+        void Advance(std::size_t length) noexcept;
 
     private:
-        const char* cur = nullptr;
-        const char* start = nullptr;
-        const char* sentinel = nullptr;
+        std::uint16_t line_ = 1;
+        const char* cur_ = nullptr;
+        const char* start_ = nullptr;
+        const char* sentinel_ = nullptr;
     };
 } // namespace
 
@@ -62,13 +65,13 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
 
     auto Error = [this, &in, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
     {
-        ctx_.Error(moduleId_, FindRange(source_, in.Pos(), 1), fmt::vformat(format, fmt::make_format_args(args...)));
+        ctx_.Error(moduleId_, Range{ .start = { in.Line(), 0 }, .end = { in.Line(), 0 } }, fmt::vformat(format, fmt::make_format_args(args...)));
         result = false;
     };
 
     auto Push = [this, &in](TokenType type)
     {
-        tokens_.PushBack(arena_, Token{ .type = type, .offset = in.Pos(), .length = 1 });
+        tokens_.PushBack(arena_, Token{ .type = type, .line = in.Line(), .offset = in.Pos(), .length = 1 });
     };
 
     while (!in.IsEof())
@@ -175,7 +178,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
                         Error("Expected digits after 0x prefix");
                     while (in.Match(IsHexDigit))
                         ;
-                    tokens_.PushBack(arena_, Token{ .type = TokenType::HexInteger, .offset = start, .length = in.Pos() - start });
+                    tokens_.PushBack(arena_, Token{ .type = TokenType::HexInteger, .line = in.Line(), .offset = start, .length = in.Pos() - start });
                     continue;
                 }
 
@@ -186,7 +189,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
                         Error("Expected digits after 0b prefix");
                     while (in.Match(IsBinaryDigit))
                         ;
-                    tokens_.PushBack(arena_, Token{ .type = TokenType::BinaryInteger, .offset = start, .length = in.Pos() - start });
+                    tokens_.PushBack(arena_, Token{ .type = TokenType::BinaryInteger, .line = in.Line(), .offset = start, .length = in.Pos() - start });
                     continue;
                 }
 
@@ -197,7 +200,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
 
             if (isDot && !in.Match(IsDigit))
             {
-                tokens_.PushBack(arena_, Token{ .type = TokenType::Dot, .offset = start, .length = 1 });
+                tokens_.PushBack(arena_, Token{ .type = TokenType::Dot, .line = in.Line(), .offset = start, .length = 1 });
                 continue;
             }
 
@@ -227,7 +230,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
                     ;
             }
 
-            tokens_.PushBack(arena_, Token{ .type = type, .offset = start, .length = in.Pos() - start });
+            tokens_.PushBack(arena_, Token{ .type = type, .line = in.Line(), .offset = start, .length = in.Pos() - start });
             continue;
         }
 
@@ -237,7 +240,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
             while (in.Match(IsIdentBody))
                 ;
 
-            tokens_.PushBack(arena_, Token{ .type = TokenType::Identifier, .offset = start, .length = in.Pos() - start });
+            tokens_.PushBack(arena_, Token{ .type = TokenType::Identifier, .line = in.Line(), .offset = start, .length = in.Pos() - start });
             continue;
         }
 
@@ -255,7 +258,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
                 in.Advance();
             }
 
-            tokens_.PushBack(arena_, Token{ .type = TokenType::MultilineString, .offset = start, .length = in.Pos() - start });
+            tokens_.PushBack(arena_, Token{ .type = TokenType::MultilineString, .line = in.Line(), .offset = start, .length = in.Pos() - start });
             continue;
         }
         else if (in.Match('"'))
@@ -287,7 +290,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
                 break;
             }
 
-            tokens_.PushBack(arena_, Token{ .type = TokenType::String, .offset = start, .length = in.Pos() - start });
+            tokens_.PushBack(arena_, Token{ .type = TokenType::String, .line = in.Line(), .offset = start, .length = in.Pos() - start });
             continue;
         }
 
@@ -296,7 +299,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
         in.Advance();
     }
 
-    tokens_.PushBack(arena_, Token{ .type = TokenType::End, .offset = in.Pos() });
+    tokens_.PushBack(arena_, Token{ .type = TokenType::End, .line = in.Line(), .offset = in.Pos() });
     return tokens_;
 }
 
@@ -345,62 +348,80 @@ bool IsIdentBody(char c) noexcept
 
 bool Input::Match(char c) noexcept
 {
-    if (cur == sentinel)
+    if (cur_ == sentinel_)
         return false;
-    if (*cur != c)
+    if (*cur_ != c)
         return false;
-    ++cur;
+    Advance();
     return true;
 }
 
 bool Input::Match(const char* text) noexcept
 {
     const std::size_t tlen = std::strlen(text);
-    if (tlen > (sentinel - cur))
+    if (tlen > (sentinel_ - cur_))
         return false;
-    if (std::memcmp(cur, text, tlen) != 0)
+    if (std::memcmp(cur_, text, tlen) != 0)
         return false;
-    cur += tlen;
+    Advance(tlen);
     return true;
 }
 
 bool Input::Match(bool (*func)(char) noexcept) noexcept
 {
-    if (cur == sentinel)
+    if (cur_ == sentinel_)
         return false;
-    if (!func(*cur))
+    if (!func(*cur_))
         return false;
-    ++cur;
+    Advance();
     return true;
 }
 
 bool Input::MatchAll(bool (*func)(char) noexcept) noexcept
 {
-    const char* const original = cur;
-    while (cur != sentinel && func(*cur))
-        ++cur;
-    return cur != original;
+    const char* const original = cur_;
+    while (cur_ != sentinel_ && func(*cur_))
+        Advance();
+    return cur_ != original;
 }
 
 bool Input::IsEof() const noexcept
 {
-    return cur == sentinel;
+    return cur_ == sentinel_;
 }
 
 char Input::Peek() const noexcept
 {
-    if (cur == sentinel)
+    if (cur_ == sentinel_)
         return '\0';
-    return *cur;
+    return *cur_;
 }
 
 std::uint32_t Input::Pos() const noexcept
 {
-    return cur - start;
+    return cur_ - start_;
 }
 
 void Input::Advance() noexcept
 {
-    if (cur != sentinel)
-        ++cur;
+    if (cur_ == sentinel_)
+        return;
+
+    if (*cur_ == '\n')
+        ++line_;
+
+    ++cur_;
+}
+
+void Input::Advance(std::size_t length) noexcept
+{
+    const std::size_t avail = sentinel_ - cur_;
+    if (length > avail)
+        length = avail;
+    for (const char* c = cur_; c != cur_ + length; ++c)
+    {
+        if (*c == '\n')
+            ++line_;
+    }
+    cur_ += length;
 }
