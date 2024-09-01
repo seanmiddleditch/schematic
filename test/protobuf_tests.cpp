@@ -22,7 +22,7 @@ TEST_CASE("Serialize", "[potato][schematic]")
     Compiler compiler(ctx, arena);
     compiler.SetUseBuiltins(true);
 
-    const Schema* const original = compiler.Compile(ctx.ResolveModule("schemas/complete.sat", ModuleId{ 0 }));
+    const Schema* const original = compiler.Compile(ctx.ResolveModule(arena, "schemas/complete.sat", {}));
     REQUIRE(original != nullptr);
 
     const proto::Schema* const proto = SerializeSchemaProto(pb_arena, original);

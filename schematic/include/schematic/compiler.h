@@ -18,20 +18,13 @@ namespace potato::schematic
     struct Range;
     struct Schema;
 
-    struct ModuleId
-    {
-        static constexpr std::size_t InvalidValue = ~0;
-        std::size_t value = InvalidValue;
-    };
-
     class CompileContext
     {
     public:
-        virtual void Error(ModuleId moduleId, const Range& range, std::string_view message) = 0;
+        virtual void Error(std::string_view filename, const Range& range, std::string_view message) = 0;
 
-        virtual std::string_view ReadFileContents(ModuleId id) = 0;
-        virtual std::string_view GetFileName(ModuleId id) = 0;
-        virtual ModuleId ResolveModule(std::string_view name, ModuleId referrer) = 0;
+        virtual std::string_view ReadFileContents(ArenaAllocator& arena, std::string_view filename) = 0;
+        virtual std::string_view ResolveModule(ArenaAllocator& arena, std::string_view name, std::string_view referrer) = 0;
 
         CompileContext(const CompileContext&) = delete;
         CompileContext& operator=(const CompileContext&) = delete;
@@ -51,7 +44,7 @@ namespace potato::schematic
 
         void SetUseBuiltins(bool useBuiltins = true);
 
-        const Schema* Compile(ModuleId moduleId);
+        const Schema* Compile(std::string_view filename);
 
     private:
         CompileContext& ctx_;

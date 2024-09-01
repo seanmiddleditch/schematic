@@ -65,7 +65,7 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
 
     auto Error = [this, &in, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
     {
-        ctx_.Error(moduleId_, Range{ .start = { in.Line(), 0 }, .end = { in.Line(), 0 } }, fmt::vformat(format, fmt::make_format_args(args...)));
+        ctx_.Error(filename_, Range{ .start = { in.Line(), 0 }, .end = { in.Line(), 0 } }, fmt::vformat(format, fmt::make_format_args(args...)));
         result = false;
     };
 

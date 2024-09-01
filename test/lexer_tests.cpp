@@ -64,7 +64,7 @@ World!""")",
 
     SECTION("Comments")
     {
-        Lexer lexer(ctx, arena, ModuleId{ 0 }, R"--(
+        Lexer lexer(ctx, arena, "<test>", R"--(
         // this is a comment
 
         // and another comment

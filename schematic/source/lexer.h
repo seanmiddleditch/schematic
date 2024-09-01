@@ -15,10 +15,10 @@ namespace potato::schematic::compiler
     class Lexer final
     {
     public:
-        Lexer(CompileContext& ctx, ArenaAllocator& arena, ModuleId moduleId, std::string_view source) noexcept
+        Lexer(CompileContext& ctx, ArenaAllocator& arena, std::string_view filename, std::string_view source) noexcept
             : ctx_(ctx)
             , arena_(arena)
-            , moduleId_(moduleId)
+            , filename_(filename)
             , source_(source)
         {
         }
@@ -28,7 +28,7 @@ namespace potato::schematic::compiler
     private:
         CompileContext& ctx_;
         ArenaAllocator& arena_;
-        ModuleId moduleId_;
+        std::string_view filename_;
         std::string_view source_;
         Array<Token> tokens_;
     };

@@ -49,12 +49,12 @@ void potato::schematic::Compiler::SetUseBuiltins(bool useBuiltins)
     useBuiltins_ = useBuiltins;
 }
 
-const Schema* potato::schematic::Compiler::Compile(ModuleId moduleId)
+const Schema* potato::schematic::Compiler::Compile(std::string_view filename)
 {
     if (generator_ == nullptr)
         generator_ = arena_.New<Generator>(ctx_, arena_);
 
-    const Module* const root = generator_->Compile(moduleId, useBuiltins_);
+    const Module* const root = generator_->Compile(filename, useBuiltins_);
     if (root == nullptr)
         return nullptr;
 

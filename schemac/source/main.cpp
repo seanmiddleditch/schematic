@@ -35,13 +35,12 @@ namespace
 
     struct MainContext final : potato::schematic::CompileContext
     {
-        void Error(ModuleId moduleId, const Range& range, std::string_view message) override;
+        void Error(std::string_view filename, const Range& range, std::string_view message) override;
 
-        std::string_view ReadFileContents(ModuleId id) override;
-        std::string_view GetFileName(ModuleId id) override;
-        ModuleId ResolveModule(std::string_view name, ModuleId referrer) override;
+        std::string_view ReadFileContents(ArenaAllocator& arena, std::string_view filename) override;
+        std::string_view ResolveModule(ArenaAllocator& arena, std::string_view name, std::string_view referrer) override;
 
-        ModuleId TryLoadFile(const std::filesystem::path& filename);
+        const File* TryLoadFile(const std::filesystem::path& filename);
 
         std::filesystem::path input;
         std::filesystem::path output;
@@ -63,8 +62,8 @@ int main(int argc, char** argv)
     if (!ParseArguments(ctx, std::span{ &argv[1], &argv[argc] }))
         return 3;
 
-    const ModuleId root = ctx.TryLoadFile(ctx.input);
-    if (root.value == ModuleId::InvalidValue)
+    const File* const root = ctx.TryLoadFile(ctx.input);
+    if (root == nullptr)
     {
         fmt::println(stderr, "Cannot open input file: {}", ctx.input);
         return 1;
@@ -74,7 +73,7 @@ int main(int argc, char** argv)
     ArenaAllocator arena(alloc);
     Compiler compiler(ctx, arena);
     compiler.SetUseBuiltins(true);
-    const Schema* const schema = compiler.Compile(root);
+    const Schema* const schema = compiler.Compile(root->name);
     if (schema == nullptr)
         return 1;
 
@@ -284,73 +283,73 @@ bool ParseArguments(MainContext& ctx, std::span<char*> args)
     return true;
 }
 
-void MainContext::Error(ModuleId moduleId, const Range& range, std::string_view message)
+void MainContext::Error(std::string_view filename, const Range& range, std::string_view message)
 {
-    if (moduleId.value == ModuleId::InvalidValue)
+    if (filename.empty())
     {
-        fmt::println(stderr, "<unknown>: {}", message);
+        fmt::println(stderr, "{}", message);
         return;
     }
 
     if (range.start.line == 0)
     {
-        fmt::println(stderr, "{}: {}", files[moduleId.value].filename.generic_string(), message);
+        fmt::println(stderr, "{}: {}", filename, message);
         return;
     }
 
-    fmt::println(stderr, "{}({},{}): {}", files[moduleId.value].filename.generic_string(), range.start.line, range.start.column, message);
+    if (range.start.column == 0)
+    {
+        fmt::println(stderr, "{}({}): {}", filename, range.start.line, message);
+        return;
+    }
+
+    fmt::println(stderr, "{}({},{}): {}", filename, range.start.line, range.start.column, message);
 }
 
-std::string_view MainContext::ReadFileContents(ModuleId id)
+std::string_view MainContext::ReadFileContents(ArenaAllocator& arena, std::string_view filename)
 {
-    if (id.value >= files.size())
-        return {};
-
-    return files[id.value].source;
+    for (const File& file : files)
+    {
+        if (file.filename == filename)
+            return file.source;
+    }
+    return { };
 }
 
-std::string_view MainContext::GetFileName(ModuleId id)
-{
-    if (id.value >= files.size())
-        return {};
-
-    return files[id.value].name;
-}
-
-ModuleId MainContext::ResolveModule(std::string_view name, ModuleId referrer)
+std::string_view MainContext::ResolveModule(ArenaAllocator& arena, std::string_view name, std::string_view referrer)
 {
     std::filesystem::path filename = name;
 
-    if (referrer.value < files.size())
-        filename = files[referrer.value].filename.parent_path() / filename;
+    if (!referrer.empty())
+        filename = std::filesystem::path{ referrer }.parent_path() / filename;
 
     for (std::size_t i = 0; i != files.size(); ++i)
         if (files[i].filename == filename)
-            return ModuleId{ i };
+            return arena.NewString(files[i].name);
 
-    if (const ModuleId moduleId = TryLoadFile(filename); moduleId.value != ModuleId::InvalidValue)
-        return moduleId;
+    if (const File* const file = TryLoadFile(filename); file != nullptr)
+        return file->name;
 
     for (const std::filesystem::path& s : search)
     {
         filename = s / name;
-        if (const ModuleId moduleId = TryLoadFile(filename); moduleId.value != ModuleId::InvalidValue)
-            return moduleId;
+        if (const File* const file = TryLoadFile(filename); file != nullptr)
+            return arena.NewString(file->name);
     }
 
     return {};
 }
 
-ModuleId MainContext::TryLoadFile(const std::filesystem::path& filename)
+const File* MainContext::TryLoadFile(const std::filesystem::path& filename)
 {
     std::ifstream input(filename);
     if (!input)
-        return ModuleId{};
+        return nullptr;
 
     File& file = files.emplace_back();
     file.filename = filename;
     file.name = file.filename.generic_string();
     file.source = std::string(std::istreambuf_iterator<char>(input), {});
 
-    return ModuleId{ files.size() - 1 };
+    return &file;
 }

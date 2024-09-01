@@ -10,6 +10,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <fmt/core.h>
 
+#include <span>
 #include <string>
 #include <vector>
 
@@ -17,19 +18,18 @@ namespace potato::schematic::test
 {
     struct TestContext final : potato::schematic::CompileContext
     {
-        inline void Error(ModuleId moduleId, const Range& range, std::string_view message) override;
+        inline void Error(std::string_view filename, const Range& range, std::string_view message) override;
 
-        inline std::string_view ReadFileContents(ModuleId id) override;
-        inline std::string_view GetFileName(ModuleId id) override;
-        inline ModuleId ResolveModule(std::string_view name, ModuleId referrer) override;
+        inline std::string_view ReadFileContents(ArenaAllocator& arena, std::string_view filename) override;
+        inline std::string_view ResolveModule(ArenaAllocator& arena, std::string_view name, std::string_view referrer) override;
 
         std::vector<std::string> errors;
         bool reportErrors = true;
     };
 
-    void TestContext::Error(ModuleId moduleId, const Range& range, std::string_view message)
+    void TestContext::Error(std::string_view filename, const Range& range, std::string_view message)
     {
-        if (moduleId.value == ModuleId::InvalidValue)
+        if (filename.empty())
         {
             errors.emplace_back(message);
             if (reportErrors)
@@ -37,9 +37,18 @@ namespace potato::schematic::test
             return;
         }
 
-        std::string_view source = ReadFileContents(moduleId);
+        std::string_view source;
+        for (const EmbeddedTest& test : std::span{ test_embeds, test_embeds_count })
+        {
+            if (test.name == filename)
+            {
+                source = test.source;
+                break;
+            }
+        }
+
         std::string buffer;
-        fmt::format_to(std::back_inserter(buffer), "{}({}): ", GetFileName(moduleId), range.start.line);
+        fmt::format_to(std::back_inserter(buffer), "{}({}): ", filename, range.start.line);
         const auto prefix = buffer.size();
         buffer.append(message);
         errors.push_back(buffer);
@@ -51,6 +60,9 @@ namespace potato::schematic::test
         UNSCOPED_INFO(buffer);
 
         std::string_view line = potato::schematic::compiler::ExtractLine(source, range.start.line);
+        if (line.empty())
+            return;
+
         buffer.resize(prefix);
         buffer.append(line);
         UNSCOPED_INFO(buffer);
@@ -83,29 +95,21 @@ namespace potato::schematic::test
         UNSCOPED_INFO(buffer);
     }
 
-    std::string_view TestContext::ReadFileContents(ModuleId id)
+    std::string_view TestContext::ReadFileContents(ArenaAllocator& arena, std::string_view filename)
     {
-        if (id.value >= test_embeds_count)
-            return {};
-
-        return test_embeds[id.value].source;
-    }
-
-    std::string_view TestContext::GetFileName(ModuleId id)
-    {
-        if (id.value >= test_embeds_count)
-            return {};
-
-        return test_embeds[id.value].name;
-    }
-
-    ModuleId TestContext::ResolveModule(std::string_view name, ModuleId referrer)
-    {
-        const EmbeddedTest& refTest = test_embeds[referrer.value];
-
-        if (referrer.value != ModuleId::InvalidValue)
+        for (const EmbeddedTest& test : std::span{ test_embeds, test_embeds_count })
         {
-            std::string relative = refTest.name;
+            if (test.name == filename)
+                return test.source;
+        }
+        return { };
+    }
+
+    std::string_view TestContext::ResolveModule(ArenaAllocator& arena, std::string_view name, std::string_view referrer)
+    {
+        if (!referrer.empty())
+        {
+            std::string relative{ referrer };
             if (const auto sep = relative.rfind('/'); sep != std::string::npos)
             {
                 relative.resize(sep + 1);
@@ -114,13 +118,13 @@ namespace potato::schematic::test
 
             for (std::size_t i = 0; i != test_embeds_count; ++i)
                 if (test_embeds[i].name == relative)
-                    return ModuleId{ i };
+                    return test_embeds[i].name;
         }
 
         for (std::size_t i = 0; i != test_embeds_count; ++i)
             if (test_embeds[i].name == name)
-                return ModuleId{ i };
+                return test_embeds[i].name;
 
-        return ModuleId{};
+        return {};
     }
 } // namespace potato::schematic::test

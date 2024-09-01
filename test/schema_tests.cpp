@@ -54,7 +54,7 @@ TEST_CASE("Schemas", "[potato][schematic]")
             if (!expected_errors.empty())
                 ctx.reportErrors = false;
 
-            const Schema* const schema = compiler.Compile(ModuleId{ i });
+            const Schema* const schema = compiler.Compile(test.name);
 
             if (!checks.empty())
             {
