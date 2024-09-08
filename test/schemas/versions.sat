@@ -1,140 +1,39 @@
-struct asset {
-    string name;
-    guid id;
-    string type;
-    string[] labels;
-    int version;
-
-7:
-    // added new version field (can auto-migrate)
-    + version;
-
-    
-    // v6 declaration:
-    //  string name;
-    //  guid id;
-    //  string type;
-    //  string[] labels;
-
-6:
-    // change type of id to different type (needs migrator)
-    int id -> id;
-
-
-    // v5 declaration:
-    //  string name;
-    //  int id;
-    //  string type;
-    //  string[] labels;
-
-5:
-    // removed author (can auto-migrate)
-    - string author;
-
-
-    // v4 declaration:
-    //  string name;
-    //  string author;
-    //  int id;
-    //  string type;
-    //  string[] labels;
-
-4:
-    // renamed label and made it an array of same type (can auto-migrate)
-    string? label -> labels;
-    
-
-    // v3 declaration:
-    //  string name;
-    //  string author;
-    //  int id;
-    //  string type;
-    //  string? label;
-
-3:
-    // replace opaque typeid with type name (needs migrator)
-    int typeid -> type;
-
-    // added an optional label
-    + string? label;
-
-    // v2 declaration:
-    //  string name;
-    //  string author;
-    //  int id;
-    //  int typeid;
-
-2:
-    // removed created timestamp (can auto-migrate)
-    - datetime created;
-
-
-    // v1 declaration:
-    //  string name;
-    //  string author;
-    //  int id;
-    //  int typeid;
-    //  datetime created;
+struct guid
+{
+    uint8[128] bytes;
 }
 
+struct datetime
+{
+    uint16 year;
+    uint8 month;
+    uint8 day;
+    uint8 hour;
+    uint8 minute;
+    uint8 second;
+}
 
 struct asset
 {
     string name;
-    guid id;
-    string type;
-    string[] labels;
-    int version;
+    guid id#6;
+    string type#3;
+    string[] labels#4;
+    int32 version#7;
 
-7:
-    + version;
-
-6:
-    id <- int id;
-
-5:
-    - string author;
-
-4:
-    labels <- string? label;
-
-3:
-    + label;
-    type <- int typeid;
-
-2:
-    - datetime created;
+    int32 id#1..5; // changed to guid
+    string author#1..5; // retired
+    int32 typeid#1..3; // changed to string
+    string? label#3..3; // replaced by labels[]
+    datetime created#1..1; // retired
 }
 
+struct Pos#2..3 {
+    float32 x;
+    float32 y;
+}
 
-struct asset
-{
-    string name;
-
-    [$version(6), $migrate("id")]
-    guid id;
-
-    [$version(3), $migrate("typeid")]
-    string type;
-
-    [$version(4), $migrate("label")]
-    string[] labels;
-
-    [$version(7)]
-    int version;
-
-    [$version(1,5)]
-    int id;
-
-    [$version(1,5)]
-    string author;
-
-    [$version(1,3)]
-    int typeid;
-
-    [$version(3,3)]
-    string? label;
-
-    [$version(1,1)]
-    datetime created;
+struct Pos#1 {
+    int32 x;
+    int32 y;
 }

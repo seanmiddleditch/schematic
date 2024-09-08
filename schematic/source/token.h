@@ -35,6 +35,7 @@ namespace potato::schematic::compiler
 
         // Symbols
         Dot,
+        Range,
         Comma,
         Equals,
         SemiColon,

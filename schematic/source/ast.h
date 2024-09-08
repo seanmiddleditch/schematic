@@ -121,6 +121,8 @@ namespace potato::schematic::compiler
 
         AstIdentifier base;
         Array<const AstNodeField*> fields;
+        const AstNodeLiteralInt* minVersion = nullptr;
+        const AstNodeLiteralInt* maxVersion = nullptr;
     };
 
     struct AstNodeMessageDecl : AstNodeDecl
@@ -144,6 +146,8 @@ namespace potato::schematic::compiler
         const AstNodeType* type = nullptr;
         const AstNodeExpression* value = nullptr;
         const AstNodeLiteralInt* proto = nullptr;
+        const AstNodeLiteralInt* minVersion = nullptr;
+        const AstNodeLiteralInt* maxVersion = nullptr;
     };
 
     struct AstNodeEnumDecl : AstNodeDecl

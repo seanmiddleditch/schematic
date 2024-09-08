@@ -50,4 +50,5 @@ schematic_embed_schemas(TARGET schematic_test SCHEMAS
     "schemas/order.sat"
     "schemas/struct.sat"
     "schemas/sub/imported.sat"
+    "schemas/versions.sat"
 )

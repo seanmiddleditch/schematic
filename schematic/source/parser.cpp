@@ -181,6 +181,18 @@ bool Parser::ParseStructDecl()
     if (!ExpectIdent(struct_->name))
         return false;
 
+    if (Consume(TokenType::Hash))
+    {
+        if (!ExpectInt(struct_->minVersion))
+            return false;
+
+        if (Consume(TokenType::Range))
+        {
+            if (!ExpectInt(struct_->maxVersion))
+                return false;
+        }
+    }
+
     if (Consume(TokenType::Colon))
     {
         if (!ExpectIdent(struct_->base))
@@ -310,10 +322,19 @@ const bool Parser::ParseField(Array<const AstNodeField*>& fields, FieldMode mode
     if (!ExpectIdent(field->name))
         return false;
 
-    if (mode == FieldMode::Message)
+    if (Consume(TokenType::Hash))
     {
-        if (!Expect(TokenType::At))
+        if (!ExpectInt(field->minVersion))
             return false;
+
+        if (Consume(TokenType::Range))
+        {
+            if (!ExpectInt(field->maxVersion))
+                return false;
+        }
+    }
+
+    if (Consume(TokenType::At))
         if (!ExpectInt(field->proto))
             return false;
     }
