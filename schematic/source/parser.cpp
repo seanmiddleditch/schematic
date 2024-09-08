@@ -322,7 +322,7 @@ const bool Parser::ParseField(Array<const AstNodeField*>& fields, FieldMode mode
     if (!ExpectIdent(field->name))
         return false;
 
-    if (Consume(TokenType::Hash))
+    if (mode == FieldMode::Struct && Consume(TokenType::Hash))
     {
         if (!ExpectInt(field->minVersion))
             return false;
@@ -334,7 +334,10 @@ const bool Parser::ParseField(Array<const AstNodeField*>& fields, FieldMode mode
         }
     }
 
-    if (Consume(TokenType::At))
+    if (mode == FieldMode::Message)
+    {
+        if (!Expect(TokenType::At))
+            return false;
         if (!ExpectInt(field->proto))
             return false;
     }
