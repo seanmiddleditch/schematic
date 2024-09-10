@@ -1,0 +1,9 @@
+struct first : base {
+    second field;
+}
+
+struct second {
+    int32 field;
+}
+
+struct base {}

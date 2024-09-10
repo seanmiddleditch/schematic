@@ -32,10 +32,10 @@ namespace potato::schematic::compiler
 
         const Module* CreateBuiltins();
 
-        void BuildStruct(const AstNodeStructDecl& ast);
-        void BuildMessage(const AstNodeMessageDecl& ast);
-        void BuildAttribute(const AstNodeAttributeDecl& ast);
-        void BuildEnum(const AstNodeEnumDecl& ast);
+        void BuildStruct(TypeStruct& type, const AstNodeStructDecl& ast);
+        void BuildMessage(TypeMessage& type, const AstNodeMessageDecl& ast);
+        void BuildAttribute(TypeAttribute& type, const AstNodeAttributeDecl& ast);
+        void BuildEnum(TypeEnum& type, const AstNodeEnumDecl& ast);
 
         void BuildFields(std::span<const Field>& out, const Type* owner, Array<const AstNodeField*> fields);
         void BuildAnnotations(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast);
@@ -60,7 +60,7 @@ namespace potato::schematic::compiler
         void Error(std::uint32_t tokenIndex, fmt::format_string<Args...> format, const Args&... args);
 
         template <typename T>
-        T* AddType(std::uint32_t tokenIndex, const char* name);
+        T* CreateType(std::uint32_t tokenIndex, const char* name);
 
         std::uint16_t TokenLine(std::uint32_t tokenIndex) const noexcept;
 

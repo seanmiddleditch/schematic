@@ -18,22 +18,47 @@ namespace potato::schematic::test
 {
     struct TestLogger final : potato::schematic::Logger
     {
+        struct ExpectedError
+        {
+            std::string message;
+            bool encounted = false;
+        };
+
         inline void Error(std::string_view filename, const Range& range, std::string_view message) override;
 
+        std::vector<ExpectedError> expectedErrors;
         std::vector<std::string> errors;
         bool reportErrors = true;
     };
 
     void TestLogger::Error(std::string_view filename, const Range& range, std::string_view message)
     {
-        if (filename.empty())
+        // line prefix
+        std::string prefix;
+        if (!filename.empty())
+            fmt::format_to(std::back_inserter(prefix), "{}({}): ", filename, range.start.line);
+
+        std::string buffer;
+        buffer.append(prefix);
+        buffer.append(message);
+        errors.push_back(buffer);
+
+        for (auto& expected : expectedErrors)
         {
-            errors.emplace_back(message);
-            if (reportErrors)
-                UNSCOPED_INFO(message);
-            return;
+            if (expected.encounted)
+                continue;
+
+            if (expected.message == buffer)
+            {
+                expected.encounted = true;
+                return;
+            }
         }
 
+        if (!reportErrors)
+            return;
+
+        // find source for error, so we can pretty-print source
         std::string_view source;
         for (const EmbeddedTest& test : std::span{ test_embeds, test_embeds_count })
         {
@@ -44,51 +69,40 @@ namespace potato::schematic::test
             }
         }
 
-        std::string buffer;
-        fmt::format_to(std::back_inserter(buffer), "{}({}): ", filename, range.start.line);
-        const auto prefix = buffer.size();
-        buffer.append(message);
-        errors.push_back(buffer);
-
-        // everything after this is for logging full error information
-        if (!reportErrors)
-            return;
-
-        UNSCOPED_INFO(buffer);
-
         std::string_view line = potato::schematic::compiler::ExtractLine(source, range.start.line);
-        if (line.empty())
-            return;
-
-        buffer.resize(prefix);
-        buffer.append(line);
-        UNSCOPED_INFO(buffer);
-
-        buffer.clear();
-        buffer.append(prefix, ' ');
-        unsigned col = 0;
-        for (const char c : line)
+        if (!line.empty())
         {
-            ++col;
-            if (col >= range.start.column)
+            buffer.push_back('\n');
+            buffer.append(prefix);
+            buffer.append(line);
+
+            buffer.push_back('\n');
+            buffer.append(prefix.size(), ' ');
+            unsigned col = 0;
+            for (const char c : line)
             {
-                if (range.start.line == range.end.line && col >= range.end.column)
+                ++col;
+                if (col >= range.start.column)
+                {
+                    if (range.start.line == range.end.line && col >= range.end.column)
+                        break;
+                    buffer.push_back('^');
+                }
+                else if (c == '\n')
+                {
                     break;
-                buffer.push_back('^');
-            }
-            else if (c == '\n')
-            {
-                break;
-            }
-            else if (std::isspace(c))
-            {
-                buffer.push_back(c);
-            }
-            else
-            {
-                buffer.push_back(' ');
+                }
+                else if (std::isspace(c))
+                {
+                    buffer.push_back(c);
+                }
+                else
+                {
+                    buffer.push_back(' ');
+                }
             }
         }
-        UNSCOPED_INFO(buffer);
+
+        FAIL_CHECK(buffer);
     }
 } // namespace potato::schematic::test

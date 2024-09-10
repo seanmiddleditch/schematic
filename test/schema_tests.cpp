@@ -27,7 +27,6 @@ TEST_CASE("Schemas", "[potato][schematic]")
 
         DYNAMIC_SECTION(test.name)
         {
-            std::vector<std::string> expected_errors;
             std::vector<CheckEvaluator> checks;
 
             {
@@ -41,7 +40,7 @@ TEST_CASE("Schemas", "[potato][schematic]")
                     constexpr char error_prefix[] = "ERROR: ";
                     const auto error_pos = line.find(error_prefix);
                     if (error_pos != std::string::npos)
-                        expected_errors.push_back(line.substr(error_pos + std::strlen(error_prefix)));
+                        logger.expectedErrors.push_back({ line.substr(error_pos + std::strlen(error_prefix)) });
 
                     constexpr char check_prefix[] = "CHECK: ";
                     const auto check_pos = line.find(check_prefix);
@@ -49,9 +48,6 @@ TEST_CASE("Schemas", "[potato][schematic]")
                         checks.emplace_back(line.substr(check_pos + std::strlen(check_prefix)), test.name, number);
                 }
             }
-
-            if (!expected_errors.empty())
-                ctx.reportErrors = false;
 
             const Schema* const schema = Compile(arena, logger, ctx, test.name, test.source);
 
@@ -64,31 +60,12 @@ TEST_CASE("Schemas", "[potato][schematic]")
                     check.Check(schema);
             }
 
-            if (!expected_errors.empty())
+            for (const auto& expected : logger.expectedErrors)
             {
-                std::size_t next = 0;
-                for (const std::string& error : logger.errors)
-                {
-                    if (next < expected_errors.size())
-                    {
-                        const std::string& expected = expected_errors[next];
-                        if (expected == error)
-                        {
-                            ++next;
-                            continue;
-                        }
-                    }
-                    FAIL_CHECK(error);
-                }
+                if (expected.encounted)
+                    continue;
 
-                if (next != expected_errors.size())
-                {
-                    std::ostringstream buffer;
-                    while (next != expected_errors.size())
-                        buffer << expected_errors[next++] << '\n';
-                    FAIL_CHECK("Expected errors were NOT encountered:\n"
-                        << buffer.str());
-                }
+                FAIL_CHECK("Expected error NOT encountered: " << expected.message);
             }
         }
     }

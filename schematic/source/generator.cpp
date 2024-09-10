@@ -45,10 +45,17 @@ struct fmt::formatter<AstQualifiedName> : fmt::formatter<const char*>
 
 struct Generator::State
 {
+    struct TypeDecl
+    {
+        const AstNodeDecl* adecl = nullptr;
+        Type* type = nullptr;
+    };
+
     const AstNodeModule* ast = nullptr;
     Module* mod = nullptr;
     std::string_view source;
     Array<const Module*> imports;
+    Array<TypeDecl> decls;
     Array<const Type*> types;
     Array<Token> tokens;
 };
@@ -68,50 +75,64 @@ const Module* Generator::CompileModule()
     if (state.ast == nullptr)
         return nullptr;
 
-    bool importFailed = false;
-    for (const AstNode* adecl : state.ast->nodes)
+    // Handle all imports before any local declarations, so we ensure that
+    // imported types are available independent of order
+    for (const AstNode* node : state.ast->nodes)
     {
-        if (const AstNodeImport* const imp = adecl->CastTo<AstNodeImport>())
+        if (const AstNodeImport* const imp = node->CastTo<AstNodeImport>())
         {
             if (!HandleImport(*imp))
-                importFailed = true;
+                return nullptr;
         }
     }
 
-    if (importFailed)
-        return nullptr;
-
-    for (const AstNode* adecl : state.ast->nodes)
+    // Instantiate types, so that we can lookup a type by name (and grab a
+    // pointer) early
+    for (const AstNode* node : state.ast->nodes)
     {
-        if (const AstNodeStructDecl* const struct_ = adecl->CastTo<AstNodeStructDecl>())
+        if (node->kind == AstNodeKind::Import)
+            continue;
+
+        State::TypeDecl& typeDecl = state.decls.EmplaceBack(arena);
+        typeDecl.adecl = static_cast<const AstNodeDecl*>(node);
+
+        if (const AstNodeStructDecl* const struct_ = node->CastTo<AstNodeStructDecl>())
+            typeDecl.type = CreateType<TypeStruct>(struct_->tokenIndex, struct_->name.name);
+        else if (const AstNodeMessageDecl* const message = node->CastTo<AstNodeMessageDecl>())
+            typeDecl.type = CreateType<TypeMessage>(message->tokenIndex, message->name.name);
+        else if (const AstNodeAttributeDecl* const attr = node->CastTo<AstNodeAttributeDecl>())
+            typeDecl.type = CreateType<TypeAttribute>(attr->tokenIndex, attr->name.name);
+        else if (const AstNodeEnumDecl* const enum_ = node->CastTo<AstNodeEnumDecl>())
+            typeDecl.type = CreateType<TypeEnum>(enum_->tokenIndex, enum_->name.name);
+        else
+            Error(node->tokenIndex, "Internal error: unexpected top-level node kind {}", std::to_underlying(node->kind));
+    }
+
+    // Fully build types (including fields, bases, values, etc.) now that we have instantiations
+    // of all types
+    for (State::TypeDecl& typeDecl : state.decls)
+    {
+        // skips types we couldn't instantiate; an error has already been raised for them
+        if (typeDecl.type == nullptr)
+            continue;
+
+        switch (typeDecl.type->kind)
         {
-            BuildStruct(*struct_);
-            continue;
+            case TypeKind::Struct:
+                BuildStruct(*static_cast<TypeStruct*>(typeDecl.type), *static_cast<const AstNodeStructDecl*>(typeDecl.adecl));
+                break;
+            case TypeKind::Message:
+                BuildMessage(*static_cast<TypeMessage*>(typeDecl.type), *static_cast<const AstNodeMessageDecl*>(typeDecl.adecl));
+                break;
+            case TypeKind::Attribute:
+                BuildAttribute(*static_cast<TypeAttribute*>(typeDecl.type), *static_cast<const AstNodeAttributeDecl*>(typeDecl.adecl));
+                break;
+            case TypeKind::Enum:
+                BuildEnum(*static_cast<TypeEnum*>(typeDecl.type), *static_cast<const AstNodeEnumDecl*>(typeDecl.adecl));
+                break;
+            default:
+                Error(typeDecl.adecl->tokenIndex, "Internal error: unexpected type kind: {}, {}", typeDecl.type->name, std::to_underlying(typeDecl.type->kind));
         }
-
-        if (const AstNodeMessageDecl* const message = adecl->CastTo<AstNodeMessageDecl>())
-        {
-            BuildMessage(*message);
-            continue;
-        }
-
-        if (const AstNodeAttributeDecl* const attr = adecl->CastTo<AstNodeAttributeDecl>())
-        {
-            BuildAttribute(*attr);
-            continue;
-        }
-
-        if (const AstNodeEnumDecl* const enum_ = adecl->CastTo<AstNodeEnumDecl>())
-        {
-            BuildEnum(*enum_);
-            continue;
-        }
-
-        if (adecl->kind == AstNodeKind::Import)
-            continue;
-
-        Error(adecl->tokenIndex, "Internal error: unexpected top-level node kind {}", std::to_underlying(adecl->kind));
-        break;
     }
 
     if (!result)
@@ -198,19 +219,19 @@ const Module* Generator::CreateBuiltins()
 
     auto AddInt = [this]<typename T>(const char* name, T)
     {
-        TypeInt* const type = AddType<TypeInt>(0, arena.NewString(name));
+        TypeInt* const type = CreateType<TypeInt>(0, arena.NewString(name));
         type->isSigned = std::is_signed_v<T>;
         type->width = CHAR_BIT * sizeof(T);
     };
     auto AddFloat = [this]<typename T>(const char* name, T)
     {
-        TypeFloat* const type = AddType<TypeFloat>(0, arena.NewString(name));
+        TypeFloat* const type = CreateType<TypeFloat>(0, arena.NewString(name));
         type->width = CHAR_BIT * sizeof(T);
     };
 
-    AddType<TypeType>(0, arena.NewString("$type"));
-    AddType<TypeBool>(0, arena.NewString("bool"));
-    AddType<TypeString>(0, arena.NewString("string"));
+    CreateType<TypeType>(0, arena.NewString("$type"));
+    CreateType<TypeBool>(0, arena.NewString("bool"));
+    CreateType<TypeString>(0, arena.NewString("string"));
 
     AddInt("int8", std::int8_t{});
     AddInt("uint8", std::uint8_t{});
@@ -228,67 +249,51 @@ const Module* Generator::CreateBuiltins()
     return builtins;
 }
 
-void Generator::BuildStruct(const AstNodeStructDecl& ast)
+void Generator::BuildStruct(TypeStruct& type, const AstNodeStructDecl& ast)
 {
-    TypeStruct* const type = AddType<TypeStruct>(ast.tokenIndex, ast.name.name);
-    if (type == nullptr)
-        return;
-
-    if (IsReserved(type->name))
-        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type->name);
+    if (IsReserved(type.name))
+        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type.name);
 
     const Type* const baseType = Resolve(ast.base);
     if (baseType != nullptr)
     {
-        type->base = CastTo<TypeStruct>(baseType);
-        if (type->base == nullptr)
+        type.base = CastTo<TypeStruct>(baseType);
+        if (type.base == nullptr)
             Error(ast.base.parts.Front().tokenIndex, "Base type is not a struct: {}", baseType->name);
     }
 
-    BuildAnnotations(type->annotations, ast.annotations);
-    BuildFields(type->fields, type, ast.fields);
+    BuildAnnotations(type.annotations, ast.annotations);
+    BuildFields(type.fields, &type, ast.fields);
 }
 
-void Generator::BuildMessage(const AstNodeMessageDecl& ast)
+void Generator::BuildMessage(TypeMessage& type, const AstNodeMessageDecl& ast)
 {
-    TypeMessage* const type = AddType<TypeMessage>(ast.tokenIndex, ast.name.name);
-    if (type == nullptr)
-        return;
+    if (IsReserved(type.name))
+        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type.name);
 
-    if (IsReserved(type->name))
-        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type->name);
-
-    BuildAnnotations(type->annotations, ast.annotations);
-    BuildFields(type->fields, type, ast.fields);
+    BuildAnnotations(type.annotations, ast.annotations);
+    BuildFields(type.fields, &type, ast.fields);
 }
 
-void Generator::BuildAttribute(const AstNodeAttributeDecl& ast)
+void Generator::BuildAttribute(TypeAttribute& type, const AstNodeAttributeDecl& ast)
 {
-    TypeAttribute* const type = AddType<TypeAttribute>(ast.tokenIndex, ast.name.name);
-    if (type == nullptr)
-        return;
+    if (IsReserved(type.name))
+        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type.name);
 
-    if (IsReserved(type->name))
-        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type->name);
-
-    BuildAnnotations(type->annotations, ast.annotations);
-    BuildFields(type->fields, type, ast.fields);
+    BuildAnnotations(type.annotations, ast.annotations);
+    BuildFields(type.fields, &type, ast.fields);
 }
 
-void Generator::BuildEnum(const AstNodeEnumDecl& ast)
+void Generator::BuildEnum(TypeEnum& type, const AstNodeEnumDecl& ast)
 {
-    TypeEnum* const type = AddType<TypeEnum>(ast.tokenIndex, ast.name.name);
-    if (type == nullptr)
-        return;
+    if (IsReserved(type.name))
+        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type.name);
 
-    if (IsReserved(type->name))
-        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type->name);
+    type.base = Resolve(ast.base);
+    if (type.base != nullptr && type.base->kind != TypeKind::Int)
+        Error(ast.base.parts.Front().tokenIndex, "Base type is not an integer: {}", type.base->name);
 
-    type->base = Resolve(ast.base);
-    if (type->base != nullptr && type->base->kind != TypeKind::Int)
-        Error(ast.base.parts.Front().tokenIndex, "Base type is not an integer: {}", type->base->name);
-
-    BuildAnnotations(type->annotations, ast.annotations);
+    BuildAnnotations(type.annotations, ast.annotations);
 
     std::int64_t next = 0;
     Array<EnumItem> items = arena.NewArray<EnumItem>(ast.items.Size());
@@ -304,10 +309,10 @@ void Generator::BuildEnum(const AstNodeEnumDecl& ast)
     for (const AstNodeEnumItem* ast_item : ast.items)
     {
         if (HasItem(ast_item->name.name))
-            Error(ast_item->tokenIndex, "Duplicate item name: {}.{}", type->name, ast_item->name.name);
+            Error(ast_item->tokenIndex, "Duplicate item name: {}.{}", type.name, ast_item->name.name);
 
         EnumItem& item = items.EmplaceBack(arena);
-        item.owner = type;
+        item.owner = &type;
         item.name = ast_item->name.name;
         item.line = TokenLine(ast_item->tokenIndex);
         if (IsReserved(item.name))
@@ -325,7 +330,7 @@ void Generator::BuildEnum(const AstNodeEnumDecl& ast)
         }
         BuildAnnotations(item.annotations, ast_item->annotations);
     }
-    type->items = items;
+    type.items = items;
 }
 
 void Generator::BuildFields(std::span<const Field>& out, const Type* owner, Array<const AstNodeField*> fields)
@@ -680,7 +685,7 @@ const Type* Generator::Resolve(const AstNodeType* type)
         const char* const name = array->size == nullptr
             ? arena.NewString(fmt::format("{}[]", inner->name))
             : arena.NewString(fmt::format("{}[{}]", inner->name, array->size->value));
-        TypeArray* const type = AddType<TypeArray>(array->tokenIndex, name);
+        TypeArray* const type = CreateType<TypeArray>(array->tokenIndex, name);
         type->type = inner;
 
         if (array->size != nullptr)
@@ -696,7 +701,7 @@ const Type* Generator::Resolve(const AstNodeType* type)
             return nullptr;
 
         const char* const name = arena.NewString(fmt::format("{}*", inner->name));
-        TypePointer* const type = AddType<TypePointer>(pointer->tokenIndex, name);
+        TypePointer* const type = CreateType<TypePointer>(pointer->tokenIndex, name);
         type->type = inner;
 
         return type;
@@ -709,7 +714,7 @@ const Type* Generator::Resolve(const AstNodeType* type)
             return nullptr;
 
         const char* const name = arena.NewString(fmt::format("{}?", inner->name));
-        TypeNullable* const type = AddType<TypeNullable>(nullable->tokenIndex, name);
+        TypeNullable* const type = CreateType<TypeNullable>(nullable->tokenIndex, name);
         type->type = inner;
 
         return type;
@@ -743,7 +748,7 @@ void Generator::Error(std::uint32_t tokenIndex, fmt::format_string<Args...> form
 }
 
 template <typename T>
-T* Generator::AddType(std::uint32_t tokenIndex, const char* name)
+T* Generator::CreateType(std::uint32_t tokenIndex, const char* name)
 {
     State* const state = stack.Back();
 
