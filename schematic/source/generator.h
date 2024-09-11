@@ -71,5 +71,6 @@ namespace potato::schematic::compiler
         const Module* builtins = nullptr;
         const Schema* schema = nullptr;
         Array<State*> stack;
+        Array<const Module*> modules;
     };
 } // namespace potato::schematic::compiler

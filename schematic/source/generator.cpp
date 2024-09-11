@@ -161,6 +161,8 @@ const Module* Generator::Compile(std::string_view filename, std::string_view sou
     state->mod->filename = arena.NewString(filename);
     state->source = arena.NewString(source);
 
+    modules.PushBack(arena, state->mod);
+
     if (useBuiltins)
     {
         state->imports.EmplaceBack(arena, builtins);
@@ -185,10 +187,29 @@ bool Generator::HandleImport(const AstNodeImport& imp)
         return false;
     }
 
+    // check for a circular dependency
+    for (const State* const state : stack)
+    {
+        if (state->mod->filename == filename)
+        {
+            Error(imp.tokenIndex, "Recursive import: {}", imp.target->value);
+            return false;
+        }
+    }
+
+    // check if we've already imported this module
+    for (const Module* const mod : modules)
+    {
+        if (mod->filename == filename)
+            return true;
+    }
+
     State* const state = arena.New<State>();
     state->mod = arena.New<Module>();
     state->mod->filename = arena.NewString(filename);
     state->source = arena.NewString(ctx.ReadFileContents(arena, state->mod->filename));
+
+    modules.PushBack(arena, state->mod);
 
     stack.PushBack(arena, state);
     const bool success = CompileModule() != nullptr;
