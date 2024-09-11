@@ -1,0 +1,2 @@
+// NOTEST
+import "circular_import.sat";

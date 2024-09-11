@@ -30,6 +30,10 @@ TEST_CASE("Serialize", "[potato][schematic]")
         if (std::strstr(test.source, "ERROR: ") != nullptr)
             continue;
 
+        // skip files with NOTEST marker
+        if (std::strstr(test.source, "NOTEST") != nullptr)
+            continue;
+
         DYNAMIC_SECTION(test.name)
         {
             const Schema* const original = Compile(arena, logger, ctx, test.name, test.source);
