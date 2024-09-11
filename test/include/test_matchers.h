@@ -224,6 +224,7 @@ namespace potato::schematic::test
             using namespace potato::schematic::compiler;
 
             TestLogger logger;
+            logger.reportErrors = false;
             ArenaAllocator arena;
             Array<Token> tokens;
 

@@ -52,6 +52,7 @@ TEST_CASE("Serialize", "[potato][schematic]")
 TEST_CASE("ParseSchemaProto Error", "[potato][schematic]")
 {
     TestLogger logger;
+    logger.reportErrors = false;
     ArenaAllocator arena;
     google::protobuf::Arena pb_arena;
 

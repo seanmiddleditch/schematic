@@ -44,6 +44,7 @@ schematic_embed_schemas(TARGET schematic_test SCHEMAS
     "schemas/initializers.sat"
     "schemas/message.sat"
     "schemas/modifiers.sat"
+    "schemas/order.sat"
     "schemas/struct.sat"
     "schemas/sub/imported.sat"
 )
