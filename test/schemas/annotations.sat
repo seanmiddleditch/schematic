@@ -1,3 +1,5 @@
+import "sub/imported.sat";
+
 attribute ignore;
 attribute name { string first; int32 second; int32 third = 7; }
 attribute reference { $type type; }

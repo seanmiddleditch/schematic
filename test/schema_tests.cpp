@@ -25,6 +25,10 @@ TEST_CASE("Schemas", "[potato][schematic]")
     {
         const EmbeddedTest& test = test_embeds[i];
 
+        // skip files with NOTEST marker
+        if (std::strstr(test.source, "NOTEST") != nullptr)
+            continue;
+
         DYNAMIC_SECTION(test.name)
         {
             std::vector<CheckEvaluator> checks;

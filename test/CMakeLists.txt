@@ -37,6 +37,8 @@ schematic_embed_schemas(TARGET schematic_test SCHEMAS
     "schemas/builtin.sat"
     "schemas/complete.sat"
     "schemas/enum.sat"
+    "schemas/fail/circular_import.sat"
+    "schemas/fail/circular_import_child.sat"
     "schemas/fail/duplicates.sat"
     "schemas/fail/invalid_base_types.sat"
     "schemas/fail/missing_import.sat"
