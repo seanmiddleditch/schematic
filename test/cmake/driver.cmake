@@ -2,8 +2,8 @@ if(NOT EXISTS ${SCHEMAC_PATH})
     message(STATUS "SCHEMAC_PATH must be path to schemac")
     cmake_language(EXIT 1)
 endif()
-if(NOT EXISTS ${DIFF_PATH})
-    message(STATUS "DIFF_PATH must be path to diff (or fc.exe)")
+if(NOT EXISTS ${DIFF_PATH} AND NOT EXISTS ${FC_PATH})
+    message(STATUS "Either DIFF_PATH or FC_PATH must reference a diff utility")
     cmake_language(EXIT 1)
 endif()
 if(NOT IS_DIRECTORY ${SEARCH_DIR})
@@ -34,7 +34,11 @@ message(STATUS "Input:   ${INPUT}")
 message(STATUS "Accept:  ${ACCEPT_JSON}")
 message(STATUS "Deps:    ${ACCEPT_DEPS}")
 message(STATUS "schemac: ${SCHEMAC_PATH}")
-message(STATUS "Diff:    ${DIFF_PATH}")
+if(DIFF_PATH)
+    message(STATUS "Diff:    ${DIFF_PATH}")
+else()
+    message(STATUS "Fc:      ${FC_PATH}")
+endif()
 
 execute_process(
     COMMAND "${SCHEMAC_PATH}" "-I" "${SEARCH_DIR}" "-MF" "${OUTPUTS_DEPS}" -Ojson -o "${OUTPUT_JSON}" -- "${SOURCE_FILE}"
@@ -65,12 +69,21 @@ function(test_output EXPECTED ACTUAL)
     )
     if(NOT RESULT EQUAL 0)
         message(STATUS "Output does not match acceptance test")
-        execute_process(
-            COMMAND "${DIFF_PATH}" "${EXPECTED_NATIVE}" "${ACTUAL_NATIVE}"
-            COMMAND_ECHO STDOUT
-            RESULT_VARIABLE RESULT # Without this, execute_process treats a
-                                   # non-zero exit as a fatl error
-        )
+        if(DIFF_PATH)
+            execute_process(
+                COMMAND "${DIFF_PATH}" -u "${EXPECTED_NATIVE}" "${ACTUAL_NATIVE}"
+                COMMAND_ECHO STDOUT
+                RESULT_VARIABLE RESULT # Without this, execute_process treats a
+                                       # non-zero exit as a fatal error
+            )
+        elseif(FC_PATH)
+            execute_process(
+                COMMAND "${FC_PATH}" /n "${EXPECTED_NATIVE}" "${ACTUAL_NATIVE}"
+                COMMAND_ECHO STDOUT
+                RESULT_VARIABLE RESULT # Without this, execute_process treats a
+                                       # non-zero exit as a fatal error
+            )
+        endif()
         cmake_language(EXIT 1)
     endif()
     message(STATUS "- Actual matches expected")

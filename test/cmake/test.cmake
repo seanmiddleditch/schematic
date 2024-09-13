@@ -1,6 +1,9 @@
 include(CMakeParseArguments)
 
-find_program(DIFF_PATH REQUIRED NAMES diff fc DOC "diff utility for displaying test output mismatch context")
+find_program(DIFF_PATH NAMES diff DOC "diff utility for displaying test output mismatch context")
+if(NOT DIFF_PATH)
+    find_program(FC_PATH NAMES fc DOC "fc utility for displaying test output mismatch context")
+endif()
 
 function(schematic_add_schemac_tests)
     cmake_parse_arguments(ARG "" "IMPORT_DIR" "SCHEMAS" ${ARGN})
@@ -15,6 +18,7 @@ function(schematic_add_schemac_tests)
             COMMAND ${CMAKE_COMMAND}
                 "-DSCHEMAC_PATH=$<TARGET_FILE:schematic::schemac>"
                 "-DDIFF_PATH=${DIFF_PATH}"
+                "-DFC_PATH=${FC_PATH}"
                 "-DSEARCH_DIR=${IMPORT_DIR}"
                 "-DOUT_DIR=${CMAKE_CURRENT_BINARY_DIR}"
                 "-DINPUT=${SCHEMA}"
