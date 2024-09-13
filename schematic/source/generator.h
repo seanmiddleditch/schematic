@@ -26,6 +26,7 @@ namespace potato::schematic::compiler
 
     private:
         struct State;
+        struct TypeDecl;
 
         const Module* CompileModule();
         bool HandleImport(const AstNodeImport& imp);
@@ -51,7 +52,8 @@ namespace potato::schematic::compiler
         const ValueArray* BuildArray(const Type* type, const AstNodeInitializerList& expr);
         const ValueObject* BuildObject(const TypeStruct* type, const AstNodeInitializerList& expr);
 
-        const Type* Resolve(const AstIdentifier& name);
+        const Type* TryResolve(const char* name);
+        const Type* Resolve(const AstIdentifier& ident);
         const Type* Resolve(const AstNodeType* type);
 
         bool IsReserved(const char* ident) const noexcept;
@@ -61,6 +63,8 @@ namespace potato::schematic::compiler
 
         template <typename T>
         T* CreateType(std::uint32_t tokenIndex, const char* name);
+        template <typename T>
+        T* InstantiateType(std::uint32_t tokenIndex, const char* name);
 
         std::uint16_t TokenLine(std::uint32_t tokenIndex) const noexcept;
 

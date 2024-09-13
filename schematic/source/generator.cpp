@@ -46,14 +46,14 @@ static const char* NewStringFmt(ArenaAllocator& arena, fmt::format_string<Args..
     return buffer;
 }
 
+struct Generator::TypeDecl
+{
+    const AstNodeDecl* adecl = nullptr;
+    Type* type = nullptr;
+};
+
 struct Generator::State
 {
-    struct TypeDecl
-    {
-        const AstNodeDecl* adecl = nullptr;
-        Type* type = nullptr;
-    };
-
     const AstNodeModule* ast = nullptr;
     Module* mod = nullptr;
     std::string_view source;
@@ -80,45 +80,73 @@ const Module* Generator::CompileModule()
 
     // Handle all imports before any local declarations, so we ensure that
     // imported types are available independent of order
+    //
+    // Instantiate types, so that we can lookup a type by name (and grab a
+    // pointer) early
     for (const AstNode* node : state.ast->nodes)
     {
         if (const AstNodeImport* const imp = node->CastTo<AstNodeImport>())
         {
             if (!HandleImport(*imp))
                 return nullptr;
-        }
-    }
-
-    // Instantiate types, so that we can lookup a type by name (and grab a
-    // pointer) early
-    for (const AstNode* node : state.ast->nodes)
-    {
-        if (node->kind == AstNodeKind::Import)
             continue;
-
-        State::TypeDecl& typeDecl = state.decls.EmplaceBack(arena);
-        typeDecl.adecl = static_cast<const AstNodeDecl*>(node);
+        }
 
         if (const AstNodeStructDecl* const struct_ = node->CastTo<AstNodeStructDecl>())
-            typeDecl.type = CreateType<TypeStruct>(struct_->tokenIndex, struct_->name.name);
-        else if (const AstNodeMessageDecl* const message = node->CastTo<AstNodeMessageDecl>())
-            typeDecl.type = CreateType<TypeMessage>(message->tokenIndex, message->name.name);
-        else if (const AstNodeAttributeDecl* const attr = node->CastTo<AstNodeAttributeDecl>())
-            typeDecl.type = CreateType<TypeAttribute>(attr->tokenIndex, attr->name.name);
-        else if (const AstNodeEnumDecl* const enum_ = node->CastTo<AstNodeEnumDecl>())
-            typeDecl.type = CreateType<TypeEnum>(enum_->tokenIndex, enum_->name.name);
-        else
-            Error(node->tokenIndex, "Internal error: unexpected top-level node kind {}", std::to_underlying(node->kind));
+        {
+            Type* const type = CreateType<TypeStruct>(struct_->tokenIndex, struct_->name.name);
+            if (type != nullptr)
+            {
+                TypeDecl& typeDecl = state.decls.EmplaceBack(arena);
+                typeDecl.adecl = static_cast<const AstNodeDecl*>(node);
+                typeDecl.type = type;
+            }
+            continue;
+        }
+
+        if (const AstNodeMessageDecl* const message = node->CastTo<AstNodeMessageDecl>())
+        {
+            Type* const type = CreateType<TypeMessage>(message->tokenIndex, message->name.name);
+            if (type != nullptr)
+            {
+                TypeDecl& typeDecl = state.decls.EmplaceBack(arena);
+                typeDecl.adecl = static_cast<const AstNodeDecl*>(node);
+                typeDecl.type = type;
+            }
+            continue;
+        }
+
+        if (const AstNodeAttributeDecl* const attr = node->CastTo<AstNodeAttributeDecl>())
+        {
+            Type* const type = CreateType<TypeAttribute>(attr->tokenIndex, attr->name.name);
+            if (type != nullptr)
+            {
+                TypeDecl& typeDecl = state.decls.EmplaceBack(arena);
+                typeDecl.adecl = static_cast<const AstNodeDecl*>(node);
+                typeDecl.type = type;
+            }
+            continue;
+        }
+
+        if (const AstNodeEnumDecl* const enum_ = node->CastTo<AstNodeEnumDecl>())
+        {
+            Type* const type = CreateType<TypeEnum>(enum_->tokenIndex, enum_->name.name);
+            if (type != nullptr)
+            {
+                TypeDecl& typeDecl = state.decls.EmplaceBack(arena);
+                typeDecl.adecl = static_cast<const AstNodeDecl*>(node);
+                typeDecl.type = type;
+            }
+            continue;
+        }
+
+        Error(node->tokenIndex, "Internal error: unexpected top-level node kind {}", std::to_underlying(node->kind));
     }
 
     // Fully build types (including fields, bases, values, etc.) now that we have instantiations
     // of all types
-    for (State::TypeDecl& typeDecl : state.decls)
+    for (const TypeDecl& typeDecl : state.decls)
     {
-        // skips types we couldn't instantiate; an error has already been raised for them
-        if (typeDecl.type == nullptr)
-            continue;
-
         switch (typeDecl.type->kind)
         {
             case TypeKind::Struct:
@@ -647,23 +675,39 @@ const ValueObject* Generator::BuildObject(const TypeStruct* type, const AstNodeI
     return value;
 }
 
-const Type* Generator::Resolve(const AstIdentifier& ident)
+const Type* Generator::TryResolve(const char* name)
 {
-    if (ident.name == nullptr)
+    if (name == nullptr || *name == '\0')
         return nullptr;
 
     State& state = *stack.Back();
 
-    if (const Type* const type = FindType(state.mod, ident.name); type != nullptr)
+    for (const TypeDecl& decl : state.decls)
+        if (std::strcmp(decl.type->name, name) == 0)
+            return decl.type;
+
+    if (const Type* const type = FindType(state.mod, name); type != nullptr)
         return type;
 
     if (builtins != nullptr)
-        if (const Type* const type = FindType(builtins, ident.name); type != nullptr)
+        if (const Type* const type = FindType(builtins, name); type != nullptr)
             return type;
 
     for (const Module* imp : state.mod->imports)
-        if (const Type* const type = FindType(imp, ident.name); type != nullptr)
+        if (const Type* const type = FindType(imp, name); type != nullptr)
             return type;
+
+    return nullptr;
+}
+
+const Type* Generator::Resolve(const AstIdentifier& ident)
+{
+    // FIXME: we shouldn't be relying on this check; optional identifiers should be nodes
+    if (ident.name == nullptr)
+        return nullptr;
+
+    if (const Type* const type = TryResolve(ident.name); type != nullptr)
+        return type;
 
     Error(ident.tokenIndex, "Not found: {}", ident.name);
     return nullptr;
@@ -685,6 +729,10 @@ const Type* Generator::Resolve(const AstNodeType* type)
         const char* const name = array->size == nullptr
             ? NewStringFmt(arena, "{}[]", inner->name)
             : NewStringFmt(arena, "{}[{}]", inner->name, array->size->value);
+
+        if (const Type* const type = TryResolve(name); type != nullptr)
+            return type;
+
         TypeArray* const type = CreateType<TypeArray>(array->tokenIndex, name);
         type->type = inner;
 
@@ -701,6 +749,10 @@ const Type* Generator::Resolve(const AstNodeType* type)
             return nullptr;
 
         const char* const name = NewStringFmt(arena, "{}*", inner->name);
+
+        if (const Type* const type = TryResolve(name); type != nullptr)
+            return type;
+
         TypePointer* const type = CreateType<TypePointer>(pointer->tokenIndex, name);
         type->type = inner;
 
@@ -714,6 +766,10 @@ const Type* Generator::Resolve(const AstNodeType* type)
             return nullptr;
 
         const char* const name = NewStringFmt(arena, "{}?", inner->name);
+
+        if (const Type* const type = TryResolve(name); type != nullptr)
+            return type;
+
         TypeNullable* const type = CreateType<TypeNullable>(nullable->tokenIndex, name);
         type->type = inner;
 
@@ -758,9 +814,20 @@ T* Generator::CreateType(std::uint32_t tokenIndex, const char* name)
         return nullptr;
     }
 
-    T* const type = arena.New<T>();
+    T* const type = InstantiateType<T>(tokenIndex, name);
+
     state->types.PushBack(arena, type);
     state->mod->types = state->types;
+
+    return type;
+}
+
+template <typename T>
+T* Generator::InstantiateType(std::uint32_t tokenIndex, const char* name)
+{
+    State* const state = stack.Back();
+
+    T* const type = arena.New<T>();
     type->name = name;
     type->owner = state->mod;
     type->line = TokenLine(tokenIndex);
