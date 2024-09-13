@@ -9,6 +9,8 @@ const char* potato::schematic::compiler::ToCStr(TokenType type) noexcept
         using enum TokenType;
         case Unknown: return "???";
         case Integer: return "integer";
+        case HexInteger: return "integer";
+        case BinaryInteger: return "integer";
         case Float: return "float";
         case Identifier: return "identifier";
         case String: return "string";
