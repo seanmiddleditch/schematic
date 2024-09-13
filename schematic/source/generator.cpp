@@ -25,20 +25,13 @@ using namespace potato::schematic;
 using namespace potato::schematic::compiler;
 
 template <>
-struct fmt::formatter<AstQualifiedName> : fmt::formatter<const char*>
+struct fmt::formatter<AstIdentifier> : fmt::formatter<const char*>
 {
     template <typename FormatContext>
-    FMT_CONSTEXPR auto format(const AstQualifiedName& name, FormatContext& ctx) const
+    FMT_CONSTEXPR auto format(const AstIdentifier& ident, FormatContext& ctx) const
         -> decltype(ctx.out())
     {
-        bool first = true;
-        for (const auto& part : name.parts)
-        {
-            if (!first)
-                fmt::format_to(ctx.out(), ".");
-            first = false;
-            fmt::format_to(ctx.out(), "{}", part.name);
-        }
+        fmt::format_to(ctx.out(), ident.name);
         return ctx.out();
     }
 };
@@ -290,7 +283,7 @@ void Generator::BuildStruct(TypeStruct& type, const AstNodeStructDecl& ast)
     {
         type.base = CastTo<TypeStruct>(baseType);
         if (type.base == nullptr)
-            Error(ast.base.parts.Front().tokenIndex, "Base type is not a struct: {}", baseType->name);
+            Error(ast.base.tokenIndex, "Base type is not a struct: {}", baseType->name);
     }
 
     BuildAnnotations(type.annotations, ast.annotations);
@@ -322,7 +315,7 @@ void Generator::BuildEnum(TypeEnum& type, const AstNodeEnumDecl& ast)
 
     type.base = Resolve(ast.base);
     if (type.base != nullptr && type.base->kind != TypeKind::Int)
-        Error(ast.base.parts.Front().tokenIndex, "Base type is not an integer: {}", type.base->name);
+        Error(ast.base.tokenIndex, "Base type is not an integer: {}", type.base->name);
 
     BuildAnnotations(type.annotations, ast.annotations);
 
@@ -569,8 +562,8 @@ const Value* Generator::BuildExpression(const Type* type, const AstNode& expr)
             return BuildNull(*expr.CastTo<AstNodeLiteralNull>());
         case AstNodeKind::LiteralString:
             return BuildString(*expr.CastTo<AstNodeLiteralString>());
-        case AstNodeKind::QualifiedId:
-            return BuildQualifiedId(*expr.CastTo<AstNodeQualifiedId>());
+        case AstNodeKind::Identifier:
+            return BuildIdentValue(type, *expr.CastTo<AstNodeIdentifier>());
         case AstNodeKind::InitializerList:
             if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
                 return BuildObject(struct_, *expr.CastTo<AstNodeInitializerList>());
@@ -583,54 +576,37 @@ const Value* Generator::BuildExpression(const Type* type, const AstNode& expr)
     }
 }
 
-const Value* Generator::BuildQualifiedId(const AstNodeQualifiedId& id)
+const Value* Generator::BuildIdentValue(const Type* type, const AstNodeIdentifier& id)
 {
-    if (id.id.parts.Size() == 1)
+    if (const TypeEnum* const enumType = CastTo<TypeEnum>(type); enumType != nullptr)
     {
-        const Type* type = Resolve(id.id);
-        if (type != nullptr)
+        const EnumItem* const enumItem = FindItem(enumType, id.name.name);
+        if (enumItem == nullptr)
         {
-            ValueType* value = arena.New<ValueType>();
-            value->type = type;
-            value->line = TokenLine(id.tokenIndex);
-            return value;
+            Error(id.tokenIndex, "No such enumeration item: {}.{}", enumType->name, id.name.name);
+            return nullptr;
         }
+
+        ValueEnum* enumValue = arena.New<ValueEnum>();
+        enumValue->item = enumItem;
+        enumValue->line = TokenLine(id.tokenIndex);
+        return enumValue;
     }
 
-    if (id.id.parts.Size() != 2)
+    if (CastTo<TypeType>(type) != nullptr)
     {
-        Error(id.tokenIndex, "Not found: {}", id.id);
-        return nullptr;
+        const Type* type = Resolve(id.name);
+        if (type == nullptr)
+            return nullptr;
+
+        ValueType* value = arena.New<ValueType>();
+        value->type = type;
+        value->line = TokenLine(id.tokenIndex);
+        return value;
     }
 
-    AstQualifiedName enumPart;
-    enumPart.parts = arena.NewArray<AstIdentifier>(1);
-    enumPart.parts.PushBack(arena, id.id.parts.Front());
-    const Type* const type = Resolve(enumPart);
-    if (type == nullptr)
-    {
-        Error(id.tokenIndex, "Not found: {}", id.id);
-        return nullptr;
-    }
-
-    const TypeEnum* const enumType = CastTo<TypeEnum>(type);
-    if (enumType == nullptr)
-    {
-        Error(id.tokenIndex, "Not an enumeration type: {}", enumType->name);
-        return nullptr;
-    }
-
-    const EnumItem* const enumItem = FindItem(enumType, id.id.parts[1].name);
-    if (enumItem == nullptr)
-    {
-        Error(id.tokenIndex, "No such enumeration item: {}", id.id);
-        return nullptr;
-    }
-
-    ValueEnum* enumValue = arena.New<ValueEnum>();
-    enumValue->item = enumItem;
-    enumValue->line = TokenLine(id.tokenIndex);
-    return enumValue;
+    Error(id.tokenIndex, "Not found: {}", id.name.name);
+    return nullptr;
 }
 
 const ValueArray* Generator::BuildArray(const Type* type, const AstNodeInitializerList& expr)
@@ -659,7 +635,7 @@ const ValueObject* Generator::BuildObject(const TypeStruct* type, const AstNodeI
     value->type = type;
     value->line = TokenLine(expr.tokenIndex);
 
-    if (expr.type.parts)
+    if (expr.type.name != nullptr)
     {
         value->type = Resolve(expr.type);
         if (value->type != nullptr && !IsA(value->type, type))
@@ -671,38 +647,31 @@ const ValueObject* Generator::BuildObject(const TypeStruct* type, const AstNodeI
     return value;
 }
 
-const Type* Generator::Resolve(const AstQualifiedName& name)
+const Type* Generator::Resolve(const AstIdentifier& ident)
 {
-    if (!name.parts)
+    if (ident.name == nullptr)
         return nullptr;
-
-    if (name.parts.Size() != 1)
-    {
-        Error(name.parts.Front().tokenIndex, "Qualified names not yet supported: {}", name);
-        return nullptr;
-    }
 
     State& state = *stack.Back();
-    const char* const ident = name.parts.Front().name;
 
-    if (const Type* const type = FindType(state.mod, ident); type != nullptr)
+    if (const Type* const type = FindType(state.mod, ident.name); type != nullptr)
         return type;
 
     if (builtins != nullptr)
-        if (const Type* const type = FindType(builtins, ident); type != nullptr)
+        if (const Type* const type = FindType(builtins, ident.name); type != nullptr)
             return type;
 
     for (const Module* imp : state.mod->imports)
-        if (const Type* const type = FindType(imp, ident); type != nullptr)
+        if (const Type* const type = FindType(imp, ident.name); type != nullptr)
             return type;
 
-    Error(name.parts.Front().tokenIndex, "Not found: {}", name);
+    Error(ident.tokenIndex, "Not found: {}", ident.name);
     return nullptr;
 }
 
 const Type* Generator::Resolve(const AstNodeType* type)
 {
-    if (const AstNodeTypeQualified* qual = type->CastTo<AstNodeTypeQualified>(); qual != nullptr)
+    if (const AstNodeTypeName* qual = type->CastTo<AstNodeTypeName>(); qual != nullptr)
     {
         return Resolve(qual->name);
     }

@@ -47,11 +47,11 @@ namespace potato::schematic::compiler
         const ValueNull* BuildNull(const AstNodeLiteralNull& lit);
         const ValueString* BuildString(const AstNodeLiteralString& lit);
         const Value* BuildExpression(const Type* type, const AstNode& expr);
-        const Value* BuildQualifiedId(const AstNodeQualifiedId& id);
+        const Value* BuildIdentValue(const Type* type, const AstNodeIdentifier& id);
         const ValueArray* BuildArray(const Type* type, const AstNodeInitializerList& expr);
         const ValueObject* BuildObject(const TypeStruct* type, const AstNodeInitializerList& expr);
 
-        const Type* Resolve(const AstQualifiedName& name);
+        const Type* Resolve(const AstIdentifier& name);
         const Type* Resolve(const AstNodeType* type);
 
         bool IsReserved(const char* ident) const noexcept;
