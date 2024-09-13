@@ -26,6 +26,7 @@ namespace potato::schematic::compiler
         result.end = result.start;
         for (std::size_t i = 0; i != token.length; ++i)
         {
+            ++result.end.column;
             if (text[i + token.offset] == '\n')
             {
                 ++result.start.line;
