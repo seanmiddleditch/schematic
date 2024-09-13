@@ -21,7 +21,7 @@ namespace potato::schematic::compiler
         Field,
         EnumDecl,
         EnumItem,
-        TypeQualified,
+        TypeName,
         TypeArray,
         TypePointer,
         TypeNullable,
@@ -33,7 +33,7 @@ namespace potato::schematic::compiler
         LiteralString,
         NamedArgument,
         InitializerList,
-        QualifiedId,
+        Identifier,
     };
 
     struct AstIdentifier;
@@ -47,7 +47,7 @@ namespace potato::schematic::compiler
     struct AstNodeEnumDecl;
     struct AstNodeEnumItem;
     struct AstNodeType;
-    struct AstNodeTypeQualified;
+    struct AstNodeTypeName;
     struct AstNodeTypeArray;
     struct AstNodeTypePointer;
     struct AstNodeTypeNullable;
@@ -60,7 +60,7 @@ namespace potato::schematic::compiler
     struct AstNodeLiteralString;
     struct AstNodeNamedArgument;
     struct AstNodeInitializerList;
-    struct AstNodeQualifiedId;
+    struct AstNodeIdentifier;
 
 #define AST_NODE(SELF, PARENT, KIND) \
     explicit SELF(std::uint32_t tokenIndex) : PARENT((KIND), tokenIndex) { } \
@@ -93,11 +93,6 @@ namespace potato::schematic::compiler
         std::uint32_t tokenIndex = 0;
     };
 
-    struct AstQualifiedName
-    {
-        Array<AstIdentifier> parts;
-    };
-
     struct AstNodeModule : AstNode
     {
         AST_NODE(AstNodeModule, AstNode, AstNodeKind::Module);
@@ -124,7 +119,7 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeStructDecl, AstNodeDecl, AstNodeKind::StructDecl);
 
-        AstQualifiedName base;
+        AstIdentifier base;
         Array<const AstNodeField*> fields;
     };
 
@@ -155,7 +150,7 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeEnumDecl, AstNodeDecl, AstNodeKind::EnumDecl);
 
-        AstQualifiedName base;
+        AstIdentifier base;
         Array<const AstNodeEnumItem*> items;
     };
 
@@ -171,11 +166,11 @@ namespace potato::schematic::compiler
         using AstNode::AstNode;
     };
 
-    struct AstNodeTypeQualified : AstNodeType
+    struct AstNodeTypeName : AstNodeType
     {
-        AST_NODE(AstNodeTypeQualified, AstNodeType, AstNodeKind::TypeQualified);
+        AST_NODE(AstNodeTypeName, AstNodeType, AstNodeKind::TypeName);
 
-        AstQualifiedName name;
+        AstIdentifier name;
     };
 
     struct AstNodeTypeArray : AstNodeType
@@ -204,7 +199,7 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeAnnotation, AstNode, AstNodeKind::Annotation);
 
-        AstQualifiedName name;
+        AstIdentifier name;
         Array<const AstNode*> arguments;
     };
 
@@ -259,15 +254,15 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeInitializerList, AstNodeExpression, AstNodeKind::InitializerList);
 
-        AstQualifiedName type;
+        AstIdentifier type;
         Array<const AstNode*> elements;
     };
 
-    struct AstNodeQualifiedId : AstNodeExpression
+    struct AstNodeIdentifier : AstNodeExpression
     {
-        AST_NODE(AstNodeQualifiedId, AstNodeExpression, AstNodeKind::QualifiedId);
+        AST_NODE(AstNodeIdentifier, AstNodeExpression, AstNodeKind::Identifier);
 
-        AstQualifiedName id;
+        AstIdentifier name;
     };
 
 #undef AST_NODE

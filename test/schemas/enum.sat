@@ -7,7 +7,7 @@ enum color : int8
 
 struct test
 {
-    color c = color.green;
+    color c = green;
 }
 
 // CHECK: color.@kind == Enum
