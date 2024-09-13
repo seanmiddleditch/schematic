@@ -84,7 +84,7 @@ namespace potato::schematic::test
                 ++col;
                 if (col >= range.start.column)
                 {
-                    if (range.start.line == range.end.line && col > range.end.column)
+                    if (range.start.line == range.end.line && col >= range.end.column)
                         break;
                     buffer.push_back('^');
                 }
