@@ -8,6 +8,8 @@
 #include "schematic/allocator.h"
 #include "schematic/compiler.h"
 
+#include <fmt/core.h>
+
 #include <span>
 
 namespace potato::schematic::compiler
@@ -36,6 +38,8 @@ namespace potato::schematic::compiler
         };
 
         void Error(std::string_view message);
+        template <typename... Args>
+        void Error(fmt::format_string<Args...> format, Args&&... args);
         void ErrorExpect(std::string_view expected);
 
         bool ParseAnnotations();

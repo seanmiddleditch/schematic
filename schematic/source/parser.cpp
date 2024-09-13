@@ -708,20 +708,29 @@ void Parser::Error(std::string_view message)
     failed_ = true;
 }
 
+template <typename... Args>
+void Parser::Error(fmt::format_string<Args...> format, Args&&... args)
+{
+    char buffer[1024];
+    const auto rs = fmt::format_to_n(buffer, sizeof(buffer) - 1, format, std::forward<Args>(args)...);
+    *rs.out = '\0';
+    Error(buffer);
+}
+
 void Parser::ErrorExpect(std::string_view expected)
 {
     if (next_ != 0)
     {
-        Error(fmt::format("Unexpected {} after {}; expected {}",
+        Error("Unexpected {} after {}; expected {}",
             PrintToken{ .token = tokens_[next_], .source = source_ },
             PrintToken{ .token = tokens_[next_ - 1], .source = source_ },
-            expected));
+            expected);
     }
     else
     {
-        Error(fmt::format("Unexpected {}; expected {}",
+        Error("Unexpected {}; expected {}",
             PrintToken{ .token = tokens_[next_], .source = source_ },
-            expected));
+            expected);
     }
 }
 
