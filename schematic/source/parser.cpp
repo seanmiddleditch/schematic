@@ -432,7 +432,7 @@ const AstNodeExpression* Parser::ParseExpression()
 
 const AstNodeExpression* Parser::ParseInitializer(const AstIdentifier& name)
 {
-    AstNodeInitializerList* const list = arena_.New<AstNodeInitializerList>(name.tokenIndex);
+    AstNodeInitializerList* const list = arena_.New<AstNodeInitializerList>(name.name != nullptr ? name.tokenIndex : Pos());
     list->type = name;
 
     if (!Expect(TokenType::LBrace))
