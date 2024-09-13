@@ -201,7 +201,7 @@ bool Parser::ParseStructDecl()
             if (!ParseAnnotations())
                 return false;
 
-            if (!ParseField(struct_->fields))
+            if (!ParseField(struct_->fields, FieldMode::Struct))
                 return false;
 
             if (!Expect(TokenType::SemiColon))
@@ -242,7 +242,7 @@ bool Parser::ParseMessageDecl()
             if (!ParseAnnotations())
                 return false;
 
-            if (!ParseField(message->fields))
+            if (!ParseField(message->fields, FieldMode::Message))
                 return false;
 
             if (!Expect(TokenType::SemiColon))
@@ -280,7 +280,7 @@ bool Parser::ParseAttributeDecl()
             if (Consume(TokenType::End))
                 break;
 
-            if (!ParseField(attr->fields))
+            if (!ParseField(attr->fields, FieldMode::Attribute))
                 return false;
 
             if (!Expect(TokenType::SemiColon))
@@ -297,7 +297,7 @@ bool Parser::ParseAttributeDecl()
     return true;
 }
 
-const bool Parser::ParseField(Array<const AstNodeField*>& fields)
+const bool Parser::ParseField(Array<const AstNodeField*>& fields, FieldMode mode)
 {
     AstNodeField* const field = arena_.New<AstNodeField>(Pos());
     field->annotations = annotations_;
@@ -310,9 +310,13 @@ const bool Parser::ParseField(Array<const AstNodeField*>& fields)
     if (!ExpectIdent(field->name))
         return false;
 
-    if (Consume(TokenType::At))
+    if (mode == FieldMode::Message)
+    {
+        if (!Expect(TokenType::At))
+            return false;
         if (!ExpectInt(field->proto))
             return false;
+    }
 
     if (Consume(TokenType::Equals))
     {

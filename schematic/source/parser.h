@@ -37,6 +37,13 @@ namespace potato::schematic::compiler
             Declaration, // end at }
         };
 
+        enum class FieldMode
+        {
+            Struct,
+            Attribute,
+            Message,
+        };
+
         void Error(std::string_view message);
         template <typename... Args>
         void Error(fmt::format_string<Args...> format, Args&&... args);
@@ -50,7 +57,7 @@ namespace potato::schematic::compiler
         bool ParseAttributeDecl();
         bool ParseEnumDecl();
 
-        const bool ParseField(Array<const AstNodeField*>& fields);
+        const bool ParseField(Array<const AstNodeField*>& fields, FieldMode mode);
         const AstNodeExpression* ParseExpression();
         const AstNodeExpression* ParseInitializer(const AstQualifiedName& name);
         const AstNode* ParseArgument();

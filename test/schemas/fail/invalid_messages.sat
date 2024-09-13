@@ -1,0 +1,9 @@
+struct not_message {
+    // ERROR: schemas/fail/invalid_messages.sat(3): Unexpected @ after identifier `field`; expected ;
+    int32 field @3;
+}
+
+message message {
+    // ERROR: schemas/fail/invalid_messages.sat(8): Unexpected ; after identifier `field`; expected @
+    int32 field;
+}

@@ -41,6 +41,7 @@ schematic_embed_schemas(TARGET schematic_test SCHEMAS
     "schemas/fail/circular_import_child.sat"
     "schemas/fail/duplicates.sat"
     "schemas/fail/invalid_base_types.sat"
+    "schemas/fail/invalid_messages.sat"
     "schemas/fail/missing_import.sat"
     "schemas/fail/reserved.sat"
     "schemas/initializers.sat"
