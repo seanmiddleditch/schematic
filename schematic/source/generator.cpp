@@ -43,6 +43,16 @@ struct fmt::formatter<AstQualifiedName> : fmt::formatter<const char*>
     }
 };
 
+template <typename... Args>
+static const char* NewStringFmt(ArenaAllocator& arena, fmt::format_string<Args...> format, Args&&... args)
+{
+    const int length = fmt::formatted_size(format, args...);
+    char* const buffer = static_cast<char*>(arena.Allocate(length + 1, 1));
+    fmt::format_to(buffer, format, std::forward<Args>(args)...);
+    buffer[length] = '\0';
+    return buffer;
+}
+
 struct Generator::State
 {
     struct TypeDecl
@@ -704,8 +714,8 @@ const Type* Generator::Resolve(const AstNodeType* type)
             return nullptr;
 
         const char* const name = array->size == nullptr
-            ? arena.NewString(fmt::format("{}[]", inner->name))
-            : arena.NewString(fmt::format("{}[{}]", inner->name, array->size->value));
+            ? NewStringFmt(arena, "{}[]", inner->name)
+            : NewStringFmt(arena, "{}[{}]", inner->name, array->size->value);
         TypeArray* const type = CreateType<TypeArray>(array->tokenIndex, name);
         type->type = inner;
 
@@ -721,7 +731,7 @@ const Type* Generator::Resolve(const AstNodeType* type)
         if (inner == nullptr)
             return nullptr;
 
-        const char* const name = arena.NewString(fmt::format("{}*", inner->name));
+        const char* const name = NewStringFmt(arena, "{}*", inner->name);
         TypePointer* const type = CreateType<TypePointer>(pointer->tokenIndex, name);
         type->type = inner;
 
@@ -734,7 +744,7 @@ const Type* Generator::Resolve(const AstNodeType* type)
         if (inner == nullptr)
             return nullptr;
 
-        const char* const name = arena.NewString(fmt::format("{}?", inner->name));
+        const char* const name = NewStringFmt(arena, "{}?", inner->name);
         TypeNullable* const type = CreateType<TypeNullable>(nullable->tokenIndex, name);
         type->type = inner;
 
