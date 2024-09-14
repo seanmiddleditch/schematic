@@ -51,6 +51,21 @@ const Field* potato::schematic::FindField(const TypeStruct* type, std::string_vi
     return nullptr;
 }
 
+const Field* potato::schematic::FindField(const Type* type, std::string_view name) noexcept
+{
+    if (type == nullptr)
+        return nullptr;
+
+    if (const Field* const field = FindField(CastTo<TypeStruct>(type), name); field != nullptr)
+        return field;
+    if (const Field* const field = FindField(CastTo<TypeMessage>(type), name); field != nullptr)
+        return field;
+    if (const Field* const field = FindField(CastTo<TypeAttribute>(type), name); field != nullptr)
+        return field;
+
+    return nullptr;
+}
+
 const EnumItem* potato::schematic::FindItem(const TypeEnum* type, std::string_view name) noexcept
 {
     if (type == nullptr)

@@ -32,6 +32,7 @@ namespace potato::schematic
     const Field* FindField(const TypeAttribute* type, std::string_view name) noexcept;
     const Field* FindField(const TypeMessage* type, std::string_view name) noexcept;
     const Field* FindField(const TypeStruct* type, std::string_view name) noexcept;
+    const Field* FindField(const Type* type, std::string_view name) noexcept;
 
     const EnumItem* FindItem(const TypeEnum* type, std::string_view name) noexcept;
 

@@ -26,6 +26,7 @@ namespace potato::schematic::compiler
 
     private:
         struct EnumItemInfo;
+        struct FieldInfo;
         struct State;
         struct TypeInfo;
 
@@ -39,7 +40,6 @@ namespace potato::schematic::compiler
         void BuildAttribute(TypeAttribute& type, const AstNodeAttributeDecl& ast);
         void BuildEnum(TypeEnum& type, const AstNodeEnumDecl& ast);
 
-        void BuildFields(std::span<const Field>& out, const Type* owner, Array<const AstNodeField*> fields);
         void BuildAnnotations(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast);
         void BuildArguments(std::span<const Argument>& out, const Type* type, const std::span<const Field>& fields, const TypeStruct* baseType, Array<const AstNode*> ast);
 

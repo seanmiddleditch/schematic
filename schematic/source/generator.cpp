@@ -53,6 +53,13 @@ struct Generator::EnumItemInfo
     EnumItem* item = nullptr;
 };
 
+struct Generator::FieldInfo
+{
+    const AstNodeField* node = nullptr;
+    TypeInfo* typeInfo = nullptr;
+    Field* field = nullptr;
+};
+
 struct Generator::TypeInfo
 {
     const AstNodeDecl* node = nullptr;
@@ -70,8 +77,9 @@ struct Generator::State
     Array<const Module*> imports;
     Array<const Type*> types;
 
-    Array<TypeInfo*> typeInfos;
     Array<EnumItemInfo*> enumItemInfos;
+    Array<FieldInfo*> fieldInfos;
+    Array<TypeInfo*> typeInfos;
 };
 
 const Module* Generator::CompileModule()
@@ -105,19 +113,88 @@ const Module* Generator::CompileModule()
 
         if (const AstNodeStructDecl* const decl = node->CastTo<AstNodeStructDecl>())
         {
-            CreateTypeDecl<TypeStruct>(decl);
+            TypeStruct* const type = CreateType<TypeStruct>(decl->tokenIndex, decl->name.name);
+            if (type == nullptr)
+                continue;
+
+            TypeInfo* const info = state.typeInfos.EmplaceBack(arena, arena.New<TypeInfo>());
+            info->node = decl;
+            info->type = type;
+
+            // Create the EnumItem entries so item lookups will work during value resolution
+            Array<Field> fields = arena.NewArray<Field>(decl->fields.Size());
+            for (const AstNodeField* fieldNode : decl->fields)
+            {
+                Field& field = fields.EmplaceBack(arena);
+                field.name = fieldNode->name.name;
+                field.owner = type;
+                field.line = TokenLine(fieldNode->tokenIndex);
+
+                FieldInfo* const itemInfo = state.fieldInfos.EmplaceBack(arena, arena.New<FieldInfo>());
+                itemInfo->node = fieldNode;
+                itemInfo->typeInfo = info;
+                itemInfo->field = &field;
+            }
+            type->fields = fields;
+
             continue;
         }
 
         if (const AstNodeMessageDecl* const decl = node->CastTo<AstNodeMessageDecl>())
         {
-            CreateTypeDecl<TypeMessage>(decl);
+            TypeMessage* const type = CreateType<TypeMessage>(decl->tokenIndex, decl->name.name);
+            if (type == nullptr)
+                continue;
+
+            TypeInfo* const info = state.typeInfos.EmplaceBack(arena, arena.New<TypeInfo>());
+            info->node = decl;
+            info->type = type;
+
+            // Create the EnumItem entries so item lookups will work during value resolution
+            Array<Field> fields = arena.NewArray<Field>(decl->fields.Size());
+            for (const AstNodeField* fieldNode : decl->fields)
+            {
+                Field& field = fields.EmplaceBack(arena);
+                field.name = fieldNode->name.name;
+                field.owner = type;
+                field.line = TokenLine(fieldNode->tokenIndex);
+
+                FieldInfo* const itemInfo = state.fieldInfos.EmplaceBack(arena, arena.New<FieldInfo>());
+                itemInfo->node = fieldNode;
+                itemInfo->typeInfo = info;
+                itemInfo->field = &field;
+            }
+            type->fields = fields;
+
             continue;
         }
 
         if (const AstNodeAttributeDecl* const decl = node->CastTo<AstNodeAttributeDecl>())
         {
-            CreateTypeDecl<TypeAttribute>(decl);
+            TypeAttribute* const type = CreateType<TypeAttribute>(decl->tokenIndex, decl->name.name);
+            if (type == nullptr)
+                continue;
+
+            TypeInfo* const info = state.typeInfos.EmplaceBack(arena, arena.New<TypeInfo>());
+            info->node = decl;
+            info->type = type;
+
+            // Create the EnumItem entries so item lookups will work during value resolution
+            Array<Field> fields = arena.NewArray<Field>(decl->fields.Size());
+            for (const AstNodeField* fieldNode : decl->fields)
+            {
+                Field& field = fields.EmplaceBack(arena);
+                field.name = fieldNode->name.name;
+                field.owner = type;
+                field.line = TokenLine(fieldNode->tokenIndex);
+
+                FieldInfo* const itemInfo = state.fieldInfos.EmplaceBack(arena, arena.New<FieldInfo>());
+                itemInfo->node = fieldNode;
+                itemInfo->typeInfo = info;
+                itemInfo->field = &field;
+            }
+            type->fields = fields;
+
             continue;
         }
 
@@ -131,7 +208,7 @@ const Module* Generator::CompileModule()
             info->node = decl;
             info->type = type;
 
-            // Create the EnumItem entries so value lookups will work
+            // Create the EnumItem entries so item lookups will work during value resolution
             Array<EnumItem> items = arena.NewArray<EnumItem>(decl->items.Size());
             for (const AstNodeEnumItem* itemNode : decl->items)
             {
@@ -198,6 +275,25 @@ const Module* Generator::CompileModule()
         }
 
         BuildAnnotations(info->item->annotations, info->node->annotations);
+    }
+
+    // Fully build out fields now that all types have been created and initialized
+    for (const FieldInfo* const info : state.fieldInfos)
+    {
+        if (auto* found = FindField(info->field->owner, info->field->name); found != info->field)
+            Error(info->node->tokenIndex, "Duplicate field: {}.{}", info->field->owner->name, info->field->name);
+
+        if (IsReserved(info->field->name))
+            Error(info->node->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}.{}", info->field->owner->name, info->field->name);
+
+        info->field->type = Resolve(info->node->type);
+
+        if (info->node->proto != nullptr)
+            info->field->proto = info->node->proto->value;
+        if (info->node->value != nullptr)
+            info->field->value = BuildExpression(info->field->type, *info->node->value);
+
+        BuildAnnotations(info->field->annotations, info->node->annotations);
     }
 
     if (!result)
@@ -349,7 +445,6 @@ void Generator::BuildStruct(TypeStruct& type, const AstNodeStructDecl& ast)
     }
 
     BuildAnnotations(type.annotations, ast.annotations);
-    BuildFields(type.fields, &type, ast.fields);
 }
 
 void Generator::BuildMessage(TypeMessage& type, const AstNodeMessageDecl& ast)
@@ -358,7 +453,6 @@ void Generator::BuildMessage(TypeMessage& type, const AstNodeMessageDecl& ast)
         Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type.name);
 
     BuildAnnotations(type.annotations, ast.annotations);
-    BuildFields(type.fields, &type, ast.fields);
 }
 
 void Generator::BuildAttribute(TypeAttribute& type, const AstNodeAttributeDecl& ast)
@@ -367,7 +461,6 @@ void Generator::BuildAttribute(TypeAttribute& type, const AstNodeAttributeDecl& 
         Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type.name);
 
     BuildAnnotations(type.annotations, ast.annotations);
-    BuildFields(type.fields, &type, ast.fields);
 }
 
 void Generator::BuildEnum(TypeEnum& type, const AstNodeEnumDecl& ast)
@@ -380,39 +473,6 @@ void Generator::BuildEnum(TypeEnum& type, const AstNodeEnumDecl& ast)
         Error(ast.base.tokenIndex, "Base type is not an integer: {}", type.base->name);
 
     BuildAnnotations(type.annotations, ast.annotations);
-}
-
-void Generator::BuildFields(std::span<const Field>& out, const Type* owner, Array<const AstNodeField*> fields)
-{
-    Array<Field> temp = arena.NewArray<Field>(fields.Size());
-
-    auto HasField = [&temp](const std::string_view name) -> bool
-    {
-        for (const Field& field : temp)
-            if (field.name == name)
-                return true;
-        return false;
-    };
-
-    for (const AstNodeField* ast_field : fields)
-    {
-        if (HasField(ast_field->name.name))
-            Error(ast_field->tokenIndex, "Duplicate field name: {}.{}", owner->name, ast_field->name.name);
-
-        Field& field = temp.EmplaceBack(arena);
-        field.owner = owner;
-        field.name = ast_field->name.name;
-        field.type = Resolve(ast_field->type);
-        field.line = TokenLine(ast_field->tokenIndex);
-        if (IsReserved(field.name))
-            Error(ast_field->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", field.name);
-        if (ast_field->proto != nullptr)
-            field.proto = ast_field->proto->value;
-        if (ast_field->value != nullptr)
-            field.value = BuildExpression(field.type, *ast_field->value);
-        BuildAnnotations(field.annotations, ast_field->annotations);
-    }
-    out = temp;
 }
 
 void Generator::BuildAnnotations(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast)
@@ -723,20 +783,29 @@ const Type* Generator::Resolve(const AstNodeType* type)
         if (inner == nullptr)
             return nullptr;
 
-        const char* const name = array->size == nullptr
-            ? NewStringFmt(arena, "{}[]", inner->name)
-            : NewStringFmt(arena, "{}[{}]", inner->name, array->size->value);
+        if (array->size == nullptr)
+        {
+            const char* const name = NewStringFmt(arena, "{}[]", inner->name);
 
-        if (const Type* const type = TryResolve(name); type != nullptr)
+            if (const Type* const type = TryResolve(name); type != nullptr)
+                return type;
+
+            TypeArray* const type = CreateType<TypeArray>(array->tokenIndex, name);
+            type->type = inner;
             return type;
+        }
 
-        TypeArray* const type = CreateType<TypeArray>(array->tokenIndex, name);
-        type->type = inner;
+        {
+            const char* const name = NewStringFmt(arena, "{}[{}]", inner->name, array->size->value);
 
-        if (array->size != nullptr)
+            if (const Type* const type = TryResolve(name); type != nullptr)
+                return type;
+
+            TypeArray* const type = CreateType<TypeArray>(array->tokenIndex, name);
+            type->type = inner;
             type->size = array->size->value;
-
-        return type;
+            return type;
+        }
     }
 
     if (const AstNodeTypePointer* pointer = type->CastTo<AstNodeTypePointer>(); pointer != nullptr)
