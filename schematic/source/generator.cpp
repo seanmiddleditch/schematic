@@ -46,10 +46,18 @@ static const char* NewStringFmt(ArenaAllocator& arena, fmt::format_string<Args..
     return buffer;
 }
 
-struct Generator::TypeDecl
+struct Generator::EnumItemInfo
 {
-    const AstNodeDecl* adecl = nullptr;
+    const AstNodeEnumItem* node = nullptr;
+    TypeInfo* enumInfo = nullptr;
+    EnumItem* item = nullptr;
+};
+
+struct Generator::TypeInfo
+{
+    const AstNodeDecl* node = nullptr;
     Type* type = nullptr;
+    std::int64_t enumItemNext = 0; // for auto-assigning values to enum items
 };
 
 struct Generator::State
@@ -57,10 +65,13 @@ struct Generator::State
     const AstNodeModule* ast = nullptr;
     Module* mod = nullptr;
     std::string_view source;
-    Array<const Module*> imports;
-    Array<TypeDecl> decls;
-    Array<const Type*> types;
     Array<Token> tokens;
+
+    Array<const Module*> imports;
+    Array<const Type*> types;
+
+    Array<TypeInfo*> typeInfos;
+    Array<EnumItemInfo*> enumItemInfos;
 };
 
 const Module* Generator::CompileModule()
@@ -92,51 +103,50 @@ const Module* Generator::CompileModule()
             continue;
         }
 
-        if (const AstNodeStructDecl* const struct_ = node->CastTo<AstNodeStructDecl>())
+        if (const AstNodeStructDecl* const decl = node->CastTo<AstNodeStructDecl>())
         {
-            Type* const type = CreateType<TypeStruct>(struct_->tokenIndex, struct_->name.name);
-            if (type != nullptr)
-            {
-                TypeDecl& typeDecl = state.decls.EmplaceBack(arena);
-                typeDecl.adecl = static_cast<const AstNodeDecl*>(node);
-                typeDecl.type = type;
-            }
+            CreateTypeDecl<TypeStruct>(decl);
             continue;
         }
 
-        if (const AstNodeMessageDecl* const message = node->CastTo<AstNodeMessageDecl>())
+        if (const AstNodeMessageDecl* const decl = node->CastTo<AstNodeMessageDecl>())
         {
-            Type* const type = CreateType<TypeMessage>(message->tokenIndex, message->name.name);
-            if (type != nullptr)
-            {
-                TypeDecl& typeDecl = state.decls.EmplaceBack(arena);
-                typeDecl.adecl = static_cast<const AstNodeDecl*>(node);
-                typeDecl.type = type;
-            }
+            CreateTypeDecl<TypeMessage>(decl);
             continue;
         }
 
-        if (const AstNodeAttributeDecl* const attr = node->CastTo<AstNodeAttributeDecl>())
+        if (const AstNodeAttributeDecl* const decl = node->CastTo<AstNodeAttributeDecl>())
         {
-            Type* const type = CreateType<TypeAttribute>(attr->tokenIndex, attr->name.name);
-            if (type != nullptr)
-            {
-                TypeDecl& typeDecl = state.decls.EmplaceBack(arena);
-                typeDecl.adecl = static_cast<const AstNodeDecl*>(node);
-                typeDecl.type = type;
-            }
+            CreateTypeDecl<TypeAttribute>(decl);
             continue;
         }
 
-        if (const AstNodeEnumDecl* const enum_ = node->CastTo<AstNodeEnumDecl>())
+        if (const AstNodeEnumDecl* const decl = node->CastTo<AstNodeEnumDecl>())
         {
-            Type* const type = CreateType<TypeEnum>(enum_->tokenIndex, enum_->name.name);
-            if (type != nullptr)
+            TypeEnum* const type = CreateType<TypeEnum>(decl->tokenIndex, decl->name.name);
+            if (type == nullptr)
+                continue;
+
+            TypeInfo* const info = state.typeInfos.EmplaceBack(arena, arena.New<TypeInfo>());
+            info->node = decl;
+            info->type = type;
+
+            // Create the EnumItem entries so value lookups will work
+            Array<EnumItem> items = arena.NewArray<EnumItem>(decl->items.Size());
+            for (const AstNodeEnumItem* itemNode : decl->items)
             {
-                TypeDecl& typeDecl = state.decls.EmplaceBack(arena);
-                typeDecl.adecl = static_cast<const AstNodeDecl*>(node);
-                typeDecl.type = type;
+                EnumItem& item = items.EmplaceBack(arena);
+                item.name = itemNode->name.name;
+                item.owner = type;
+                item.line = TokenLine(itemNode->tokenIndex);
+
+                EnumItemInfo* const itemInfo = state.enumItemInfos.EmplaceBack(arena, arena.New<EnumItemInfo>());
+                itemInfo->node = itemNode;
+                itemInfo->enumInfo = info;
+                itemInfo->item = &item;
             }
+            type->items = items;
+
             continue;
         }
 
@@ -145,25 +155,49 @@ const Module* Generator::CompileModule()
 
     // Fully build types (including fields, bases, values, etc.) now that we have instantiations
     // of all types
-    for (const TypeDecl& typeDecl : state.decls)
+    for (const TypeInfo* const info : state.typeInfos)
     {
-        switch (typeDecl.type->kind)
+        switch (info->type->kind)
         {
             case TypeKind::Struct:
-                BuildStruct(*static_cast<TypeStruct*>(typeDecl.type), *static_cast<const AstNodeStructDecl*>(typeDecl.adecl));
+                BuildStruct(*static_cast<TypeStruct*>(info->type), *static_cast<const AstNodeStructDecl*>(info->node));
                 break;
             case TypeKind::Message:
-                BuildMessage(*static_cast<TypeMessage*>(typeDecl.type), *static_cast<const AstNodeMessageDecl*>(typeDecl.adecl));
+                BuildMessage(*static_cast<TypeMessage*>(info->type), *static_cast<const AstNodeMessageDecl*>(info->node));
                 break;
             case TypeKind::Attribute:
-                BuildAttribute(*static_cast<TypeAttribute*>(typeDecl.type), *static_cast<const AstNodeAttributeDecl*>(typeDecl.adecl));
+                BuildAttribute(*static_cast<TypeAttribute*>(info->type), *static_cast<const AstNodeAttributeDecl*>(info->node));
                 break;
             case TypeKind::Enum:
-                BuildEnum(*static_cast<TypeEnum*>(typeDecl.type), *static_cast<const AstNodeEnumDecl*>(typeDecl.adecl));
+                BuildEnum(*static_cast<TypeEnum*>(info->type), *static_cast<const AstNodeEnumDecl*>(info->node));
                 break;
             default:
-                Error(typeDecl.adecl->tokenIndex, "Internal error: unexpected type kind: {}, {}", typeDecl.type->name, std::to_underlying(typeDecl.type->kind));
+                Error(info->node->tokenIndex, "Internal error: unexpected type kind: {}, {}", info->type->name, std::to_underlying(info->type->kind));
         }
+    }
+
+    // Fully build enum items now that attributes are built
+    for (const EnumItemInfo* const info : state.enumItemInfos)
+    {
+        if (auto* found = FindItem(info->item->owner, info->item->name); found != info->item)
+            Error(info->node->tokenIndex, "Duplicate item name: {}.{}", info->item->owner->name, info->item->name);
+
+        if (IsReserved(info->item->name))
+            Error(info->node->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}.{}", info->item->owner->name, info->item->name);
+
+        if (info->node->value != nullptr)
+        {
+            info->item->value = BuildInteger(*info->node->value);
+            info->enumInfo->enumItemNext = info->item->value->value + 1;
+        }
+        else
+        {
+            ValueInt* const value = arena.New<ValueInt>();
+            value->value = info->enumInfo->enumItemNext++;
+            info->item->value = value;
+        }
+
+        BuildAnnotations(info->item->annotations, info->node->annotations);
     }
 
     if (!result)
@@ -346,43 +380,6 @@ void Generator::BuildEnum(TypeEnum& type, const AstNodeEnumDecl& ast)
         Error(ast.base.tokenIndex, "Base type is not an integer: {}", type.base->name);
 
     BuildAnnotations(type.annotations, ast.annotations);
-
-    std::int64_t next = 0;
-    Array<EnumItem> items = arena.NewArray<EnumItem>(ast.items.Size());
-
-    auto HasItem = [&items](const std::string_view name) -> bool
-    {
-        for (const EnumItem& item : items)
-            if (item.name == name)
-                return true;
-        return false;
-    };
-
-    for (const AstNodeEnumItem* ast_item : ast.items)
-    {
-        if (HasItem(ast_item->name.name))
-            Error(ast_item->tokenIndex, "Duplicate item name: {}.{}", type.name, ast_item->name.name);
-
-        EnumItem& item = items.EmplaceBack(arena);
-        item.owner = &type;
-        item.name = ast_item->name.name;
-        item.line = TokenLine(ast_item->tokenIndex);
-        if (IsReserved(item.name))
-            Error(ast_item->name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", item.name);
-        if (ast_item->value != nullptr)
-        {
-            item.value = BuildInteger(*ast_item->value);
-            next = item.value->value + 1;
-        }
-        else
-        {
-            ValueInt* const value = arena.New<ValueInt>();
-            value->value = next++;
-            item.value = value;
-        }
-        BuildAnnotations(item.annotations, ast_item->annotations);
-    }
-    type.items = items;
 }
 
 void Generator::BuildFields(std::span<const Field>& out, const Type* owner, Array<const AstNodeField*> fields)
@@ -682,9 +679,9 @@ const Type* Generator::TryResolve(const char* name)
 
     State& state = *stack.Back();
 
-    for (const TypeDecl& decl : state.decls)
-        if (std::strcmp(decl.type->name, name) == 0)
-            return decl.type;
+    for (const TypeInfo* const info : state.typeInfos)
+        if (std::strcmp(info->type->name, name) == 0)
+            return info->type;
 
     if (const Type* const type = FindType(state.mod, name); type != nullptr)
         return type;
@@ -801,6 +798,21 @@ void Generator::Error(std::uint32_t tokenIndex, fmt::format_string<Args...> form
     {
         logger_.Error(stack.Back()->mod->filename, {}, fmt::vformat(format, fmt::make_format_args(args...)));
     }
+}
+
+template <typename T>
+T* Generator::CreateTypeDecl(const AstNodeDecl* decl)
+{
+    T* const type = CreateType<T>(decl->tokenIndex, decl->name.name);
+    if (type == nullptr)
+        return nullptr;
+
+    State* const state = stack.Back();
+
+    TypeInfo* const info = state->typeInfos.EmplaceBack(arena, arena.New<TypeInfo>());
+    info->node = decl;
+    info->type = type;
+    return type;
 }
 
 template <typename T>

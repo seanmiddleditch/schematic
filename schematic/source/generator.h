@@ -25,8 +25,9 @@ namespace potato::schematic::compiler
         const Module* Compile(std::string_view filename, std::string_view source, bool useBuiltins);
 
     private:
+        struct EnumItemInfo;
         struct State;
-        struct TypeDecl;
+        struct TypeInfo;
 
         const Module* CompileModule();
         bool HandleImport(const AstNodeImport& imp);
@@ -61,6 +62,8 @@ namespace potato::schematic::compiler
         template <typename... Args>
         void Error(std::uint32_t tokenIndex, fmt::format_string<Args...> format, const Args&... args);
 
+        template <typename T>
+        T* CreateTypeDecl(const AstNodeDecl* decl);
         template <typename T>
         T* CreateType(std::uint32_t tokenIndex, const char* name);
         template <typename T>

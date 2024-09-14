@@ -6,6 +6,6 @@ struct $struct {
 
 // ERROR: schemas/fail/reserved.sat(8): Reserved identifier ($) is not allowed in declarations: $enum
 enum $enum {
-    // ERROR: schemas/fail/reserved.sat(10): Reserved identifier ($) is not allowed in declarations: $item
+    // ERROR: schemas/fail/reserved.sat(10): Reserved identifier ($) is not allowed in declarations: $enum.$item
     $item = 1
 }

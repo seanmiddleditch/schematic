@@ -336,6 +336,9 @@ namespace potato::schematic::test
 
     void CheckEvaluator::Evaluate(const Value* value)
     {
+        if (value == nullptr)
+            return Finish(nullptr);
+
         if (Match("@kind"))
             return Evaluate(value->kind);
 
