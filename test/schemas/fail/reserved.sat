@@ -1,6 +1,6 @@
 // ERROR: schemas/fail/reserved.sat(2): Reserved identifier ($) is not allowed in declarations: $struct
 struct $struct {
-    // ERROR: schemas/fail/reserved.sat(4): Reserved identifier ($) is not allowed in declarations: $field
+    // ERROR: schemas/fail/reserved.sat(4): Reserved identifier ($) is not allowed in declarations: $struct.$field
     int32 $field;
 }
 

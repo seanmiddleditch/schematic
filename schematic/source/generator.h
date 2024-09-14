@@ -25,6 +25,7 @@ namespace potato::schematic::compiler
         const Module* Compile(std::string_view filename, std::string_view source, bool useBuiltins);
 
     private:
+        struct AnnotationInfo;
         struct EnumItemInfo;
         struct FieldInfo;
         struct State;
@@ -35,12 +36,10 @@ namespace potato::schematic::compiler
 
         const Module* CreateBuiltins();
 
-        void BuildStruct(TypeStruct& type, const AstNodeStructDecl& ast);
-        void BuildMessage(TypeMessage& type, const AstNodeMessageDecl& ast);
-        void BuildAttribute(TypeAttribute& type, const AstNodeAttributeDecl& ast);
-        void BuildEnum(TypeEnum& type, const AstNodeEnumDecl& ast);
+        template <typename T, typename A>
+        void BuildAggregateTypeInfo(const A* node);
+        void BuildAnnotationInfos(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast);
 
-        void BuildAnnotations(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast);
         void BuildArguments(std::span<const Argument>& out, const Type* type, const std::span<const Field>& fields, const TypeStruct* baseType, Array<const AstNode*> ast);
 
         const ValueBool* BuildBool(const AstNodeLiteralBool& lit);

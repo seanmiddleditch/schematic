@@ -1,6 +1,6 @@
-// ERROR: schemas/fail/invalid_base_types.sat(2): Base type is not a struct: int32
+// ERROR: schemas/fail/invalid_base_types.sat(2): Struct base type is not a struct: derived : int32
 struct derived : int32 {}
 
 struct base {}
-// ERROR: schemas/fail/invalid_base_types.sat(6): Base type is not an integer: base
+// ERROR: schemas/fail/invalid_base_types.sat(6): Enum base type is not an integer type: enum : base
 enum enum : base {}

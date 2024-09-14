@@ -720,7 +720,7 @@ void Deserializer::Deserialize(TypeEnum& out, const proto::Type::Enum& in)
         {
             const Type* const base = types_[in.base()];
             if (VERIFY(base->kind == TypeKind::Int, "Invalid enum base type kind"))
-                out.base = base;
+                out.base = static_cast<const TypeInt*>(base);
         }
     }
 

@@ -46,6 +46,12 @@ static const char* NewStringFmt(ArenaAllocator& arena, fmt::format_string<Args..
     return buffer;
 }
 
+struct Generator::AnnotationInfo
+{
+    const AstNodeAnnotation* node = nullptr;
+    Annotation* anno = nullptr;
+};
+
 struct Generator::EnumItemInfo
 {
     const AstNodeEnumItem* node = nullptr;
@@ -77,6 +83,7 @@ struct Generator::State
     Array<const Module*> imports;
     Array<const Type*> types;
 
+    Array<AnnotationInfo*> annotationItemInfos;
     Array<EnumItemInfo*> enumItemInfos;
     Array<FieldInfo*> fieldInfos;
     Array<TypeInfo*> typeInfos;
@@ -99,107 +106,44 @@ const Module* Generator::CompileModule()
 
     // Handle all imports before any local declarations, so we ensure that
     // imported types are available independent of order
-    //
-    // Instantiate types, so that we can lookup a type by name (and grab a
-    // pointer) early
     for (const AstNode* node : state.ast->nodes)
     {
         if (const AstNodeImport* const imp = node->CastTo<AstNodeImport>())
         {
             if (!HandleImport(*imp))
                 return nullptr;
+        }
+    }
+
+    // Instantiate all type declarations
+    for (const AstNode* node : state.ast->nodes)
+    {
+        if (node->kind == AstNodeKind::Import)
+            continue;
+
+        if (const AstNodeStructDecl* const declNode = node->CastTo<AstNodeStructDecl>())
+        {
+            BuildAggregateTypeInfo<TypeStruct>(declNode);
             continue;
         }
 
-        if (const AstNodeStructDecl* const decl = node->CastTo<AstNodeStructDecl>())
+        if (const AstNodeMessageDecl* const declNode = node->CastTo<AstNodeMessageDecl>())
         {
-            TypeStruct* const type = CreateType<TypeStruct>(decl->tokenIndex, decl->name.name);
-            if (type == nullptr)
-                continue;
-
-            TypeInfo* const info = state.typeInfos.EmplaceBack(arena, arena.New<TypeInfo>());
-            info->node = decl;
-            info->type = type;
-
-            // Create the EnumItem entries so item lookups will work during value resolution
-            Array<Field> fields = arena.NewArray<Field>(decl->fields.Size());
-            for (const AstNodeField* fieldNode : decl->fields)
-            {
-                Field& field = fields.EmplaceBack(arena);
-                field.name = fieldNode->name.name;
-                field.owner = type;
-                field.line = TokenLine(fieldNode->tokenIndex);
-
-                FieldInfo* const itemInfo = state.fieldInfos.EmplaceBack(arena, arena.New<FieldInfo>());
-                itemInfo->node = fieldNode;
-                itemInfo->typeInfo = info;
-                itemInfo->field = &field;
-            }
-            type->fields = fields;
-
+            BuildAggregateTypeInfo<TypeMessage>(declNode);
             continue;
         }
 
-        if (const AstNodeMessageDecl* const decl = node->CastTo<AstNodeMessageDecl>())
+        if (const AstNodeAttributeDecl* const declNode = node->CastTo<AstNodeAttributeDecl>())
         {
-            TypeMessage* const type = CreateType<TypeMessage>(decl->tokenIndex, decl->name.name);
-            if (type == nullptr)
-                continue;
-
-            TypeInfo* const info = state.typeInfos.EmplaceBack(arena, arena.New<TypeInfo>());
-            info->node = decl;
-            info->type = type;
-
-            // Create the EnumItem entries so item lookups will work during value resolution
-            Array<Field> fields = arena.NewArray<Field>(decl->fields.Size());
-            for (const AstNodeField* fieldNode : decl->fields)
-            {
-                Field& field = fields.EmplaceBack(arena);
-                field.name = fieldNode->name.name;
-                field.owner = type;
-                field.line = TokenLine(fieldNode->tokenIndex);
-
-                FieldInfo* const itemInfo = state.fieldInfos.EmplaceBack(arena, arena.New<FieldInfo>());
-                itemInfo->node = fieldNode;
-                itemInfo->typeInfo = info;
-                itemInfo->field = &field;
-            }
-            type->fields = fields;
-
-            continue;
-        }
-
-        if (const AstNodeAttributeDecl* const decl = node->CastTo<AstNodeAttributeDecl>())
-        {
-            TypeAttribute* const type = CreateType<TypeAttribute>(decl->tokenIndex, decl->name.name);
-            if (type == nullptr)
-                continue;
-
-            TypeInfo* const info = state.typeInfos.EmplaceBack(arena, arena.New<TypeInfo>());
-            info->node = decl;
-            info->type = type;
-
-            // Create the EnumItem entries so item lookups will work during value resolution
-            Array<Field> fields = arena.NewArray<Field>(decl->fields.Size());
-            for (const AstNodeField* fieldNode : decl->fields)
-            {
-                Field& field = fields.EmplaceBack(arena);
-                field.name = fieldNode->name.name;
-                field.owner = type;
-                field.line = TokenLine(fieldNode->tokenIndex);
-
-                FieldInfo* const itemInfo = state.fieldInfos.EmplaceBack(arena, arena.New<FieldInfo>());
-                itemInfo->node = fieldNode;
-                itemInfo->typeInfo = info;
-                itemInfo->field = &field;
-            }
-            type->fields = fields;
-
+            BuildAggregateTypeInfo<TypeAttribute>(declNode);
             continue;
         }
 
         if (const AstNodeEnumDecl* const decl = node->CastTo<AstNodeEnumDecl>())
         {
+            if (IsReserved(decl->name.name))
+                Error(decl->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", decl->name.name);
+
             TypeEnum* const type = CreateType<TypeEnum>(decl->tokenIndex, decl->name.name);
             if (type == nullptr)
                 continue;
@@ -221,43 +165,59 @@ const Module* Generator::CompileModule()
                 itemInfo->node = itemNode;
                 itemInfo->enumInfo = info;
                 itemInfo->item = &item;
+
+                BuildAnnotationInfos(item.annotations, itemNode->annotations);
             }
             type->items = items;
 
+            BuildAnnotationInfos(type->annotations, decl->annotations);
             continue;
         }
 
         Error(node->tokenIndex, "Internal error: unexpected top-level node kind {}", std::to_underlying(node->kind));
     }
 
-    // Fully build types (including fields, bases, values, etc.) now that we have instantiations
-    // of all types
+    // Resolve struct and enum base types
     for (const TypeInfo* const info : state.typeInfos)
     {
-        switch (info->type->kind)
+        if (const AstNodeStructDecl* node = info->node->CastTo<AstNodeStructDecl>(); node != nullptr)
         {
-            case TypeKind::Struct:
-                BuildStruct(*static_cast<TypeStruct*>(info->type), *static_cast<const AstNodeStructDecl*>(info->node));
-                break;
-            case TypeKind::Message:
-                BuildMessage(*static_cast<TypeMessage*>(info->type), *static_cast<const AstNodeMessageDecl*>(info->node));
-                break;
-            case TypeKind::Attribute:
-                BuildAttribute(*static_cast<TypeAttribute*>(info->type), *static_cast<const AstNodeAttributeDecl*>(info->node));
-                break;
-            case TypeKind::Enum:
-                BuildEnum(*static_cast<TypeEnum*>(info->type), *static_cast<const AstNodeEnumDecl*>(info->node));
-                break;
-            default:
-                Error(info->node->tokenIndex, "Internal error: unexpected type kind: {}, {}", info->type->name, std::to_underlying(info->type->kind));
+            const Type* const base = Resolve(node->base);
+            if (base == nullptr)
+                continue;
+
+            if (base->kind != TypeKind::Struct)
+            {
+                Error(node->base.tokenIndex, "Struct base type is not a struct: {} : {}", info->type->name, base->name);
+                continue;
+            }
+
+            static_cast<TypeStruct*>(info->type)->base = static_cast<const TypeStruct*>(base);
+            continue;
+        }
+
+        if (const AstNodeEnumDecl* node = info->node->CastTo<AstNodeEnumDecl>(); node != nullptr)
+        {
+            const Type* const base = Resolve(node->base);
+            if (base == nullptr)
+                continue;
+
+            if (base->kind != TypeKind::Int)
+            {
+                Error(node->base.tokenIndex, "Enum base type is not an integer type: {} : {}", info->type->name, base->name);
+                continue;
+            }
+
+            static_cast<TypeEnum*>(info->type)->base = static_cast<const TypeInt*>(base);
+            continue;
         }
     }
 
-    // Fully build enum items now that attributes are built
+    // Fully build enum items now that attribute types are built
     for (const EnumItemInfo* const info : state.enumItemInfos)
     {
         if (auto* found = FindItem(info->item->owner, info->item->name); found != info->item)
-            Error(info->node->tokenIndex, "Duplicate item name: {}.{}", info->item->owner->name, info->item->name);
+            Error(info->node->tokenIndex, "Duplicate item: {}.{}", info->item->owner->name, info->item->name);
 
         if (IsReserved(info->item->name))
             Error(info->node->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}.{}", info->item->owner->name, info->item->name);
@@ -273,8 +233,6 @@ const Module* Generator::CompileModule()
             value->value = info->enumInfo->enumItemNext++;
             info->item->value = value;
         }
-
-        BuildAnnotations(info->item->annotations, info->node->annotations);
     }
 
     // Fully build out fields now that all types have been created and initialized
@@ -292,8 +250,25 @@ const Module* Generator::CompileModule()
             info->field->proto = info->node->proto->value;
         if (info->node->value != nullptr)
             info->field->value = BuildExpression(info->field->type, *info->node->value);
+    }
 
-        BuildAnnotations(info->field->annotations, info->node->annotations);
+    // Build out annotations now that attribute fields are complete
+    for (const AnnotationInfo* const info : state.annotationItemInfos)
+    {
+        const Type* const type = Resolve(info->node->name);
+        if (type == nullptr)
+            continue;
+
+        const TypeAttribute* const attribute = CastTo<TypeAttribute>(type);
+        if (attribute == nullptr)
+        {
+            Error(info->node->tokenIndex, "Not an attribute: {}", type->name);
+            continue;
+        }
+
+        info->anno->attribute = attribute;
+
+        BuildArguments(info->anno->arguments, attribute, attribute->fields, nullptr, info->node->arguments);
     }
 
     if (!result)
@@ -431,77 +406,57 @@ const Module* Generator::CreateBuiltins()
     return builtins;
 }
 
-void Generator::BuildStruct(TypeStruct& type, const AstNodeStructDecl& ast)
+template <typename T, typename A>
+void Generator::BuildAggregateTypeInfo(const A* node)
 {
-    if (IsReserved(type.name))
-        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type.name);
+    if (IsReserved(node->name.name))
+        Error(node->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", node->name.name);
 
-    const Type* const baseType = Resolve(ast.base);
-    if (baseType != nullptr)
+    T* const type = CreateType<T>(node->tokenIndex, node->name.name);
+    if (type == nullptr)
+        return;
+
+    State& state = *stack.Back();
+
+    TypeInfo* const info = state.typeInfos.EmplaceBack(arena, arena.New<TypeInfo>());
+    info->node = node;
+    info->type = type;
+
+    // Create the Field entries so item lookups will work during value resolution
+    Array<Field> fields = arena.NewArray<Field>(node->fields.Size());
+    for (const AstNodeField* fieldNode : node->fields)
     {
-        type.base = CastTo<TypeStruct>(baseType);
-        if (type.base == nullptr)
-            Error(ast.base.tokenIndex, "Base type is not a struct: {}", baseType->name);
+        Field& field = fields.EmplaceBack(arena);
+        field.name = fieldNode->name.name;
+        field.owner = type;
+        field.line = TokenLine(fieldNode->tokenIndex);
+
+        FieldInfo* const itemInfo = state.fieldInfos.EmplaceBack(arena, arena.New<FieldInfo>());
+        itemInfo->node = fieldNode;
+        itemInfo->typeInfo = info;
+        itemInfo->field = &field;
+
+        BuildAnnotationInfos(field.annotations, fieldNode->annotations);
     }
+    type->fields = fields;
 
-    BuildAnnotations(type.annotations, ast.annotations);
+    BuildAnnotationInfos(type->annotations, node->annotations);
 }
 
-void Generator::BuildMessage(TypeMessage& type, const AstNodeMessageDecl& ast)
+void Generator::BuildAnnotationInfos(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast)
 {
-    if (IsReserved(type.name))
-        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type.name);
+    State* const state = stack.Back();
 
-    BuildAnnotations(type.annotations, ast.annotations);
-}
-
-void Generator::BuildAttribute(TypeAttribute& type, const AstNodeAttributeDecl& ast)
-{
-    if (IsReserved(type.name))
-        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type.name);
-
-    BuildAnnotations(type.annotations, ast.annotations);
-}
-
-void Generator::BuildEnum(TypeEnum& type, const AstNodeEnumDecl& ast)
-{
-    if (IsReserved(type.name))
-        Error(ast.name.tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", type.name);
-
-    type.base = Resolve(ast.base);
-    if (type.base != nullptr && type.base->kind != TypeKind::Int)
-        Error(ast.base.tokenIndex, "Base type is not an integer: {}", type.base->name);
-
-    BuildAnnotations(type.annotations, ast.annotations);
-}
-
-void Generator::BuildAnnotations(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast)
-{
-    Array<const Annotation*> temp = arena.NewArray<const Annotation*>(ast.Size());
-
-    for (const AstNodeAnnotation* const astAttr : ast)
+    Array<Annotation*> annotations;
+    for (const AstNodeAnnotation* const node : ast)
     {
-        const Type* const type = Resolve(astAttr->name);
-        if (type == nullptr)
-            continue;
-
-        const TypeAttribute* const attrType = CastTo<TypeAttribute>(type);
-        if (attrType == nullptr)
-        {
-            Error(astAttr->tokenIndex, "Not an attribute: {}", type->name);
-            continue;
-        }
-
-        Annotation* const annotation = arena.New<Annotation>();
-        temp.PushBack(arena, annotation);
-
-        annotation->attribute = attrType;
-        annotation->line = astAttr->tokenIndex;
-
-        BuildArguments(annotation->arguments, attrType, attrType->fields, nullptr, astAttr->arguments);
+        AnnotationInfo* const info = state->annotationItemInfos.PushBack(arena, arena.New<AnnotationInfo>());
+        Annotation* const anno = annotations.PushBack(arena, arena.New<Annotation>());
+        info->node = node;
+        info->anno = anno;
+        info->anno->line = TokenLine(node->tokenIndex);
     }
-
-    out = temp;
+    out = annotations;
 }
 
 void Generator::BuildArguments(std::span<const Argument>& out, const Type* type, const std::span<const Field>& fields, const TypeStruct* baseType, Array<const AstNode*> ast)

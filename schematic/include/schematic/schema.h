@@ -168,7 +168,7 @@ namespace potato::schematic
     {
         SCHEMATIC_TYPE(Enum);
 
-        const Type* base = nullptr;
+        const TypeInt* base = nullptr;
         Span<EnumItem> items;
     };
 
