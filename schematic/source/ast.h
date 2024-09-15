@@ -212,36 +212,41 @@ namespace potato::schematic::compiler
         using AstNode::AstNode;
     };
 
-    struct AstNodeLiteralBool : AstNodeExpression
+    struct AstNodeLiteral : AstNodeExpression
     {
-        AST_NODE(AstNodeLiteralBool, AstNodeExpression, AstNodeKind::LiteralBool);
+        using AstNodeExpression::AstNodeExpression;
+    };
+
+    struct AstNodeLiteralBool : AstNodeLiteral
+    {
+        AST_NODE(AstNodeLiteralBool, AstNodeLiteral, AstNodeKind::LiteralBool);
 
         bool value = true;
     };
 
-    struct AstNodeLiteralNull : AstNodeExpression
+    struct AstNodeLiteralNull : AstNodeLiteral
     {
-        AST_NODE(AstNodeLiteralNull, AstNodeExpression, AstNodeKind::LiteralNull);
+        AST_NODE(AstNodeLiteralNull, AstNodeLiteral, AstNodeKind::LiteralNull);
     };
 
-    struct AstNodeLiteralInt : AstNodeExpression
+    struct AstNodeLiteralInt : AstNodeLiteral
     {
-        AST_NODE(AstNodeLiteralInt, AstNodeExpression, AstNodeKind::LiteralInt);
+        AST_NODE(AstNodeLiteralInt, AstNodeLiteral, AstNodeKind::LiteralInt);
 
         int base = 10; // NOLINT(readability-magic-numbers)
         std::int64_t value = 0;
     };
 
-    struct AstNodeLiteralFloat : AstNodeExpression
+    struct AstNodeLiteralFloat : AstNodeLiteral
     {
-        AST_NODE(AstNodeLiteralFloat, AstNodeExpression, AstNodeKind::LiteralFloat);
+        AST_NODE(AstNodeLiteralFloat, AstNodeLiteral, AstNodeKind::LiteralFloat);
 
         double value = 0.0;
     };
 
-    struct AstNodeLiteralString : AstNodeExpression
+    struct AstNodeLiteralString : AstNodeLiteral
     {
-        AST_NODE(AstNodeLiteralString, AstNodeExpression, AstNodeKind::LiteralString);
+        AST_NODE(AstNodeLiteralString, AstNodeLiteral, AstNodeKind::LiteralString);
 
         const char* value = nullptr;
     };

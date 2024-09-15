@@ -213,28 +213,6 @@ const Module* Generator::CompileModule()
         }
     }
 
-    // Fully build enum items now that attribute types are built
-    for (const EnumItemInfo* const info : state.enumItemInfos)
-    {
-        if (auto* found = FindItem(info->item->owner, info->item->name); found != info->item)
-            Error(info->node->tokenIndex, "Duplicate item: {}.{}", info->item->owner->name, info->item->name);
-
-        if (IsReserved(info->item->name))
-            Error(info->node->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}.{}", info->item->owner->name, info->item->name);
-
-        if (info->node->value != nullptr)
-        {
-            info->item->value = BuildInteger(*info->node->value);
-            info->enumInfo->enumItemNext = info->item->value->value + 1;
-        }
-        else
-        {
-            ValueInt* const value = arena.New<ValueInt>();
-            value->value = info->enumInfo->enumItemNext++;
-            info->item->value = value;
-        }
-    }
-
     // Fully build out fields now that all types have been created and initialized
     for (const FieldInfo* const info : state.fieldInfos)
     {
@@ -269,6 +247,28 @@ const Module* Generator::CompileModule()
         info->anno->attribute = attribute;
 
         BuildArguments(info->anno->arguments, attribute, attribute->fields, nullptr, info->node->arguments);
+    }
+
+    // Fully build enum items now that attribute types are built
+    for (const EnumItemInfo* const info : state.enumItemInfos)
+    {
+        if (auto* found = FindItem(info->item->owner, info->item->name); found != info->item)
+            Error(info->node->tokenIndex, "Duplicate item: {}.{}", info->item->owner->name, info->item->name);
+
+        if (IsReserved(info->item->name))
+            Error(info->node->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}.{}", info->item->owner->name, info->item->name);
+
+        if (info->node->value != nullptr)
+        {
+            info->item->value = BuildLiteral<ValueInt>(static_cast<const AstNodeLiteralInt&>(*info->node->value));
+            info->enumInfo->enumItemNext = info->item->value->value + 1;
+        }
+        else
+        {
+            ValueInt* const value = arena.New<ValueInt>();
+            value->value = info->enumInfo->enumItemNext++;
+            info->item->value = value;
+        }
     }
 
     if (!result)
@@ -407,6 +407,7 @@ const Module* Generator::CreateBuiltins()
 }
 
 template <typename T, typename A>
+    requires std::is_base_of_v<Type, T> && std::is_base_of_v<AstNodeDecl, A>
 void Generator::BuildAggregateTypeInfo(const A* node)
 {
     if (IsReserved(node->name.name))
@@ -549,42 +550,13 @@ void Generator::BuildArguments(std::span<const Argument>& out, const Type* type,
     out = temp;
 }
 
-const ValueBool* Generator::BuildBool(const AstNodeLiteralBool& lit)
+template <typename V, typename A>
+    requires std::is_base_of_v<Value, V> && std::is_base_of_v<AstNodeLiteral, A>
+const V* Generator::BuildLiteral(const A& node)
 {
-    ValueBool* const value = arena.New<ValueBool>();
-    value->value = lit.value;
-    value->line = TokenLine(lit.tokenIndex);
-    return value;
-}
-
-const ValueInt* Generator::BuildInteger(const AstNodeLiteralInt& lit)
-{
-    ValueInt* const value = arena.New<ValueInt>();
-    value->value = lit.value;
-    value->line = TokenLine(lit.tokenIndex);
-    return value;
-}
-
-const ValueFloat* Generator::BuildFloat(const AstNodeLiteralFloat& lit)
-{
-    ValueFloat* const value = arena.New<ValueFloat>();
-    value->value = lit.value;
-    value->line = TokenLine(lit.tokenIndex);
-    return value;
-}
-
-const ValueNull* Generator::BuildNull(const AstNodeLiteralNull& lit)
-{
-    ValueNull* const value = arena.New<ValueNull>();
-    value->line = TokenLine(lit.tokenIndex);
-    return value;
-}
-
-const ValueString* Generator::BuildString(const AstNodeLiteralString& lit)
-{
-    ValueString* const value = arena.New<ValueString>();
-    value->value = lit.value;
-    value->line = TokenLine(lit.tokenIndex);
+    V* const value = arena.New<V>();
+    value->value = node.value;
+    value->line = TokenLine(node.tokenIndex);
     return value;
 }
 
@@ -593,15 +565,19 @@ const Value* Generator::BuildExpression(const Type* type, const AstNode& expr)
     switch (expr.kind)
     {
         case AstNodeKind::LiteralBool:
-            return BuildBool(*expr.CastTo<AstNodeLiteralBool>());
+            return BuildLiteral<ValueBool>(static_cast<const AstNodeLiteralBool&>(expr));
         case AstNodeKind::LiteralInt:
-            return BuildInteger(*expr.CastTo<AstNodeLiteralInt>());
+            return BuildLiteral<ValueInt>(static_cast<const AstNodeLiteralInt&>(expr));
         case AstNodeKind::LiteralFloat:
-            return BuildFloat(*expr.CastTo<AstNodeLiteralFloat>());
+            return BuildLiteral<ValueFloat>(static_cast<const AstNodeLiteralFloat&>(expr));
         case AstNodeKind::LiteralNull:
-            return BuildNull(*expr.CastTo<AstNodeLiteralNull>());
+        {
+            ValueNull* const value = arena.New<ValueNull>();
+            value->line = TokenLine(expr.tokenIndex);
+            return value;
+        }
         case AstNodeKind::LiteralString:
-            return BuildString(*expr.CastTo<AstNodeLiteralString>());
+            return BuildLiteral<ValueString>(static_cast<const AstNodeLiteralString&>(expr));
         case AstNodeKind::Identifier:
             return BuildIdentValue(type, *expr.CastTo<AstNodeIdentifier>());
         case AstNodeKind::InitializerList:
@@ -825,21 +801,7 @@ void Generator::Error(std::uint32_t tokenIndex, fmt::format_string<Args...> form
 }
 
 template <typename T>
-T* Generator::CreateTypeDecl(const AstNodeDecl* decl)
-{
-    T* const type = CreateType<T>(decl->tokenIndex, decl->name.name);
-    if (type == nullptr)
-        return nullptr;
-
-    State* const state = stack.Back();
-
-    TypeInfo* const info = state->typeInfos.EmplaceBack(arena, arena.New<TypeInfo>());
-    info->node = decl;
-    info->type = type;
-    return type;
-}
-
-template <typename T>
+    requires std::is_base_of_v<Type, T>
 T* Generator::CreateType(std::uint32_t tokenIndex, const char* name)
 {
     State* const state = stack.Back();
@@ -850,23 +812,13 @@ T* Generator::CreateType(std::uint32_t tokenIndex, const char* name)
         return nullptr;
     }
 
-    T* const type = InstantiateType<T>(tokenIndex, name);
-
-    state->types.PushBack(arena, type);
-    state->mod->types = state->types;
-
-    return type;
-}
-
-template <typename T>
-T* Generator::InstantiateType(std::uint32_t tokenIndex, const char* name)
-{
-    State* const state = stack.Back();
-
     T* const type = arena.New<T>();
     type->name = name;
     type->owner = state->mod;
     type->line = TokenLine(tokenIndex);
+
+    state->types.PushBack(arena, type);
+    state->mod->types = state->types;
 
     return type;
 }
