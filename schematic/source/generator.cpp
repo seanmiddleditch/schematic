@@ -37,10 +37,10 @@ struct fmt::formatter<AstIdentifier> : fmt::formatter<const char*>
 };
 
 template <typename... Args>
-static const char* NewStringFmt(ArenaAllocator& arena, fmt::format_string<Args...> format, Args&&... args)
+static const char* NewStringFmt(ArenaAllocator& arena_, fmt::format_string<Args...> format, Args&&... args)
 {
     const int length = fmt::formatted_size(format, args...);
-    char* const buffer = static_cast<char*>(arena.Allocate(length + 1, 1));
+    char* const buffer = static_cast<char*>(arena_.Allocate(length + 1, 1));
     fmt::format_to(buffer, format, std::forward<Args>(args)...);
     buffer[length] = '\0';
     return buffer;
@@ -73,50 +73,63 @@ struct Generator::TypeInfo
     std::int64_t enumItemNext = 0; // for auto-assigning values to enum items
 };
 
-struct Generator::State
+void Generator::PassImports()
 {
-    const AstNodeModule* ast = nullptr;
-    Module* mod = nullptr;
-    std::string_view source;
-    Array<Token> tokens;
-
-    Array<const Module*> imports;
-    Array<const Type*> types;
-
-    Array<AnnotationInfo*> annotationItemInfos;
-    Array<EnumItemInfo*> enumItemInfos;
-    Array<FieldInfo*> fieldInfos;
-    Array<TypeInfo*> typeInfos;
-};
-
-const Module* Generator::CompileModule()
-{
-    State& state = *stack.Back();
-
-    Lexer lexer(arena, logger_, state.mod->filename, state.source);
-    state.tokens = lexer.Tokenize();
-    if (state.tokens.IsEmpty())
-        return nullptr;
-
-    Parser parser(arena, logger_, state.mod->filename, state.source, state.tokens);
-    state.ast = parser.Parse();
-
-    if (state.ast == nullptr)
-        return nullptr;
-
-    // Handle all imports before any local declarations, so we ensure that
-    // imported types are available independent of order
-    for (const AstNode* node : state.ast->nodes)
+    for (const AstNode* node : ast_->nodes)
     {
-        if (const AstNodeImport* const imp = node->CastTo<AstNodeImport>())
+        if (const AstNodeImport* const imp = node->CastTo<AstNodeImport>(); imp != nullptr)
         {
-            if (!HandleImport(*imp))
-                return nullptr;
+            const std::string_view filename = ctx_.ResolveModule(arena_, imp->target->value, module_->filename);
+            if (filename.empty())
+            {
+                Error(imp->tokenIndex, "Module not found: {}", imp->target->value);
+                continue;
+            }
+
+            // check for a circular dependency
+            bool circular = false;
+            for (const Module* const mod : state_.stack)
+            {
+                if (mod->filename == filename)
+                {
+                    Error(imp->tokenIndex, "Recursive import: {}", imp->target->value);
+                    circular = true;
+                    break;
+                }
+            }
+            if (circular)
+                continue;
+
+            // check if we've already imported this module
+            bool exists = false;
+            for (const Module* const mod : state_.modules)
+            {
+                if (mod->filename == filename)
+                {
+                    exists = true;
+                    break;
+                }
+            }
+            if (exists)
+                continue;
+
+            const std::string_view source = ctx_.ReadFileContents(arena_, filename);
+
+            Generator gen(arena_, logger_, ctx_, state_);
+            const Module* const module = gen.Compile(filename, source);
+
+            if (module != nullptr)
+            {
+                imports_.PushBack(arena_, module);
+                module_->imports = imports_;
+            }
         }
     }
+}
 
-    // Instantiate all type declarations
-    for (const AstNode* node : state.ast->nodes)
+void Generator::PassBuildTypeInfos()
+{
+    for (const AstNode* node : ast_->nodes)
     {
         if (node->kind == AstNodeKind::Import)
             continue;
@@ -148,20 +161,20 @@ const Module* Generator::CompileModule()
             if (type == nullptr)
                 continue;
 
-            TypeInfo* const info = state.typeInfos.EmplaceBack(arena, arena.New<TypeInfo>());
+            TypeInfo* const info = typeInfos_.EmplaceBack(arena_, arena_.New<TypeInfo>());
             info->node = decl;
             info->type = type;
 
             // Create the EnumItem entries so item lookups will work during value resolution
-            Array<EnumItem> items = arena.NewArray<EnumItem>(decl->items.Size());
+            Array<EnumItem> items = arena_.NewArray<EnumItem>(decl->items.Size());
             for (const AstNodeEnumItem* itemNode : decl->items)
             {
-                EnumItem& item = items.EmplaceBack(arena);
+                EnumItem& item = items.EmplaceBack(arena_);
                 item.name = itemNode->name.name;
                 item.owner = type;
                 item.line = TokenLine(itemNode->tokenIndex);
 
-                EnumItemInfo* const itemInfo = state.enumItemInfos.EmplaceBack(arena, arena.New<EnumItemInfo>());
+                EnumItemInfo* const itemInfo = enumItemInfos_.EmplaceBack(arena_, arena_.New<EnumItemInfo>());
                 itemInfo->node = itemNode;
                 itemInfo->enumInfo = info;
                 itemInfo->item = &item;
@@ -176,9 +189,11 @@ const Module* Generator::CompileModule()
 
         Error(node->tokenIndex, "Internal error: unexpected top-level node kind {}", std::to_underlying(node->kind));
     }
+}
 
-    // Resolve struct and enum base types
-    for (const TypeInfo* const info : state.typeInfos)
+void Generator::PassResolveBaseTypes()
+{
+    for (const TypeInfo* const info : typeInfos_)
     {
         if (const AstNodeStructDecl* node = info->node->CastTo<AstNodeStructDecl>(); node != nullptr)
         {
@@ -212,9 +227,11 @@ const Module* Generator::CompileModule()
             continue;
         }
     }
+}
 
-    // Fully build out fields now that all types have been created and initialized
-    for (const FieldInfo* const info : state.fieldInfos)
+void Generator::PassResolveFieldTypes()
+{
+    for (const FieldInfo* const info : fieldInfos_)
     {
         if (auto* found = FindField(info->field->owner, info->field->name); found != info->field)
             Error(info->node->tokenIndex, "Duplicate field: {}.{}", info->field->owner->name, info->field->name);
@@ -229,9 +246,11 @@ const Module* Generator::CompileModule()
         if (info->node->value != nullptr)
             info->field->value = BuildExpression(info->field->type, *info->node->value);
     }
+}
 
-    // Build out annotations now that attribute fields are complete
-    for (const AnnotationInfo* const info : state.annotationItemInfos)
+void Generator::PassResolveAnnotations()
+{
+    for (const AnnotationInfo* const info : annotationItemInfos_)
     {
         const Type* const type = Resolve(info->node->name);
         if (type == nullptr)
@@ -248,9 +267,11 @@ const Module* Generator::CompileModule()
 
         BuildArguments(info->anno->arguments, attribute, attribute->fields, nullptr, info->node->arguments);
     }
+}
 
-    // Fully build enum items now that attribute types are built
-    for (const EnumItemInfo* const info : state.enumItemInfos)
+void Generator::PassAssignEnumItemValues()
+{
+    for (const EnumItemInfo* const info : enumItemInfos_)
     {
         if (auto* found = FindItem(info->item->owner, info->item->name); found != info->item)
             Error(info->node->tokenIndex, "Duplicate item: {}.{}", info->item->owner->name, info->item->name);
@@ -265,130 +286,102 @@ const Module* Generator::CompileModule()
         }
         else
         {
-            ValueInt* const value = arena.New<ValueInt>();
+            ValueInt* const value = arena_.New<ValueInt>();
             value->value = info->enumInfo->enumItemNext++;
             info->item->value = value;
         }
     }
-
-    if (!result)
-        return nullptr;
-
-    return state.mod;
 }
 
-const Module* Generator::Compile(std::string_view filename, std::string_view source, bool useBuiltins)
+const Module* Generator::Compile(std::string_view filename, std::string_view source)
 {
-    builtins = nullptr;
-    schema = nullptr;
-    result = true;
-    stack = Array<State*>{};
-
-    if (filename.empty())
+    Lexer lexer(arena_, logger_, filename, source);
+    tokens_ = lexer.Tokenize();
+    if (tokens_.IsEmpty())
         return nullptr;
 
-    if (useBuiltins && builtins == nullptr)
+    Parser parser(arena_, logger_, filename, source, tokens_);
+    ast_ = parser.Parse();
+    if (ast_ == nullptr)
+        return nullptr;
+
+    if (state_.builtins == nullptr)
         CreateBuiltins();
 
-    State* const state = arena.New<State>();
-    stack.PushBack(arena, state);
+    module_ = arena_.New<Module>();
+    module_->filename = arena_.NewString(filename);
+    source_ = arena_.NewString(source);
 
-    state->mod = arena.New<Module>();
-    state->mod->filename = arena.NewString(filename);
-    state->source = arena.NewString(source);
+    state_.stack.PushBack(arena_, module_);
 
-    modules.PushBack(arena, state->mod);
+    imports_.EmplaceBack(arena_, state_.builtins);
+    module_->imports = imports_;
 
-    if (useBuiltins)
-    {
-        state->imports.EmplaceBack(arena, builtins);
-        state->mod->imports = state->imports;
-    }
+    // Handle all imports before any local declarations, so we ensure that
+    // imported types are available independent of order
+    PassImports();
 
-    if (!CompileModule())
+    // Instantiate all type declarations
+    PassBuildTypeInfos();
+
+    // Resolve struct and enum base types now that all types are created
+    PassResolveBaseTypes();
+
+    // Fully build out fields now that all types have been created and initialized
+    PassResolveFieldTypes();
+
+    // Build out annotations now that attribute fields are complete
+    PassResolveAnnotations();
+
+    // Fully build enum items now that attribute types are built
+    PassAssignEnumItemValues();
+
+    state_.stack.PopBack();
+
+    if (failed_)
         return nullptr;
 
-    stack.PopBack();
-    assert(stack.IsEmpty());
-
-    return state->mod;
+    state_.modules.PushBack(arena_, module_);
+    return module_;
 }
 
-bool Generator::HandleImport(const AstNodeImport& imp)
+template <typename T>
+T* CreateBuiltinType(ArenaAllocator& arena_, Array<Type*>& types, Module* module, const char* name)
 {
-    const std::string_view filename = ctx.ResolveModule(arena, imp.target->value, stack.Back()->mod->filename);
-    if (filename.empty())
-    {
-        Error(imp.tokenIndex, "Module not found: {}", imp.target->value);
-        return false;
-    }
-
-    // check for a circular dependency
-    for (const State* const state : stack)
-    {
-        if (state->mod->filename == filename)
-        {
-            Error(imp.tokenIndex, "Recursive import: {}", imp.target->value);
-            return false;
-        }
-    }
-
-    // check if we've already imported this module
-    for (const Module* const mod : modules)
-    {
-        if (mod->filename == filename)
-            return true;
-    }
-
-    State* const state = arena.New<State>();
-    state->mod = arena.New<Module>();
-    state->mod->filename = arena.NewString(filename);
-    state->source = arena.NewString(ctx.ReadFileContents(arena, state->mod->filename));
-
-    modules.PushBack(arena, state->mod);
-
-    stack.PushBack(arena, state);
-    const bool success = CompileModule() != nullptr;
-    stack.PopBack();
-
-    if (success)
-    {
-        State* const parent = stack.Back();
-        parent->imports.PushBack(arena, state->mod);
-        parent->mod->imports = parent->imports;
-    }
-
-    return success;
-}
+    T* const type = arena_.New<T>();
+    type->name = arena_.NewString(name);
+    type->owner = module;
+    types.PushBack(arena_, type);
+    return type;
+};
 
 const Module* Generator::CreateBuiltins()
 {
-    if (builtins != nullptr)
-        return builtins;
+    if (state_.builtins != nullptr)
+        return state_.builtins;
 
-    Module* const mod = arena.New<Module>();
-    builtins = mod;
+    Module* const builtins = arena_.New<Module>();
+    state_.builtins = builtins;
 
-    mod->filename = arena.NewString("$builtins");
+    builtins->filename = arena_.NewString("$builtins");
 
-    State state{ .mod = mod };
-    stack.PushBack(arena, &state);
+    Array<Type*> types;
 
-    auto AddInt = [this]<typename T>(const char* name, T)
+    auto AddInt = [this, &types, builtins]<typename T>(const char* name, T)
     {
-        TypeInt* const type = CreateType<TypeInt>(0, arena.NewString(name));
+        TypeInt* const type = CreateBuiltinType<TypeInt>(arena_, types, builtins, name);
         type->isSigned = std::is_signed_v<T>;
         type->width = CHAR_BIT * sizeof(T);
     };
-    auto AddFloat = [this]<typename T>(const char* name, T)
+    auto AddFloat = [this, &types, builtins]<typename T>(const char* name, T)
     {
-        TypeFloat* const type = CreateType<TypeFloat>(0, arena.NewString(name));
+        TypeFloat* const type = CreateBuiltinType<TypeFloat>(arena_, types, builtins, name);
         type->width = CHAR_BIT * sizeof(T);
     };
 
-    CreateType<TypeType>(0, arena.NewString("$type"));
-    CreateType<TypeBool>(0, arena.NewString("bool"));
-    CreateType<TypeString>(0, arena.NewString("string"));
+    CreateBuiltinType<TypeType>(arena_, types, builtins, "$type");
+    CreateBuiltinType<TypeBool>(arena_, types, builtins, "bool");
+    CreateBuiltinType<TypeString>(arena_, types, builtins, "string");
 
     AddInt("int8", std::int8_t{});
     AddInt("uint8", std::uint8_t{});
@@ -402,8 +395,9 @@ const Module* Generator::CreateBuiltins()
     AddFloat("float32", float{});
     AddFloat("float64", double{});
 
-    stack.PopBack();
-    return builtins;
+    builtins->types = types;
+
+    return state_.builtins;
 }
 
 template <typename T, typename A>
@@ -417,22 +411,20 @@ void Generator::BuildAggregateTypeInfo(const A* node)
     if (type == nullptr)
         return;
 
-    State& state = *stack.Back();
-
-    TypeInfo* const info = state.typeInfos.EmplaceBack(arena, arena.New<TypeInfo>());
+    TypeInfo* const info = typeInfos_.EmplaceBack(arena_, arena_.New<TypeInfo>());
     info->node = node;
     info->type = type;
 
     // Create the Field entries so item lookups will work during value resolution
-    Array<Field> fields = arena.NewArray<Field>(node->fields.Size());
+    Array<Field> fields = arena_.NewArray<Field>(node->fields.Size());
     for (const AstNodeField* fieldNode : node->fields)
     {
-        Field& field = fields.EmplaceBack(arena);
+        Field& field = fields.EmplaceBack(arena_);
         field.name = fieldNode->name.name;
         field.owner = type;
         field.line = TokenLine(fieldNode->tokenIndex);
 
-        FieldInfo* const itemInfo = state.fieldInfos.EmplaceBack(arena, arena.New<FieldInfo>());
+        FieldInfo* const itemInfo = fieldInfos_.EmplaceBack(arena_, arena_.New<FieldInfo>());
         itemInfo->node = fieldNode;
         itemInfo->typeInfo = info;
         itemInfo->field = &field;
@@ -446,13 +438,11 @@ void Generator::BuildAggregateTypeInfo(const A* node)
 
 void Generator::BuildAnnotationInfos(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast)
 {
-    State* const state = stack.Back();
-
     Array<Annotation*> annotations;
     for (const AstNodeAnnotation* const node : ast)
     {
-        AnnotationInfo* const info = state->annotationItemInfos.PushBack(arena, arena.New<AnnotationInfo>());
-        Annotation* const anno = annotations.PushBack(arena, arena.New<Annotation>());
+        AnnotationInfo* const info = annotationItemInfos_.PushBack(arena_, arena_.New<AnnotationInfo>());
+        Annotation* const anno = annotations.PushBack(arena_, arena_.New<Annotation>());
         info->node = node;
         info->anno = anno;
         info->anno->line = TokenLine(node->tokenIndex);
@@ -515,7 +505,7 @@ void Generator::BuildArguments(std::span<const Argument>& out, const Type* type,
 
             const Value* const value = BuildExpression(field->type, *named->value);
 
-            temp.PushBack(arena, Argument{ .field = field, .value = value, .line = TokenLine(named->tokenIndex) });
+            temp.PushBack(arena_, Argument{ .field = field, .value = value, .line = TokenLine(named->tokenIndex) });
         }
         else if (hasNamed)
         {
@@ -543,7 +533,7 @@ void Generator::BuildArguments(std::span<const Argument>& out, const Type* type,
         {
             const Field& field = fields[index++];
             const Value* const value = BuildExpression(field.type, *elem);
-            temp.PushBack(arena, Argument{ .field = &field, .value = value, .line = TokenLine(elem->tokenIndex) });
+            temp.PushBack(arena_, Argument{ .field = &field, .value = value, .line = TokenLine(elem->tokenIndex) });
         }
     }
 
@@ -554,7 +544,7 @@ template <typename V, typename A>
     requires std::is_base_of_v<Value, V> && std::is_base_of_v<AstNodeLiteral, A>
 const V* Generator::BuildLiteral(const A& node)
 {
-    V* const value = arena.New<V>();
+    V* const value = arena_.New<V>();
     value->value = node.value;
     value->line = TokenLine(node.tokenIndex);
     return value;
@@ -572,7 +562,7 @@ const Value* Generator::BuildExpression(const Type* type, const AstNode& expr)
             return BuildLiteral<ValueFloat>(static_cast<const AstNodeLiteralFloat&>(expr));
         case AstNodeKind::LiteralNull:
         {
-            ValueNull* const value = arena.New<ValueNull>();
+            ValueNull* const value = arena_.New<ValueNull>();
             value->line = TokenLine(expr.tokenIndex);
             return value;
         }
@@ -603,7 +593,7 @@ const Value* Generator::BuildIdentValue(const Type* type, const AstNodeIdentifie
             return nullptr;
         }
 
-        ValueEnum* enumValue = arena.New<ValueEnum>();
+        ValueEnum* enumValue = arena_.New<ValueEnum>();
         enumValue->item = enumItem;
         enumValue->line = TokenLine(id.tokenIndex);
         return enumValue;
@@ -615,7 +605,7 @@ const Value* Generator::BuildIdentValue(const Type* type, const AstNodeIdentifie
         if (type == nullptr)
             return nullptr;
 
-        ValueType* value = arena.New<ValueType>();
+        ValueType* value = arena_.New<ValueType>();
         value->type = type;
         value->line = TokenLine(id.tokenIndex);
         return value;
@@ -627,17 +617,17 @@ const Value* Generator::BuildIdentValue(const Type* type, const AstNodeIdentifie
 
 const ValueArray* Generator::BuildArray(const Type* type, const AstNodeInitializerList& expr)
 {
-    ValueArray* const value = arena.New<ValueArray>();
+    ValueArray* const value = arena_.New<ValueArray>();
     value->type = type;
     value->line = TokenLine(expr.tokenIndex);
 
-    Array elements = arena.NewArray<const Value*>(expr.elements.Size());
+    Array elements = arena_.NewArray<const Value*>(expr.elements.Size());
 
     for (const AstNode* const elem : expr.elements)
     {
         const Value* const elemValue = BuildExpression(type, *elem);
         if (elemValue != nullptr)
-            elements.PushBack(arena, elemValue);
+            elements.PushBack(arena_, elemValue);
     }
 
     value->elements = elements;
@@ -647,7 +637,7 @@ const ValueArray* Generator::BuildArray(const Type* type, const AstNodeInitializ
 
 const ValueObject* Generator::BuildObject(const TypeStruct* type, const AstNodeInitializerList& expr)
 {
-    ValueObject* const value = arena.New<ValueObject>();
+    ValueObject* const value = arena_.New<ValueObject>();
     value->type = type;
     value->line = TokenLine(expr.tokenIndex);
 
@@ -668,20 +658,18 @@ const Type* Generator::TryResolve(const char* name)
     if (name == nullptr || *name == '\0')
         return nullptr;
 
-    State& state = *stack.Back();
-
-    for (const TypeInfo* const info : state.typeInfos)
+    for (const TypeInfo* const info : typeInfos_)
         if (std::strcmp(info->type->name, name) == 0)
             return info->type;
 
-    if (const Type* const type = FindType(state.mod, name); type != nullptr)
+    if (const Type* const type = FindType(module_, name); type != nullptr)
         return type;
 
-    if (builtins != nullptr)
-        if (const Type* const type = FindType(builtins, name); type != nullptr)
+    if (state_.builtins != nullptr)
+        if (const Type* const type = FindType(state_.builtins, name); type != nullptr)
             return type;
 
-    for (const Module* imp : state.mod->imports)
+    for (const Module* imp : module_->imports)
         if (const Type* const type = FindType(imp, name); type != nullptr)
             return type;
 
@@ -716,7 +704,7 @@ const Type* Generator::Resolve(const AstNodeType* type)
 
         if (array->size == nullptr)
         {
-            const char* const name = NewStringFmt(arena, "{}[]", inner->name);
+            const char* const name = NewStringFmt(arena_, "{}[]", inner->name);
 
             if (const Type* const type = TryResolve(name); type != nullptr)
                 return type;
@@ -727,7 +715,7 @@ const Type* Generator::Resolve(const AstNodeType* type)
         }
 
         {
-            const char* const name = NewStringFmt(arena, "{}[{}]", inner->name, array->size->value);
+            const char* const name = NewStringFmt(arena_, "{}[{}]", inner->name, array->size->value);
 
             if (const Type* const type = TryResolve(name); type != nullptr)
                 return type;
@@ -745,7 +733,7 @@ const Type* Generator::Resolve(const AstNodeType* type)
         if (inner == nullptr)
             return nullptr;
 
-        const char* const name = NewStringFmt(arena, "{}*", inner->name);
+        const char* const name = NewStringFmt(arena_, "{}*", inner->name);
 
         if (const Type* const type = TryResolve(name); type != nullptr)
             return type;
@@ -762,7 +750,7 @@ const Type* Generator::Resolve(const AstNodeType* type)
         if (inner == nullptr)
             return nullptr;
 
-        const char* const name = NewStringFmt(arena, "{}?", inner->name);
+        const char* const name = NewStringFmt(arena_, "{}?", inner->name);
 
         if (const Type* const type = TryResolve(name); type != nullptr)
             return type;
@@ -788,15 +776,15 @@ bool Generator::IsReserved(const char* ident) const noexcept
 template <typename... Args>
 void Generator::Error(std::uint32_t tokenIndex, fmt::format_string<Args...> format, const Args&... args)
 {
-    result = false;
-    if (tokenIndex < stack.Back()->tokens.Size())
+    failed_ = true;
+    if (tokenIndex < tokens_.Size())
     {
-        const Token& token = stack.Back()->tokens[tokenIndex];
-        logger_.Error(stack.Back()->mod->filename, FindRange(stack.Back()->source, token), fmt::vformat(format, fmt::make_format_args(args...)));
+        const Token& token = tokens_[tokenIndex];
+        logger_.Error(module_->filename, FindRange(source_, token), fmt::vformat(format, fmt::make_format_args(args...)));
     }
     else
     {
-        logger_.Error(stack.Back()->mod->filename, {}, fmt::vformat(format, fmt::make_format_args(args...)));
+        logger_.Error(module_->filename, {}, fmt::vformat(format, fmt::make_format_args(args...)));
     }
 }
 
@@ -804,29 +792,26 @@ template <typename T>
     requires std::is_base_of_v<Type, T>
 T* Generator::CreateType(std::uint32_t tokenIndex, const char* name)
 {
-    State* const state = stack.Back();
-
-    if (const Type* const previous = FindType(state->mod, name); previous != nullptr)
+    if (const Type* const previous = FindType(module_, name); previous != nullptr)
     {
         Error(tokenIndex, "Type already defined: {}", name);
         return nullptr;
     }
 
-    T* const type = arena.New<T>();
+    T* const type = arena_.New<T>();
     type->name = name;
-    type->owner = state->mod;
+    type->owner = module_;
     type->line = TokenLine(tokenIndex);
 
-    state->types.PushBack(arena, type);
-    state->mod->types = state->types;
+    types_.PushBack(arena_, type);
+    module_->types = types_;
 
     return type;
 }
 
 std::uint16_t Generator::TokenLine(std::uint32_t tokenIndex) const noexcept
 {
-    const State* const state = stack.Back();
-    if (tokenIndex >= state->tokens.Size())
+    if (tokenIndex >= tokens_.Size())
         return 0;
-    return state->tokens[tokenIndex].line;
+    return tokens_[tokenIndex].line;
 }

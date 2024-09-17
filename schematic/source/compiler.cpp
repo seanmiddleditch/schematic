@@ -72,9 +72,11 @@ Logger& Logger::Default() noexcept
 
 const Schema* potato::schematic::Compile(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, std::string_view filename, std::string_view source)
 {
-    Generator generator(arena, logger, ctx);
+    CompilerState state;
 
-    const Module* const root = generator.Compile(filename, source, true);
+    Generator generator(arena, logger, ctx, state);
+
+    const Module* const root = generator.Compile(filename, source);
     if (root == nullptr)
         return nullptr;
 

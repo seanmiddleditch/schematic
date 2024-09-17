@@ -12,27 +12,38 @@
 
 namespace potato::schematic::compiler
 {
+    struct CompilerState
+    {
+        Array<const Module*> modules;
+        Array<const Module*> stack;
+        const Module* builtins = nullptr;
+    };
+
     class Generator final
     {
     public:
-        explicit Generator(ArenaAllocator& arena, Logger& logger, CompileContext& ctx) noexcept
-            : arena(arena)
+        explicit Generator(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, CompilerState& state) noexcept
+            : arena_(arena)
             , logger_(logger)
-            , ctx(ctx)
+            , ctx_(ctx)
+            , state_(state)
         {
         }
 
-        const Module* Compile(std::string_view filename, std::string_view source, bool useBuiltins);
+        const Module* Compile(std::string_view filename, std::string_view source);
 
     private:
         struct AnnotationInfo;
         struct EnumItemInfo;
         struct FieldInfo;
-        struct State;
         struct TypeInfo;
 
-        const Module* CompileModule();
-        bool HandleImport(const AstNodeImport& imp);
+        void PassImports();
+        void PassBuildTypeInfos();
+        void PassResolveBaseTypes();
+        void PassResolveFieldTypes();
+        void PassResolveAnnotations();
+        void PassAssignEnumItemValues();
 
         const Module* CreateBuiltins();
 
@@ -66,13 +77,24 @@ namespace potato::schematic::compiler
 
         std::uint16_t TokenLine(std::uint32_t tokenIndex) const noexcept;
 
-        ArenaAllocator& arena;
+        ArenaAllocator& arena_;
         Logger& logger_;
-        CompileContext& ctx;
-        bool result = true;
-        const Module* builtins = nullptr;
-        const Schema* schema = nullptr;
-        Array<State*> stack;
-        Array<const Module*> modules;
+        CompileContext& ctx_;
+        CompilerState& state_;
+
+        const AstNodeModule* ast_ = nullptr;
+        std::string_view source_;
+        Array<Token> tokens_;
+
+        bool failed_ = false;
+
+        Module* module_ = nullptr;
+        Array<const Module*> imports_;
+        Array<const Type*> types_;
+
+        Array<AnnotationInfo*> annotationItemInfos_;
+        Array<EnumItemInfo*> enumItemInfos_;
+        Array<FieldInfo*> fieldInfos_;
+        Array<TypeInfo*> typeInfos_;
     };
 } // namespace potato::schematic::compiler
