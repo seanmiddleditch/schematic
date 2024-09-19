@@ -66,6 +66,15 @@ struct Generator::FieldInfo
     Field* field = nullptr;
 };
 
+struct Generator::StructInfo
+{
+    const AstNodeDecl* node = nullptr;
+    Type* type = nullptr;
+    // for multi-version structs
+    StructInfo* next = nullptr;
+    int version = 0;
+};
+
 struct Generator::TypeInfo
 {
     const AstNodeDecl* node = nullptr;
@@ -136,34 +145,120 @@ void Generator::PassBuildTypeInfos()
 
         if (const AstNodeStructDecl* const declNode = node->CastTo<AstNodeStructDecl>())
         {
-            BuildAggregateTypeInfo<TypeStruct>(declNode);
+            if (declNode->minVersion == nullptr)
+            {
+                auto [type, info] = BuildTypeInfo<TypeStruct>(declNode);
+                if (type == nullptr)
+                    continue;
+
+                BuildFieldInfos(type, info, declNode->fields);
+                BuildAnnotationInfos(type->annotations, declNode->annotations);
+                continue;
+            }
+
+            if (declNode->minVersion != nullptr)
+            {
+                if (IsReserved(declNode->name.name))
+                    Error(declNode->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", declNode->name.name);
+
+                StructInfo* structInfo = nullptr;
+                for (StructInfo* const info : structInfos_)
+                {
+                    if (std::strcmp(info->type->name, declNode->name.name) == 0)
+                    {
+                        structInfo = info;
+                        break;
+                    }
+                }
+                if (structInfo == nullptr)
+                {
+                    if (const Type* const previous = FindType(module_, declNode->name.name); previous != nullptr)
+                    {
+                        Error(node->tokenIndex, "Type already defined: {}", declNode->name.name);
+                        continue;
+                    }
+                }
+                else
+                {
+                    while (structInfo->next != nullptr)
+                        structInfo = structInfo->next;
+                }
+
+                const std::int64_t minVersion = declNode->minVersion->value;
+                const std::int64_t maxVersion = declNode->maxVersion != nullptr ? declNode->maxVersion->value : minVersion;
+
+                if (minVersion < 1)
+                {
+                    Error(declNode->minVersion->tokenIndex, "Start version must be positive: {}#{}", declNode->name.name, minVersion);
+                    continue;
+                }
+                if (maxVersion < minVersion)
+                {
+                    Error(declNode->maxVersion->tokenIndex, "End version of range is less than start version: {}#{}..{}", declNode->name.name, minVersion, maxVersion);
+                    continue;
+                }
+
+                for (std::int64_t version = minVersion; version <= maxVersion; ++version)
+                {
+                    const char* const name = NewStringFmt(arena_, "{}#{}", declNode->name.name, version);
+
+                    TypeStruct* const type = CreateType<TypeStruct>(declNode->tokenIndex, name);
+                    if (type == nullptr)
+                        break;
+                    type->version = static_cast<std::uint32_t>(version);
+
+                    TypeInfo* const info = typeInfos_.EmplaceBack(arena_, arena_.New<TypeInfo>());
+                    info->node = declNode;
+                    info->type = type;
+
+                    StructInfo* const newStructInfo = arena_.New<StructInfo>();
+                    newStructInfo->node = declNode;
+                    newStructInfo->type = type;
+                    newStructInfo->version = version;
+
+                    BuildFieldInfos(type, info, declNode->fields, version);
+                    BuildAnnotationInfos(type->annotations, declNode->annotations);
+
+                    if (structInfo == nullptr)
+                    {
+                        structInfo = newStructInfo;
+                        structInfos_.PushBack(arena_, structInfo);
+                    }
+                    else
+                    {
+                        structInfo->next = newStructInfo;
+                    }
+                }
+            }
+
             continue;
         }
 
         if (const AstNodeMessageDecl* const declNode = node->CastTo<AstNodeMessageDecl>())
         {
-            BuildAggregateTypeInfo<TypeMessage>(declNode);
+            auto [type, info] = BuildTypeInfo<TypeMessage>(declNode);
+            if (type == nullptr)
+                continue;
+
+            BuildFieldInfos(type, info, declNode->fields);
+            BuildAnnotationInfos(type->annotations, declNode->annotations);
             continue;
         }
 
         if (const AstNodeAttributeDecl* const declNode = node->CastTo<AstNodeAttributeDecl>())
         {
-            BuildAggregateTypeInfo<TypeAttribute>(declNode);
+            auto [type, info] = BuildTypeInfo<TypeAttribute>(declNode);
+            if (type == nullptr)
+                continue;
+
+            BuildFieldInfos(type, info, declNode->fields);
+            BuildAnnotationInfos(type->annotations, declNode->annotations);
             continue;
         }
 
         if (const AstNodeEnumDecl* const decl = node->CastTo<AstNodeEnumDecl>())
         {
-            if (IsReserved(decl->name.name))
-                Error(decl->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", decl->name.name);
-
-            TypeEnum* const type = CreateType<TypeEnum>(decl->tokenIndex, decl->name.name);
-            if (type == nullptr)
-                continue;
-
-            TypeInfo* const info = typeInfos_.EmplaceBack(arena_, arena_.New<TypeInfo>());
-            info->node = decl;
-            info->type = type;
+            auto [type, info] = BuildTypeInfo<TypeEnum>(decl);
 
             // Create the EnumItem entries so item lookups will work during value resolution
             Array<EnumItem> items = arena_.NewArray<EnumItem>(decl->items.Size());
@@ -402,23 +497,43 @@ const Module* Generator::CreateBuiltins()
 
 template <typename T, typename A>
     requires std::is_base_of_v<Type, T> && std::is_base_of_v<AstNodeDecl, A>
-void Generator::BuildAggregateTypeInfo(const A* node)
+Generator::BuildTypeInfoResult<T> Generator::BuildTypeInfo(const A* node)
 {
     if (IsReserved(node->name.name))
         Error(node->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", node->name.name);
 
+    if (const Type* const previous = FindType(module_, node->name.name); previous != nullptr)
+    {
+        Error(node->tokenIndex, "Type already defined: {}", node->name.name);
+        return {};
+    }
+
     T* const type = CreateType<T>(node->tokenIndex, node->name.name);
     if (type == nullptr)
-        return;
+        return {};
 
     TypeInfo* const info = typeInfos_.EmplaceBack(arena_, arena_.New<TypeInfo>());
     info->node = node;
     info->type = type;
 
-    // Create the Field entries so item lookups will work during value resolution
-    Array<Field> fields = arena_.NewArray<Field>(node->fields.Size());
-    for (const AstNodeField* fieldNode : node->fields)
+    return BuildTypeInfoResult<T>{ .type = type, .info = info };
+}
+
+template <typename T>
+    requires std::is_base_of_v<Type, T>
+void Generator::BuildFieldInfos(T* type, TypeInfo* info, const std::span<const AstNodeField*> fieldNodes, std::int64_t version)
+{
+    Array<Field> fields = arena_.NewArray<Field>(fieldNodes.size());
+    for (const AstNodeField* fieldNode : fieldNodes)
     {
+        if (version != 0)
+        {
+            if (fieldNode->minVersion != nullptr && fieldNode->minVersion->value > version)
+                continue;
+            if (fieldNode->maxVersion != nullptr && fieldNode->maxVersion->value < version)
+                continue;
+        }
+
         Field& field = fields.EmplaceBack(arena_);
         field.name = fieldNode->name.name;
         field.owner = type;
@@ -432,8 +547,6 @@ void Generator::BuildAggregateTypeInfo(const A* node)
         BuildAnnotationInfos(field.annotations, fieldNode->annotations);
     }
     type->fields = fields;
-
-    BuildAnnotationInfos(type->annotations, node->annotations);
 }
 
 void Generator::BuildAnnotationInfos(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast)
@@ -792,12 +905,6 @@ template <typename T>
     requires std::is_base_of_v<Type, T>
 T* Generator::CreateType(std::uint32_t tokenIndex, const char* name)
 {
-    if (const Type* const previous = FindType(module_, name); previous != nullptr)
-    {
-        Error(tokenIndex, "Type already defined: {}", name);
-        return nullptr;
-    }
-
     T* const type = arena_.New<T>();
     type->name = name;
     type->owner = module_;

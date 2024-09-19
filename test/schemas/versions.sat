@@ -1,19 +1,19 @@
-//struct guid
-//{
-//    uint8[128] bytes;
-//}
-//
-//struct datetime
-//{
-//    uint16 year;
-//    uint8 month;
-//    uint8 day;
-//    uint8 hour;
-//    uint8 minute;
-//    uint8 second;
-//}
-//
-//struct asset
+struct guid
+{
+    uint8[128] bytes;
+}
+
+struct datetime
+{
+    uint16 year;
+    uint8 month;
+    uint8 day;
+    uint8 hour;
+    uint8 minute;
+    uint8 second;
+}
+
+//struct asset #1..7
 //{
 //    string name;
 //    guid id#6;
@@ -27,13 +27,20 @@
 //    string? label#3..3; // replaced by labels[]
 //    datetime created#1..1; // retired
 //}
-//
-//struct Pos#2..3 {
-//    float32 x;
-//    float32 y;
-//}
-//
-//struct Pos#1 {
-//    int32 x;
-//    int32 y;
-//}
+
+// CHECK: Pos#2.x.@type == float32
+// CHECK: Pos#2.y.@type == int32
+// CHECK: Pos#3.x.@type == float32
+// CHECK: Pos#3.y.@type == float32
+struct Pos #2..3 {
+    float32 x;
+    float32 y #3;
+    int32 y #2..2;
+}
+
+// CHECK: Pos#1.x.@type == int32
+// CHECK: Pos#1.y.@type == int32
+struct Pos #1 {
+    int32 x;
+    int32 y;
+}

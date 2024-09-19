@@ -323,6 +323,8 @@ namespace potato::schematic::test
                 return Evaluate(static_cast<const Type*>(struct_->base));
             if (Match("@fields"))
                 return Evaluate(struct_->fields.size());
+            if (Match("@version"))
+                return Evaluate(struct_->version);
 
             for (const Field& field : struct_->fields)
             {

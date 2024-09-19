@@ -219,6 +219,7 @@ namespace potato::schematic
 
         Span<Field> fields;
         const TypeStruct* base = nullptr;
+        std::uint32_t version = 1;
     };
 
     struct TypeType : Type

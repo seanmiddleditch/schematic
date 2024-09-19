@@ -36,7 +36,16 @@ namespace potato::schematic::compiler
         struct AnnotationInfo;
         struct EnumItemInfo;
         struct FieldInfo;
+        struct StructInfo;
         struct TypeInfo;
+
+        template <typename T>
+            requires std::is_base_of_v<Type, T>
+        struct BuildTypeInfoResult
+        {
+            T* type = nullptr;
+            TypeInfo* info = nullptr;
+        };
 
         void PassImports();
         void PassBuildTypeInfos();
@@ -49,7 +58,10 @@ namespace potato::schematic::compiler
 
         template <typename T, typename A>
             requires std::is_base_of_v<Type, T> && std::is_base_of_v<AstNodeDecl, A>
-        void BuildAggregateTypeInfo(const A* node);
+        BuildTypeInfoResult<T> BuildTypeInfo(const A* node);
+        template <typename T>
+            requires std::is_base_of_v<Type, T>
+        void BuildFieldInfos(T* type, TypeInfo* info, const std::span<const AstNodeField*> fieldNodes, std::int64_t version = 0);
         void BuildAnnotationInfos(std::span<const Annotation* const>& out, Array<const AstNodeAnnotation*> ast);
 
         void BuildArguments(std::span<const Argument>& out, const Type* type, const std::span<const Field>& fields, const TypeStruct* baseType, Array<const AstNode*> ast);
@@ -95,6 +107,7 @@ namespace potato::schematic::compiler
         Array<AnnotationInfo*> annotationItemInfos_;
         Array<EnumItemInfo*> enumItemInfos_;
         Array<FieldInfo*> fieldInfos_;
+        Array<StructInfo*> structInfos_;
         Array<TypeInfo*> typeInfos_;
     };
 } // namespace potato::schematic::compiler
