@@ -1,0 +1,10 @@
+struct Pos #2 {}
+
+// ERROR: schemas/fail/version_dupes.sat(4): Struct version already defined: Pos#2
+struct Pos #2 {}
+
+struct Pos #3 {}
+
+// ERROR: schemas/fail/version_dupes.sat(10): Struct version already defined: Pos#2
+// ERROR: schemas/fail/version_dupes.sat(10): Struct version already defined: Pos#3
+struct Pos #1..3 {}

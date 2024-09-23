@@ -1,33 +1,3 @@
-struct guid
-{
-    uint8[128] bytes;
-}
-
-struct datetime
-{
-    uint16 year;
-    uint8 month;
-    uint8 day;
-    uint8 hour;
-    uint8 minute;
-    uint8 second;
-}
-
-//struct asset #1..7
-//{
-//    string name;
-//    guid id#6;
-//    string type#3;
-//    string[] labels#4;
-//    int32 version#7;
-//
-//    int32 id#1..5; // changed to guid
-//    string author#1..5; // retired
-//    int32 typeid#1..3; // changed to string
-//    string? label#3..3; // replaced by labels[]
-//    datetime created#1..1; // retired
-//}
-
 // CHECK: Pos#2.x.@type == float32
 // CHECK: Pos#2.y.@type == int32
 // CHECK: Pos#3.x.@type == float32

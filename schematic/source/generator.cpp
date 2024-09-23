@@ -68,11 +68,8 @@ struct Generator::FieldInfo
 
 struct Generator::StructInfo
 {
-    const AstNodeDecl* node = nullptr;
-    Type* type = nullptr;
-    // for multi-version structs
-    StructInfo* next = nullptr;
-    int version = 0;
+    const char* name = nullptr;
+    Array<TypeStruct*> structs;
 };
 
 struct Generator::TypeInfo
@@ -161,10 +158,16 @@ void Generator::PassBuildTypeInfos()
                 if (IsReserved(declNode->name.name))
                     Error(declNode->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", declNode->name.name);
 
+                if (const Type* const previous = FindType(module_, declNode->name.name); previous != nullptr)
+                {
+                    Error(node->tokenIndex, "Type already defined: {}", declNode->name.name);
+                    continue;
+                }
+
                 StructInfo* structInfo = nullptr;
                 for (StructInfo* const info : structInfos_)
                 {
-                    if (std::strcmp(info->type->name, declNode->name.name) == 0)
+                    if (std::strcmp(info->name, declNode->name.name) == 0)
                     {
                         structInfo = info;
                         break;
@@ -172,16 +175,8 @@ void Generator::PassBuildTypeInfos()
                 }
                 if (structInfo == nullptr)
                 {
-                    if (const Type* const previous = FindType(module_, declNode->name.name); previous != nullptr)
-                    {
-                        Error(node->tokenIndex, "Type already defined: {}", declNode->name.name);
-                        continue;
-                    }
-                }
-                else
-                {
-                    while (structInfo->next != nullptr)
-                        structInfo = structInfo->next;
+                    structInfo = structInfos_.EmplaceBack(arena_, arena_.New<StructInfo>());
+                    structInfo->name = declNode->name.name;
                 }
 
                 const std::int64_t minVersion = declNode->minVersion->value;
@@ -202,7 +197,13 @@ void Generator::PassBuildTypeInfos()
                 {
                     const char* const name = NewStringFmt(arena_, "{}#{}", declNode->name.name, version);
 
-                    TypeStruct* const type = CreateType<TypeStruct>(declNode->tokenIndex, name);
+                    if (const Type* const previous = FindType(module_, name); previous != nullptr)
+                    {
+                        Error(declNode->tokenIndex, "Struct version already defined: {}#{}", declNode->name.name, version);
+                        continue;
+                    }
+
+                    TypeStruct* type = CreateType<TypeStruct>(declNode->tokenIndex, name);
                     if (type == nullptr)
                         break;
                     type->version = static_cast<std::uint32_t>(version);
@@ -211,23 +212,15 @@ void Generator::PassBuildTypeInfos()
                     info->node = declNode;
                     info->type = type;
 
-                    StructInfo* const newStructInfo = arena_.New<StructInfo>();
-                    newStructInfo->node = declNode;
-                    newStructInfo->type = type;
-                    newStructInfo->version = version;
-
                     BuildFieldInfos(type, info, declNode->fields, version);
                     BuildAnnotationInfos(type->annotations, declNode->annotations);
 
-                    if (structInfo == nullptr)
+                    for (std::size_t i = 0; i != structInfo->structs.Size(); ++i)
                     {
-                        structInfo = newStructInfo;
-                        structInfos_.PushBack(arena_, structInfo);
+                        if (type->version > structInfo->structs[i]->version)
+                            std::swap(type, structInfo->structs[i]);
                     }
-                    else
-                    {
-                        structInfo->next = newStructInfo;
-                    }
+                    structInfo->structs.PushBack(arena_, type);
                 }
             }
 
