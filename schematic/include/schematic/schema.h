@@ -142,20 +142,20 @@ namespace potato::schematic
         std::uint16_t line = 0; // if non-zero, the line within the owner module
     };
 
-#define SCHEMATIC_TYPE(KIND) \
-    static constexpr TypeKind Kind = (TypeKind::KIND); \
-    Type##KIND() noexcept { kind = Kind; }
+#define SCHEMATIC_TYPE(TYPE, KIND) \
+    static constexpr TypeKind Kind = (KIND); \
+    TYPE() noexcept { kind = Kind; }
 
     struct TypeAlias : Type
     {
-        SCHEMATIC_TYPE(Alias);
+        SCHEMATIC_TYPE(TypeAlias, TypeKind::Alias);
 
         const Type* type = nullptr;
     };
 
     struct TypeArray : Type
     {
-        SCHEMATIC_TYPE(Array);
+        SCHEMATIC_TYPE(TypeArray, TypeKind::Array);
 
         const Type* type = nullptr;
         std::uint32_t size = 0; // if non-zero, array if of a fixed size; otherwise dynamically-sized
@@ -163,19 +163,19 @@ namespace potato::schematic
 
     struct TypeAttribute : Type
     {
-        SCHEMATIC_TYPE(Attribute);
+        SCHEMATIC_TYPE(TypeAttribute, TypeKind::Attribute);
 
         Span<Field> fields;
     };
 
     struct TypeBool : Type
     {
-        SCHEMATIC_TYPE(Bool);
+        SCHEMATIC_TYPE(TypeBool, TypeKind::Bool);
     };
 
     struct TypeEnum : Type
     {
-        SCHEMATIC_TYPE(Enum);
+        SCHEMATIC_TYPE(TypeEnum, TypeKind::Enum);
 
         const TypeInt* base = nullptr;
         Span<EnumItem> items;
@@ -183,14 +183,14 @@ namespace potato::schematic
 
     struct TypeFloat : Type
     {
-        SCHEMATIC_TYPE(Float);
+        SCHEMATIC_TYPE(TypeFloat, TypeKind::Float);
 
         std::uint32_t width = 32;
     };
 
     struct TypeInt : Type
     {
-        SCHEMATIC_TYPE(Int);
+        SCHEMATIC_TYPE(TypeInt, TypeKind::Int);
 
         bool isSigned = true;
         std::uint32_t width = 32;
@@ -198,33 +198,33 @@ namespace potato::schematic
 
     struct TypeMessage : Type
     {
-        SCHEMATIC_TYPE(Message);
+        SCHEMATIC_TYPE(TypeMessage, TypeKind::Message);
 
         Span<Field> fields;
     };
 
     struct TypeNullable : Type
     {
-        SCHEMATIC_TYPE(Nullable);
+        SCHEMATIC_TYPE(TypeNullable, TypeKind::Nullable);
 
         const Type* type = nullptr;
     };
 
     struct TypePointer : Type
     {
-        SCHEMATIC_TYPE(Pointer);
+        SCHEMATIC_TYPE(TypePointer, TypeKind::Pointer);
 
         const Type* type = nullptr;
     };
 
     struct TypeString : Type
     {
-        SCHEMATIC_TYPE(String);
+        SCHEMATIC_TYPE(TypeString, TypeKind::String);
     };
 
     struct TypeStruct : Type
     {
-        SCHEMATIC_TYPE(Struct);
+        SCHEMATIC_TYPE(TypeStruct, TypeKind::Struct);
 
         Span<Field> fields;
         const TypeStruct* base = nullptr;
@@ -233,18 +233,18 @@ namespace potato::schematic
 
     struct TypeType : Type
     {
-        SCHEMATIC_TYPE(Type);
+        SCHEMATIC_TYPE(TypeType, TypeKind::Type);
     };
 
 #undef SCHEMATIC_TYPE
 
-#define SCHEMATIC_VALUE(KIND) \
-    static constexpr ValueKind Kind = (ValueKind::KIND); \
-    Value##KIND() noexcept { kind = Kind; }
+#define SCHEMATIC_VALUE(TYPE, KIND) \
+    static constexpr ValueKind Kind = (KIND); \
+    TYPE() noexcept { kind = Kind; }
 
     struct ValueArray : Value
     {
-        SCHEMATIC_VALUE(Array);
+        SCHEMATIC_VALUE(ValueArray, ValueKind::Array);
 
         Span<const Value*> elements;
         const Type* type = nullptr;
@@ -252,40 +252,40 @@ namespace potato::schematic
 
     struct ValueBool : Value
     {
-        SCHEMATIC_VALUE(Bool);
+        SCHEMATIC_VALUE(ValueBool, ValueKind::Bool);
 
         bool value = true;
     };
 
     struct ValueEnum : Value
     {
-        SCHEMATIC_VALUE(Enum);
+        SCHEMATIC_VALUE(ValueEnum, ValueKind::Enum);
 
         const EnumItem* item = nullptr;
     };
 
     struct ValueFloat : Value
     {
-        SCHEMATIC_VALUE(Float);
+        SCHEMATIC_VALUE(ValueFloat, ValueKind::Float);
 
         double value = 0;
     };
 
     struct ValueInt : Value
     {
-        SCHEMATIC_VALUE(Int);
+        SCHEMATIC_VALUE(ValueInt, ValueKind::Int);
 
         std::int64_t value = 0;
     };
 
     struct ValueNull : Value
     {
-        SCHEMATIC_VALUE(Null);
+        SCHEMATIC_VALUE(ValueNull, ValueKind::Null);
     };
 
     struct ValueObject : Value
     {
-        SCHEMATIC_VALUE(Object);
+        SCHEMATIC_VALUE(ValueObject, ValueKind::Object);
 
         Span<Argument> fields;
         const Type* type = nullptr;
@@ -293,14 +293,14 @@ namespace potato::schematic
 
     struct ValueString : Value
     {
-        SCHEMATIC_VALUE(String);
+        SCHEMATIC_VALUE(ValueString, ValueKind::String);
 
         const char* value = nullptr;
     };
 
     struct ValueType : Value
     {
-        SCHEMATIC_VALUE(Type);
+        SCHEMATIC_VALUE(ValueType, ValueKind::Type);
 
         const Type* type = nullptr;
     };
