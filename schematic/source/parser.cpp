@@ -92,6 +92,13 @@ const AstNodeModule* Parser::Parse()
             continue;
         }
 
+        if (ConsumeKey("using"))
+        {
+            if (!ParseAliasDecl())
+                Recover(RecoverType::Declaration);
+            continue;
+        }
+
         ErrorExpect("declaration");
         break;
     }
@@ -168,6 +175,28 @@ bool Parser::ParseImport()
         return false;
 
     mod->nodes.EmplaceBack(arena_, local);
+    return true;
+}
+
+bool Parser::ParseAliasDecl()
+{
+    AstNodeAliasDecl* const decl = arena_.New<AstNodeAliasDecl>(Pos());
+    decl->annotations = annotations_;
+
+    if (!ExpectIdent(decl->name))
+        return false;
+
+    if (!Expect(TokenType::Equals))
+        return false;
+
+    decl->target = ParseType();
+    if (decl->target == nullptr)
+        return false;
+
+    if (!Expect(TokenType::SemiColon))
+        return false;
+
+    mod->nodes.EmplaceBack(arena_, decl);
     return true;
 }
 

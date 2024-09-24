@@ -248,7 +248,7 @@ namespace potato::schematic::test
     {
         if (const TypeAlias* alias = CastTo<TypeAlias>(type); alias != nullptr)
         {
-            if (!Match("@alias"))
+            if (!Match("@self"))
                 return Evaluate(alias->type);
         }
 

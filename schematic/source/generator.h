@@ -33,6 +33,7 @@ namespace potato::schematic::compiler
         const Module* Compile(std::string_view filename, std::string_view source);
 
     private:
+        struct AliasInfo;
         struct AnnotationInfo;
         struct EnumItemInfo;
         struct FieldInfo;
@@ -49,11 +50,11 @@ namespace potato::schematic::compiler
 
         void PassImports();
         void PassBuildTypeInfos();
+        void PassResolveAliases();
         void PassResolveBaseTypes();
         void PassResolveFieldTypes();
         void PassResolveAnnotations();
         void PassAssignEnumItemValues();
-        void PassStructAliases();
 
         const Module* CreateBuiltins();
 
@@ -105,6 +106,7 @@ namespace potato::schematic::compiler
         Array<const Module*> imports_;
         Array<const Type*> types_;
 
+        Array<AliasInfo*> aliasInfos_;
         Array<AnnotationInfo*> annotationItemInfos_;
         Array<EnumItemInfo*> enumItemInfos_;
         Array<FieldInfo*> fieldInfos_;

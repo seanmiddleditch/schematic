@@ -46,6 +46,12 @@ static const char* NewStringFmt(ArenaAllocator& arena_, fmt::format_string<Args.
     return buffer;
 }
 
+struct Generator::AliasInfo
+{
+    const AstNodeAliasDecl* node = nullptr;
+    TypeAlias* alias = nullptr;
+};
+
 struct Generator::AnnotationInfo
 {
     const AstNodeAnnotation* node = nullptr;
@@ -252,6 +258,20 @@ void Generator::PassBuildTypeInfos()
             continue;
         }
 
+        if (const AstNodeAliasDecl* const declNode = node->CastTo<AstNodeAliasDecl>())
+        {
+            auto [type, info] = BuildTypeInfo<TypeAlias>(declNode);
+            if (type == nullptr)
+                continue;
+
+            AliasInfo* const aliasInfo = aliasInfos_.EmplaceBack(arena_, arena_.New<AliasInfo>());
+            aliasInfo->node = declNode;
+            aliasInfo->alias = type;
+
+            BuildAnnotationInfos(type->annotations, declNode->annotations);
+            continue;
+        }
+
         if (const AstNodeEnumDecl* const decl = node->CastTo<AstNodeEnumDecl>())
         {
             auto [type, info] = BuildTypeInfo<TypeEnum>(decl);
@@ -282,12 +302,18 @@ void Generator::PassBuildTypeInfos()
     }
 }
 
-void Generator::PassStructAliases()
+void Generator::PassResolveAliases()
 {
+    // create pending struct aliases first, since declared aliases might reference these
     for (const StructInfo* const info : structInfos_)
     {
         info->alias->type = info->structs.Front();
         info->alias->line = info->alias->type->line;
+    }
+
+    for (const AliasInfo* const info : aliasInfos_)
+    {
+        info->alias->type = Resolve(info->node->target);
     }
 }
 
@@ -424,8 +450,9 @@ const Module* Generator::Compile(std::string_view filename, std::string_view sou
     // Instantiate all type declarations
     PassBuildTypeInfos();
 
-    // Create aliases for the newest version of multi-version structs
-    PassStructAliases();
+    // Create aliases for the newest version of multi-version structs, and resolve
+    // all declared aliases
+    PassResolveAliases();
 
     // Resolve struct and enum base types now that all types are created
     PassResolveBaseTypes();
@@ -804,7 +831,14 @@ const Type* Generator::Resolve(const AstIdentifier& ident)
         return nullptr;
 
     if (const Type* const type = TryResolve(ident.name); type != nullptr)
+    {
+        if (type->kind == TypeKind::Alias)
+        {
+            if (const Type* const alias = static_cast<const TypeAlias*>(type)->type; alias != nullptr)
+                return alias;
+        }
         return type;
+    }
 
     Error(ident.tokenIndex, "Not found: {}", ident.name);
     return nullptr;

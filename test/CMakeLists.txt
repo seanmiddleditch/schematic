@@ -32,6 +32,7 @@ if(SCHEMATIC_SCHEMAC)
 endif()
 
 schematic_embed_schemas(TARGET schematic_test SCHEMAS
+    "schemas/alias.sat"
     "schemas/annotations.sat"
     "schemas/array.sat"
     "schemas/builtin.sat"

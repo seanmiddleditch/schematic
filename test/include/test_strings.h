@@ -130,6 +130,7 @@ std::string Catch::StringMaker<potato::schematic::TypeKind>::convert(potato::sch
 
     switch (kind)
     {
+        case TypeKind::Alias: return "Alias";
         case TypeKind::Array: return "Array";
         case TypeKind::Attribute: return "Attribute";
         case TypeKind::Bool: return "Bool";
