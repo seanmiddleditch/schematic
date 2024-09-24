@@ -9,6 +9,8 @@
 #include "schematic/schematic.pb.h"
 #include "schematic/utility.h"
 
+#include <fmt/core.h>
+
 using namespace potato::schematic;
 
 namespace
@@ -116,7 +118,8 @@ namespace
 
         void Deserialize(Annotation& out, const proto::Annotation& in);
 
-        void ReportVerifyFailure(std::string_view expr);
+        template <typename... Args>
+        void ReportVerifyFailure(fmt::format_string<Args...> format, Args&&... args);
 
         ArenaAllocator& arena_;
         Logger& logger_;
@@ -513,11 +516,11 @@ void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
 
 // --- Deserializer ---
 
-#define VERIFY(EXPR, MESSAGE) \
-    ((EXPR) || !(ReportVerifyFailure("" MESSAGE ""), failed_ = true))
+#define VERIFY(EXPR, MESSAGE, ...) \
+    ((EXPR) || !(ReportVerifyFailure("" MESSAGE "", __VA_ARGS__), failed_ = true))
 
-#define VERIFY_INDEX(ARRAY, INDEX, MESSAGE) \
-    VERIFY((INDEX) < (ARRAY).Size(), "" MESSAGE "")
+#define VERIFY_INDEX(ARRAY, INDEX, MESSAGE, ...) \
+    VERIFY((INDEX) < (ARRAY).Size(), "" MESSAGE "", __VA_ARGS__)
 
 bool Deserializer::Deserialize(Schema& out)
 {
@@ -527,7 +530,7 @@ bool Deserializer::Deserialize(Schema& out)
         modules_.PushBack(arena_, arena_.New<Module>());
 
     const std::size_t root_index = proto_.root();
-    if (VERIFY_INDEX(modules_, proto_.root(), "Invalid root module index"))
+    if (VERIFY_INDEX(modules_, root_index, "Invalid root module index {}", root_index))
         out.root = modules_[proto_.root()];
 
     std::size_t module_index = 0;
@@ -1008,7 +1011,10 @@ void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
     out.line = in.line();
 }
 
-void Deserializer::ReportVerifyFailure(std::string_view expr)
+template <typename... Args>
+void Deserializer::ReportVerifyFailure(fmt::format_string<Args...> format, Args&&... args)
 {
-    logger_.Error("<ParseSchemaProto>", {}, expr);
+    char buffer[512];
+    const auto rs = fmt::format_to_n(buffer, sizeof(buffer), format, std::forward<Args>(args)...);
+    logger_.Error("<ParseSchemaProto>", {}, std::string_view{ buffer, rs.out });
 }

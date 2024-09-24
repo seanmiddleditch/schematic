@@ -203,6 +203,10 @@ void SchemaBuilder::VisitModules(const Module* mod, Array<const Module*>& visite
     if (mod == nullptr)
         return;
 
+    for (const Module* const visitedMod : visited)
+        if (mod == visitedMod)
+            return;
+
     visited.PushBack(arena, mod);
 
     for (const Module* const imp : mod->imports)

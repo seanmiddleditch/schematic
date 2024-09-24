@@ -431,16 +431,13 @@ const Module* Generator::Compile(std::string_view filename, std::string_view sou
     if (ast_ == nullptr)
         return nullptr;
 
-    if (state_.builtins == nullptr)
-        CreateBuiltins();
-
     module_ = arena_.New<Module>();
     module_->filename = arena_.NewString(filename);
     source_ = arena_.NewString(source);
 
     state_.stack.PushBack(arena_, module_);
 
-    imports_.EmplaceBack(arena_, state_.builtins);
+    imports_.EmplaceBack(arena_, CreateBuiltins());
     module_->imports = imports_;
 
     // Handle all imports before any local declarations, so we ensure that
@@ -812,10 +809,6 @@ const Type* Generator::TryResolve(const char* name)
 
     if (const Type* const type = FindType(module_, name); type != nullptr)
         return type;
-
-    if (state_.builtins != nullptr)
-        if (const Type* const type = FindType(state_.builtins, name); type != nullptr)
-            return type;
 
     for (const Module* imp : module_->imports)
         if (const Type* const type = FindType(imp, name); type != nullptr)
