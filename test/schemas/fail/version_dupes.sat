@@ -17,3 +17,10 @@ struct Pos #4..5 {
     // ERROR: schemas/fail/version_dupes.sat(18): Duplicate field: Pos#5.x
     int32 x #5;
 }
+
+// ERROR: schemas/fail/version_dupes.sat(22): Type already defined: Pos
+struct Pos {}
+
+struct Vec {}
+// ERROR: schemas/fail/version_dupes.sat(26): Type already defined: Vec
+struct Vec#2 {}

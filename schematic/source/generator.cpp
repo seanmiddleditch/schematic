@@ -69,6 +69,7 @@ struct Generator::FieldInfo
 struct Generator::StructInfo
 {
     const char* name = nullptr;
+    TypeAlias* alias = nullptr;
     Array<TypeStruct*> structs;
 };
 
@@ -158,12 +159,6 @@ void Generator::PassBuildTypeInfos()
                 if (IsReserved(declNode->name.name))
                     Error(declNode->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", declNode->name.name);
 
-                if (const Type* const previous = FindType(module_, declNode->name.name); previous != nullptr)
-                {
-                    Error(node->tokenIndex, "Type already defined: {}", declNode->name.name);
-                    continue;
-                }
-
                 StructInfo* structInfo = nullptr;
                 for (StructInfo* const info : structInfos_)
                 {
@@ -175,8 +170,16 @@ void Generator::PassBuildTypeInfos()
                 }
                 if (structInfo == nullptr)
                 {
+                    if (const Type* const previous = FindType(module_, declNode->name.name); previous != nullptr)
+                    {
+                        Error(node->tokenIndex, "Type already defined: {}", declNode->name.name);
+                        continue;
+                    }
+
                     structInfo = structInfos_.EmplaceBack(arena_, arena_.New<StructInfo>());
                     structInfo->name = declNode->name.name;
+
+                    structInfo->alias = CreateType<TypeAlias>(declNode->tokenIndex, declNode->name.name);
                 }
 
                 const std::int64_t minVersion = declNode->minVersion->value;
@@ -283,9 +286,8 @@ void Generator::PassStructAliases()
 {
     for (const StructInfo* const info : structInfos_)
     {
-        TypeAlias* const alias = CreateType<TypeAlias>(0, info->name);
-        if (alias != nullptr)
-            alias->type = info->structs.Front();
+        info->alias->type = info->structs.Front();
+        info->alias->line = info->alias->type->line;
     }
 }
 
