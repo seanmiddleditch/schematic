@@ -8,3 +8,12 @@ struct Pos #3 {}
 // ERROR: schemas/fail/version_dupes.sat(10): Struct version already defined: Pos#2
 // ERROR: schemas/fail/version_dupes.sat(10): Struct version already defined: Pos#3
 struct Pos #1..3 {}
+
+struct Pos #4..5 {
+    int32 x #4..5;
+    // ERROR: schemas/fail/version_dupes.sat(16): Duplicate field: Pos#4.x
+    // ERROR: schemas/fail/version_dupes.sat(16): Duplicate field: Pos#5.x
+    int32 x #4;
+    // ERROR: schemas/fail/version_dupes.sat(18): Duplicate field: Pos#5.x
+    int32 x #5;
+}

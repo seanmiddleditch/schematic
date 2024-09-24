@@ -28,6 +28,7 @@ namespace
         std::uint32_t IndexOfModule(const Module* mod) const noexcept;
 
         void Serialize(proto::Type& out, const Type& in);
+        void Serialize(proto::Type::Alias& out, const TypeAlias& in);
         void Serialize(proto::Type::Array& out, const TypeArray& in);
         void Serialize(proto::Type::Attribute& out, const TypeAttribute& in);
         void Serialize(proto::Type::Bool& out, const TypeBool& in);
@@ -78,6 +79,7 @@ namespace
 
     private:
         void Deserialize(Type& out, const proto::Type& in);
+        void Deserialize(TypeAlias& out, const proto::Type::Alias& in);
         void Deserialize(TypeAttribute& out, const proto::Type::Attribute& in);
         void Deserialize(TypeArray& out, const proto::Type::Array& in);
         void Deserialize(TypeBool& out, const proto::Type::Bool& in);
@@ -194,6 +196,9 @@ void Serializer::Serialize(proto::Type& out, const Type& in)
     switch (in.kind)
     {
         using enum TypeKind;
+        case Alias:
+            Serialize(*out.mutable_alias(), static_cast<const TypeAlias&>(in));
+            break;
         case Array:
             Serialize(*out.mutable_array(), static_cast<const TypeArray&>(in));
             break;
@@ -262,6 +267,13 @@ void Serializer::Serialize(proto::Type::Float& out, const TypeFloat& in)
     SerializeTypeCommon(out, in);
 
     out.set_width(in.width);
+}
+
+void Serializer::Serialize(proto::Type::Alias& out, const TypeAlias& in)
+{
+    SerializeTypeCommon(out, in);
+
+    out.set_type(IndexOfType(in.type));
 }
 
 void Serializer::Serialize(proto::Type::Array& out, const TypeArray& in)
@@ -541,6 +553,9 @@ bool Deserializer::Deserialize(Schema& out)
     {
         switch (type.Types_case())
         {
+            case proto::Type::kAlias:
+                types_.PushBack(arena_, arena_.New<TypeAlias>());
+                continue;
             case proto::Type::kArray:
                 types_.PushBack(arena_, arena_.New<TypeArray>());
                 continue;
@@ -617,6 +632,9 @@ void Deserializer::Deserialize(Type& out, const proto::Type& in)
 {
     switch (out.kind)
     {
+        case TypeKind::Alias:
+            Deserialize(static_cast<TypeAlias&>(out), in.alias());
+            return;
         case TypeKind::Struct:
             Deserialize(static_cast<TypeStruct&>(out), in.struct_());
             return;
@@ -655,6 +673,14 @@ void Deserializer::Deserialize(Type& out, const proto::Type& in)
             return;
     }
     assert(false); // should be unreachable
+}
+
+void Deserializer::Deserialize(TypeAlias& out, const proto::Type::Alias& in)
+{
+    DeserializeTypeCommon(out, in);
+
+    if (VERIFY_INDEX(types_, in.type(), "Invalid type index"))
+        out.type = types_[in.type()];
 }
 
 void Deserializer::Deserialize(TypeStruct& out, const proto::Type::Struct& in)

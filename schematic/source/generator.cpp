@@ -205,7 +205,7 @@ void Generator::PassBuildTypeInfos()
 
                     TypeStruct* type = CreateType<TypeStruct>(declNode->tokenIndex, name);
                     if (type == nullptr)
-                        break;
+                        continue;
                     type->version = static_cast<std::uint32_t>(version);
 
                     TypeInfo* const info = typeInfos_.EmplaceBack(arena_, arena_.New<TypeInfo>());
@@ -276,6 +276,16 @@ void Generator::PassBuildTypeInfos()
         }
 
         Error(node->tokenIndex, "Internal error: unexpected top-level node kind {}", std::to_underlying(node->kind));
+    }
+}
+
+void Generator::PassStructAliases()
+{
+    for (const StructInfo* const info : structInfos_)
+    {
+        TypeAlias* const alias = CreateType<TypeAlias>(0, info->name);
+        if (alias != nullptr)
+            alias->type = info->structs.Front();
     }
 }
 
@@ -411,6 +421,9 @@ const Module* Generator::Compile(std::string_view filename, std::string_view sou
 
     // Instantiate all type declarations
     PassBuildTypeInfos();
+
+    // Create aliases for the newest version of multi-version structs
+    PassStructAliases();
 
     // Resolve struct and enum base types now that all types are created
     PassResolveBaseTypes();

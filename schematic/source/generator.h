@@ -53,6 +53,7 @@ namespace potato::schematic::compiler
         void PassResolveFieldTypes();
         void PassResolveAnnotations();
         void PassAssignEnumItemValues();
+        void PassStructAliases();
 
         const Module* CreateBuiltins();
 

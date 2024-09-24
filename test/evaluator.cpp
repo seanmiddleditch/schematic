@@ -246,6 +246,12 @@ namespace potato::schematic::test
 
     void CheckEvaluator::Evaluate(const Type* type)
     {
+        if (const TypeAlias* alias = CastTo<TypeAlias>(type); alias != nullptr)
+        {
+            if (!Match("@alias"))
+                return Evaluate(alias->type);
+        }
+
         if (Match("@kind"))
             return Evaluate(type->kind);
         if (Match("@annotations"))
