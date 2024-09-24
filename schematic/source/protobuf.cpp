@@ -517,10 +517,10 @@ void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
 // --- Deserializer ---
 
 #define VERIFY(EXPR, MESSAGE, ...) \
-    ((EXPR) || !(ReportVerifyFailure("" MESSAGE "", __VA_ARGS__), failed_ = true))
+    ((EXPR) || !(ReportVerifyFailure("" MESSAGE "", ##__VA_ARGS__), failed_ = true))
 
 #define VERIFY_INDEX(ARRAY, INDEX, MESSAGE, ...) \
-    VERIFY((INDEX) < (ARRAY).Size(), "" MESSAGE "", __VA_ARGS__)
+    VERIFY((INDEX) < (ARRAY).Size(), "" MESSAGE "", ##__VA_ARGS__)
 
 bool Deserializer::Deserialize(Schema& out)
 {
