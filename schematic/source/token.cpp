@@ -22,6 +22,7 @@ const char* potato::schematic::compiler::ToCStr(TokenType type) noexcept
         case LParen: return "(";
         case RParen: return ")";
         case Dot: return ".";
+        case Range: return "..";
         case Comma: return ",";
         case Equals: return "=";
         case SemiColon: return ";";

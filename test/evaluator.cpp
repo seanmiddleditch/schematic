@@ -246,6 +246,12 @@ namespace potato::schematic::test
 
     void CheckEvaluator::Evaluate(const Type* type)
     {
+        if (const TypeAlias* alias = CastTo<TypeAlias>(type); alias != nullptr)
+        {
+            if (!Match("@self"))
+                return Evaluate(alias->type);
+        }
+
         if (Match("@kind"))
             return Evaluate(type->kind);
         if (Match("@annotations"))
@@ -323,6 +329,8 @@ namespace potato::schematic::test
                 return Evaluate(static_cast<const Type*>(struct_->base));
             if (Match("@fields"))
                 return Evaluate(struct_->fields.size());
+            if (Match("@version"))
+                return Evaluate(struct_->version);
 
             for (const Field& field : struct_->fields)
             {
@@ -336,6 +344,9 @@ namespace potato::schematic::test
 
     void CheckEvaluator::Evaluate(const Value* value)
     {
+        if (value == nullptr)
+            return Finish(nullptr);
+
         if (Match("@kind"))
             return Evaluate(value->kind);
 

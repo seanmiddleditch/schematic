@@ -92,6 +92,13 @@ const AstNodeModule* Parser::Parse()
             continue;
         }
 
+        if (ConsumeKey("using"))
+        {
+            if (!ParseAliasDecl())
+                Recover(RecoverType::Declaration);
+            continue;
+        }
+
         ErrorExpect("declaration");
         break;
     }
@@ -171,6 +178,28 @@ bool Parser::ParseImport()
     return true;
 }
 
+bool Parser::ParseAliasDecl()
+{
+    AstNodeAliasDecl* const decl = arena_.New<AstNodeAliasDecl>(Pos());
+    decl->annotations = annotations_;
+
+    if (!ExpectIdent(decl->name))
+        return false;
+
+    if (!Expect(TokenType::Equals))
+        return false;
+
+    decl->target = ParseType();
+    if (decl->target == nullptr)
+        return false;
+
+    if (!Expect(TokenType::SemiColon))
+        return false;
+
+    mod->nodes.EmplaceBack(arena_, decl);
+    return true;
+}
+
 bool Parser::ParseStructDecl()
 {
     AstNodeStructDecl* const struct_ = arena_.New<AstNodeStructDecl>(Pos());
@@ -180,6 +209,18 @@ bool Parser::ParseStructDecl()
 
     if (!ExpectIdent(struct_->name))
         return false;
+
+    if (Consume(TokenType::Hash))
+    {
+        if (!ExpectInt(struct_->minVersion))
+            return false;
+
+        if (Consume(TokenType::Range))
+        {
+            if (!ExpectInt(struct_->maxVersion))
+                return false;
+        }
+    }
 
     if (Consume(TokenType::Colon))
     {
@@ -309,6 +350,18 @@ const bool Parser::ParseField(Array<const AstNodeField*>& fields, FieldMode mode
 
     if (!ExpectIdent(field->name))
         return false;
+
+    if (mode == FieldMode::Struct && Consume(TokenType::Hash))
+    {
+        if (!ExpectInt(field->minVersion))
+            return false;
+
+        if (Consume(TokenType::Range))
+        {
+            if (!ExpectInt(field->maxVersion))
+                return false;
+        }
+    }
 
     if (mode == FieldMode::Message)
     {

@@ -1,13 +1,13 @@
+struct test
+{
+    color c = green;
+}
+
 enum color : int8
 {
     red,
     green = 0xff,
     blue,
-}
-
-struct test
-{
-    color c = green;
 }
 
 // CHECK: color.@kind == Enum

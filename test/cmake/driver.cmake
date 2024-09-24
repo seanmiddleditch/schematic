@@ -86,7 +86,7 @@ function(test_output EXPECTED ACTUAL)
         endif()
         cmake_language(EXIT 1)
     endif()
-    message(STATUS "- Actual matches expected")
+    message(STATUS "Output matches acceptance test")
 endfunction()
 
 test_output("${ACCEPT_JSON}" "${OUTPUT_JSON}")

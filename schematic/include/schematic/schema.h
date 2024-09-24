@@ -21,9 +21,9 @@ namespace potato::schematic
     struct Type;
     struct Value;
 
-    struct TypeStruct;
-    struct TypeAttribute;
+    struct TypeAlias;
     struct TypeArray;
+    struct TypeAttribute;
     struct TypeBool;
     struct TypeEnum;
     struct TypeFloat;
@@ -32,6 +32,7 @@ namespace potato::schematic
     struct TypeNullable;
     struct TypePointer;
     struct TypeString;
+    struct TypeStruct;
     struct TypeType;
 
     struct ValueArray;
@@ -49,6 +50,7 @@ namespace potato::schematic
 
     enum class TypeKind : std::uint8_t
     {
+        Alias,
         Array,
         Attribute,
         Bool,
@@ -144,6 +146,13 @@ namespace potato::schematic
     static constexpr TypeKind Kind = (TypeKind::KIND); \
     Type##KIND() noexcept { kind = Kind; }
 
+    struct TypeAlias : Type
+    {
+        SCHEMATIC_TYPE(Alias);
+
+        const Type* type = nullptr;
+    };
+
     struct TypeArray : Type
     {
         SCHEMATIC_TYPE(Array);
@@ -168,7 +177,7 @@ namespace potato::schematic
     {
         SCHEMATIC_TYPE(Enum);
 
-        const Type* base = nullptr;
+        const TypeInt* base = nullptr;
         Span<EnumItem> items;
     };
 
@@ -219,6 +228,7 @@ namespace potato::schematic
 
         Span<Field> fields;
         const TypeStruct* base = nullptr;
+        std::uint32_t version = 1;
     };
 
     struct TypeType : Type

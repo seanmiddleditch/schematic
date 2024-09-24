@@ -13,7 +13,9 @@
   },
   {
    "filename": "schemas/sub/imported.sat",
-   "imports": []
+   "imports": [
+    1
+   ]
   }
  ],
  "types": [

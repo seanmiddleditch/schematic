@@ -59,7 +59,7 @@ namespace potato::schematic
     const char* ArenaAllocator::NewString(std::string_view string)
     {
         if (string.empty())
-            return {};
+            return "";
 
         char* const memory = static_cast<char*>(Allocate(string.size() + 1 /*NUL*/, 1));
         std::memcpy(memory, string.data(), string.size());

@@ -37,8 +37,6 @@ namespace
         bool Match(const char* text) noexcept;
         bool Match(bool (*func)(char) noexcept) noexcept;
 
-        bool MatchAll(bool (*func)(char) noexcept) noexcept;
-
         bool IsEof() const noexcept;
 
         char Peek() const noexcept;
@@ -165,6 +163,13 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
         const bool isZero = in.Peek() == '0';
         const bool isDot = in.Match('.');
 
+        // .. range symbol
+        if (isDot && in.Match('.'))
+        {
+            Push(TokenType::Dot);
+            continue;
+        }
+
         // parse numbers, or just a plain dot
         if (isDot || in.Match(IsDigit))
         {
@@ -208,9 +213,19 @@ Array<Token> potato::schematic::compiler::Lexer::Tokenize()
             while (in.Match(IsDigit))
                 ;
 
-            // decimal
+            // decimal, or integer followed by ..
+            const uint32_t intPartEnd = in.Pos();
             if (!isDot && in.Match('.'))
             {
+                // integer followed by ..
+                if (in.Match('.'))
+                {
+                    type = TokenType::Integer;
+                    tokens_.PushBack(arena_, Token{ .type = type, .line = in.Line(), .offset = start, .length = intPartEnd - start });
+                    tokens_.PushBack(arena_, Token{ .type = TokenType::Range, .line = in.Line(), .offset = intPartEnd, .length = in.Pos() - intPartEnd });
+                    continue;
+                }
+
                 type = TokenType::Float;
                 while (in.Match(IsDigit))
                     ;
@@ -376,14 +391,6 @@ bool Input::Match(bool (*func)(char) noexcept) noexcept
         return false;
     Advance();
     return true;
-}
-
-bool Input::MatchAll(bool (*func)(char) noexcept) noexcept
-{
-    const char* const original = cur_;
-    while (cur_ != sentinel_ && func(*cur_))
-        Advance();
-    return cur_ != original;
 }
 
 bool Input::IsEof() const noexcept

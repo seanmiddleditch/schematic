@@ -1,0 +1,16 @@
+// CHECK: int.@self.@kind == Alias
+// CHECK: int == int32
+// CHECK: int.@kind == Int
+// CHECK: int.@width == 32
+using int = int32;
+
+// CHECK: enum.@base == int32
+enum enum : int { red }
+
+struct base {}
+using alias = base;
+// CHECK: derived.@base == base
+struct derived : alias {
+    int i = 3;
+    enum e = red;
+}

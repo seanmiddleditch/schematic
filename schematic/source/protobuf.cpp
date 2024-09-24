@@ -9,6 +9,8 @@
 #include "schematic/schematic.pb.h"
 #include "schematic/utility.h"
 
+#include <fmt/core.h>
+
 using namespace potato::schematic;
 
 namespace
@@ -28,6 +30,7 @@ namespace
         std::uint32_t IndexOfModule(const Module* mod) const noexcept;
 
         void Serialize(proto::Type& out, const Type& in);
+        void Serialize(proto::Type::Alias& out, const TypeAlias& in);
         void Serialize(proto::Type::Array& out, const TypeArray& in);
         void Serialize(proto::Type::Attribute& out, const TypeAttribute& in);
         void Serialize(proto::Type::Bool& out, const TypeBool& in);
@@ -78,6 +81,7 @@ namespace
 
     private:
         void Deserialize(Type& out, const proto::Type& in);
+        void Deserialize(TypeAlias& out, const proto::Type::Alias& in);
         void Deserialize(TypeAttribute& out, const proto::Type::Attribute& in);
         void Deserialize(TypeArray& out, const proto::Type::Array& in);
         void Deserialize(TypeBool& out, const proto::Type::Bool& in);
@@ -114,7 +118,8 @@ namespace
 
         void Deserialize(Annotation& out, const proto::Annotation& in);
 
-        void ReportVerifyFailure(std::string_view expr);
+        template <typename... Args>
+        void ReportVerifyFailure(fmt::format_string<Args...> format, Args&&... args);
 
         ArenaAllocator& arena_;
         Logger& logger_;
@@ -194,6 +199,9 @@ void Serializer::Serialize(proto::Type& out, const Type& in)
     switch (in.kind)
     {
         using enum TypeKind;
+        case Alias:
+            Serialize(*out.mutable_alias(), static_cast<const TypeAlias&>(in));
+            break;
         case Array:
             Serialize(*out.mutable_array(), static_cast<const TypeArray&>(in));
             break;
@@ -262,6 +270,13 @@ void Serializer::Serialize(proto::Type::Float& out, const TypeFloat& in)
     SerializeTypeCommon(out, in);
 
     out.set_width(in.width);
+}
+
+void Serializer::Serialize(proto::Type::Alias& out, const TypeAlias& in)
+{
+    SerializeTypeCommon(out, in);
+
+    out.set_type(IndexOfType(in.type));
 }
 
 void Serializer::Serialize(proto::Type::Array& out, const TypeArray& in)
@@ -501,11 +516,11 @@ void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
 
 // --- Deserializer ---
 
-#define VERIFY(EXPR, MESSAGE) \
-    ((EXPR) || !(ReportVerifyFailure("" MESSAGE ""), failed_ = true))
+#define VERIFY(EXPR, MESSAGE, ...) \
+    ((EXPR) || !(ReportVerifyFailure("" MESSAGE "", ##__VA_ARGS__), failed_ = true))
 
-#define VERIFY_INDEX(ARRAY, INDEX, MESSAGE) \
-    VERIFY((INDEX) < (ARRAY).Size(), "" MESSAGE "")
+#define VERIFY_INDEX(ARRAY, INDEX, MESSAGE, ...) \
+    VERIFY((INDEX) < (ARRAY).Size(), "" MESSAGE "", ##__VA_ARGS__)
 
 bool Deserializer::Deserialize(Schema& out)
 {
@@ -515,7 +530,7 @@ bool Deserializer::Deserialize(Schema& out)
         modules_.PushBack(arena_, arena_.New<Module>());
 
     const std::size_t root_index = proto_.root();
-    if (VERIFY_INDEX(modules_, proto_.root(), "Invalid root module index"))
+    if (VERIFY_INDEX(modules_, root_index, "Invalid root module index {}", root_index))
         out.root = modules_[proto_.root()];
 
     std::size_t module_index = 0;
@@ -541,6 +556,9 @@ bool Deserializer::Deserialize(Schema& out)
     {
         switch (type.Types_case())
         {
+            case proto::Type::kAlias:
+                types_.PushBack(arena_, arena_.New<TypeAlias>());
+                continue;
             case proto::Type::kArray:
                 types_.PushBack(arena_, arena_.New<TypeArray>());
                 continue;
@@ -617,6 +635,9 @@ void Deserializer::Deserialize(Type& out, const proto::Type& in)
 {
     switch (out.kind)
     {
+        case TypeKind::Alias:
+            Deserialize(static_cast<TypeAlias&>(out), in.alias());
+            return;
         case TypeKind::Struct:
             Deserialize(static_cast<TypeStruct&>(out), in.struct_());
             return;
@@ -655,6 +676,14 @@ void Deserializer::Deserialize(Type& out, const proto::Type& in)
             return;
     }
     assert(false); // should be unreachable
+}
+
+void Deserializer::Deserialize(TypeAlias& out, const proto::Type::Alias& in)
+{
+    DeserializeTypeCommon(out, in);
+
+    if (VERIFY_INDEX(types_, in.type(), "Invalid type index"))
+        out.type = types_[in.type()];
 }
 
 void Deserializer::Deserialize(TypeStruct& out, const proto::Type::Struct& in)
@@ -720,7 +749,7 @@ void Deserializer::Deserialize(TypeEnum& out, const proto::Type::Enum& in)
         {
             const Type* const base = types_[in.base()];
             if (VERIFY(base->kind == TypeKind::Int, "Invalid enum base type kind"))
-                out.base = base;
+                out.base = static_cast<const TypeInt*>(base);
         }
     }
 
@@ -982,7 +1011,10 @@ void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
     out.line = in.line();
 }
 
-void Deserializer::ReportVerifyFailure(std::string_view expr)
+template <typename... Args>
+void Deserializer::ReportVerifyFailure(fmt::format_string<Args...> format, Args&&... args)
 {
-    logger_.Error("<ParseSchemaProto>", {}, expr);
+    char buffer[512];
+    const auto rs = fmt::format_to_n(buffer, sizeof(buffer), format, std::forward<Args>(args)...);
+    logger_.Error("<ParseSchemaProto>", {}, std::string_view{ buffer, rs.out });
 }
