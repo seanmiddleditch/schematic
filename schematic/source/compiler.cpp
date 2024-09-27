@@ -6,6 +6,7 @@
 #include "generator.h"
 #include "lexer.h"
 #include "location.h"
+#include "lower.h"
 #include "parser.h"
 #include "token.h"
 
@@ -78,6 +79,12 @@ const Schema* potato::schematic::Compile(ArenaAllocator& arena, Logger& logger, 
 
     const Module* const root = generator.Compile(filename, source);
     if (root == nullptr)
+        return nullptr;
+
+    LowerAstToIr lower(arena, logger, ctx, filename, source);
+
+    const IRModule* const irRoot = lower.Lower();
+    if (irRoot == nullptr)
         return nullptr;
 
     Schema* const schema = arena.New<Schema>();
