@@ -59,10 +59,10 @@ namespace potato::schematic::compiler
         bool ParseEnumDecl();
 
         const bool ParseField(Array<const AstNodeField*>& fields, FieldMode mode);
-        const AstNodeExpression* ParseExpression();
-        const AstNodeExpression* ParseInitializer(const AstIdentifier& name);
+        const AstNode* ParseExpression();
+        const AstNode* ParseInitializer(const AstIdentifier& name);
         const AstNode* ParseArgument();
-        const AstNodeType* ParseType();
+        const AstNode* ParseType();
 
         void Recover(RecoverType type);
 

@@ -438,7 +438,7 @@ bool Parser::ParseEnumDecl()
     return true;
 }
 
-const AstNodeExpression* Parser::ParseExpression()
+const AstNode* Parser::ParseExpression()
 {
     const auto pos = Pos();
 
@@ -483,7 +483,7 @@ const AstNodeExpression* Parser::ParseExpression()
     return literal;
 }
 
-const AstNodeExpression* Parser::ParseInitializer(const AstIdentifier& name)
+const AstNode* Parser::ParseInitializer(const AstIdentifier& name)
 {
     AstNodeInitializerList* const list = arena_.New<AstNodeInitializerList>(name.name != nullptr ? name.tokenIndex : Pos());
     list->type = name;
@@ -538,9 +538,9 @@ const AstNode* Parser::ParseArgument()
     return ParseExpression();
 }
 
-const AstNodeType* Parser::ParseType()
+const AstNode* Parser::ParseType()
 {
-    AstNodeType* type = nullptr;
+    AstNode* type = nullptr;
 
     {
         AstIdentifier ident;
