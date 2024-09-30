@@ -191,16 +191,16 @@ void Generator::PassBuildTypeInfos()
 
                 if (structInfo == nullptr)
                 {
-                    if (const Type* const previous = FindType(module_, declNode->name); previous != nullptr)
+                    if (const Type* const previous = FindType(module_, declNode->name.name); previous != nullptr)
                     {
-                        Error(node->tokenIndex, "Type already defined: {}", declNode->name);
+                        Error(node->tokenIndex, "Type already defined: {}", declNode->name.name);
                         continue;
                     }
 
                     structInfo = structInfos_.EmplaceBack(arena_, arena_.New<StructInfo>());
-                    structInfo->name = declNode->name;
+                    structInfo->name = declNode->name.name;
 
-                    structInfo->alias = CreateType<TypeAlias>(declNode->tokenIndex, declNode->name);
+                    structInfo->alias = CreateType<TypeAlias>(declNode->tokenIndex, declNode->name.name);
                 }
 
                 for (std::int64_t version = minVersion; version <= maxVersion; ++version)
