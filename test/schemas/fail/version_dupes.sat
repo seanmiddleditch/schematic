@@ -24,3 +24,6 @@ struct Pos {}
 struct Vec {}
 // ERROR: schemas/fail/version_dupes.sat(26): Type already defined: Vec
 struct Vec#2 {}
+
+// ERROR: schemas/fail/version_dupes.sat(29): Start version must be positive: Zero#0
+struct Zero#0 {}

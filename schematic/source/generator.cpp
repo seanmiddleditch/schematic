@@ -174,19 +174,6 @@ void Generator::PassBuildTypeInfos()
                         break;
                     }
                 }
-                if (structInfo == nullptr)
-                {
-                    if (const Type* const previous = FindType(module_, declNode->name.name); previous != nullptr)
-                    {
-                        Error(node->tokenIndex, "Type already defined: {}", declNode->name.name);
-                        continue;
-                    }
-
-                    structInfo = structInfos_.EmplaceBack(arena_, arena_.New<StructInfo>());
-                    structInfo->name = declNode->name.name;
-
-                    structInfo->alias = CreateType<TypeAlias>(declNode->tokenIndex, declNode->name.name);
-                }
 
                 const std::int64_t minVersion = declNode->minVersion->value;
                 const std::int64_t maxVersion = declNode->maxVersion != nullptr ? declNode->maxVersion->value : minVersion;
@@ -200,6 +187,20 @@ void Generator::PassBuildTypeInfos()
                 {
                     Error(declNode->maxVersion->tokenIndex, "End version of range is less than start version: {}#{}..{}", declNode->name.name, minVersion, maxVersion);
                     continue;
+                }
+
+                if (structInfo == nullptr)
+                {
+                    if (const Type* const previous = FindType(module_, declNode->name.name); previous != nullptr)
+                    {
+                        Error(node->tokenIndex, "Type already defined: {}", declNode->name.name);
+                        continue;
+                    }
+
+                    structInfo = structInfos_.EmplaceBack(arena_, arena_.New<StructInfo>());
+                    structInfo->name = declNode->name.name;
+
+                    structInfo->alias = CreateType<TypeAlias>(declNode->tokenIndex, declNode->name.name);
                 }
 
                 for (std::int64_t version = minVersion; version <= maxVersion; ++version)
