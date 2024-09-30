@@ -32,8 +32,11 @@ namespace potato::schematic::compiler
     struct IRImport;
     struct IRModule;
 
+    struct IRVersionRange;
+
+    struct IRAttributeField;
     struct IREnumItem;
-    struct IRField;
+    struct IRStructField;
 
     struct IRType;
     struct IRTypeAlias;
@@ -49,7 +52,7 @@ namespace potato::schematic::compiler
     struct IRType
     {
         IRTypeKind kind = IRTypeKind::None;
-        const AstNodeDecl* ast = nullptr;
+        const AstNode* ast = nullptr;
         const char* name = nullptr;
         // FIXME: annotations
     };
@@ -58,18 +61,35 @@ namespace potato::schematic::compiler
     {
     };
 
-    struct IREnumItem
+    struct IRVersionRange
     {
-        const char* name = nullptr;
-        // FIXME: value
-        // FIXME: annotations
+        std::uint64_t min = 0;
+        std::uint64_t max = 0;
     };
 
-    struct IRField
+    struct IRAttributeField
     {
         const char* name = nullptr;
         IRType* type = nullptr;
         const AstNodeField* ast = nullptr;
+        // FIXME: value
+        // FIXME: annotations
+    };
+
+    struct IREnumItem
+    {
+        const char* name = nullptr;
+        const AstNodeEnumItem* ast = nullptr;
+        // FIXME: value
+        // FIXME: annotations
+    };
+
+    struct IRStructField
+    {
+        const char* name = nullptr;
+        IRType* type = nullptr;
+        const AstNodeField* ast = nullptr;
+        IRVersionRange version;
         // FIXME: default value
         // FIXME: annotations
     };
@@ -97,12 +117,28 @@ namespace potato::schematic::compiler
         bool isSigned = false;
     };
 
+    struct IRTypeAttribute : IRType
+    {
+        IR_TYPE(IRTypeAttribute, IRTypeKind::Attribute);
+
+        Array<IRAttributeField*> fields;
+    };
+
+    struct IRTypeEnum : IRType
+    {
+        IR_TYPE(IRTypeEnum, IRTypeKind::Enum);
+
+        IRType* base = nullptr;
+        Array<IREnumItem*> items;
+    };
+
     struct IRTypeStruct : IRType
     {
         IR_TYPE(IRTypeStruct, IRTypeKind::Struct);
 
         IRType* base = nullptr;
-        Array<IRField*> fields;
+        Array<IRStructField*> fields;
+        IRVersionRange version;
     };
 
     struct IRTypeIndirectArray : IRTypeIndirect

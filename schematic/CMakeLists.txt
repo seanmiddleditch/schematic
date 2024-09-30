@@ -30,6 +30,7 @@ target_sources(schematic_compiler PRIVATE
     "source/array.h"
     "source/ast.h"
     "source/compiler.cpp"
+    "source/find.h"
     "source/generator.cpp"
     "source/generator.h"
     "source/ir.cpp"

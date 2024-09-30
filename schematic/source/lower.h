@@ -28,9 +28,17 @@ namespace potato::schematic::compiler
         const IRModule* Lower();
 
     private:
+        IRVersionRange ReadVersion(const AstNodeLiteralInt* min, const AstNodeLiteralInt* max);
+
+        void ValidateTypeName(IRType* type);
+        void ValidateStructField(IRTypeStruct* type, const AstNodeField* field);
+
         const IRModule* CreateBuiltins();
 
-        IRType* LowerType(const AstNodeType* ast);
+        IRType* LowerType(const AstNode* ast);
+
+        template <typename... Args>
+        void Error(const AstNode* node, fmt::format_string<Args...> format, Args&&... args);
 
         ArenaAllocator& arena_;
         Logger& logger_;
@@ -41,5 +49,8 @@ namespace potato::schematic::compiler
         IRModule* builtins_ = nullptr;
         const AstNodeModule* ast_ = nullptr;
         Array<Token> tokens_;
+
+        IRModule* module_ = nullptr;
+        bool failed_ = false;
     };
 } // namespace potato::schematic::compiler
