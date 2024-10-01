@@ -48,13 +48,11 @@ namespace potato::schematic::compiler
     struct AstNodeField;
     struct AstNodeEnumDecl;
     struct AstNodeEnumItem;
-    struct AstNodeType;
     struct AstNodeTypeName;
     struct AstNodeTypeArray;
     struct AstNodeTypePointer;
     struct AstNodeTypeNullable;
     struct AstNodeAnnotation;
-    struct AstNodeExpression;
     struct AstNodeLiteralBool;
     struct AstNodeLiteralNull;
     struct AstNodeLiteralInt;
@@ -64,8 +62,8 @@ namespace potato::schematic::compiler
     struct AstNodeInitializerList;
     struct AstNodeIdentifier;
 
-#define AST_NODE(SELF, PARENT, KIND) \
-    explicit SELF(std::uint32_t tokenIndex) : PARENT((KIND), tokenIndex) { } \
+#define AST_NODE(SELF, KIND) \
+    explicit SELF(std::uint32_t tokenIndex) : AstNode((KIND), tokenIndex) { } \
     static constexpr AstNodeKind Kind = (KIND);
 
     struct AstNode
@@ -97,188 +95,178 @@ namespace potato::schematic::compiler
 
     struct AstNodeModule : AstNode
     {
-        AST_NODE(AstNodeModule, AstNode, AstNodeKind::Module);
+        AST_NODE(AstNodeModule, AstNodeKind::Module);
 
         Array<const AstNode*> nodes;
     };
 
     struct AstNodeImport : AstNode
     {
-        AST_NODE(AstNodeImport, AstNode, AstNodeKind::Import);
+        AST_NODE(AstNodeImport, AstNodeKind::Import);
 
         const AstNodeLiteralString* target = nullptr;
     };
 
-    struct AstNodeDecl : AstNode
+    struct AstNodeAliasDecl : AstNode
     {
-        using AstNode::AstNode;
+        AST_NODE(AstNodeAliasDecl, AstNodeKind::AliasDecl);
+        AstIdentifier name;
+        Array<const AstNodeAnnotation*> annotations;
+        const AstNode* target = nullptr;
+    };
+
+    struct AstNodeStructDecl : AstNode
+    {
+        AST_NODE(AstNodeStructDecl, AstNodeKind::StructDecl);
 
         AstIdentifier name;
         Array<const AstNodeAnnotation*> annotations;
-    };
-
-    struct AstNodeAliasDecl : AstNodeDecl
-    {
-        AST_NODE(AstNodeAliasDecl, AstNodeDecl, AstNodeKind::AliasDecl);
-
-        const AstNodeType* target = nullptr;
-    };
-
-    struct AstNodeStructDecl : AstNodeDecl
-    {
-        AST_NODE(AstNodeStructDecl, AstNodeDecl, AstNodeKind::StructDecl);
-
         AstIdentifier base;
         Array<const AstNodeField*> fields;
         const AstNodeLiteralInt* minVersion = nullptr;
         const AstNodeLiteralInt* maxVersion = nullptr;
     };
 
-    struct AstNodeMessageDecl : AstNodeDecl
+    struct AstNodeMessageDecl : AstNode
     {
-        AST_NODE(AstNodeMessageDecl, AstNodeDecl, AstNodeKind::MessageDecl);
+        AST_NODE(AstNodeMessageDecl, AstNodeKind::MessageDecl);
 
+        AstIdentifier name;
+        Array<const AstNodeAnnotation*> annotations;
         Array<const AstNodeField*> fields;
     };
 
-    struct AstNodeAttributeDecl : AstNodeDecl
+    struct AstNodeAttributeDecl : AstNode
     {
-        AST_NODE(AstNodeAttributeDecl, AstNodeDecl, AstNodeKind::Annotation);
+        AST_NODE(AstNodeAttributeDecl, AstNodeKind::Annotation);
 
+        AstIdentifier name;
+        Array<const AstNodeAnnotation*> annotations;
         Array<const AstNodeField*> fields;
     };
 
-    struct AstNodeField : AstNodeDecl
+    struct AstNodeField : AstNode
     {
-        AST_NODE(AstNodeField, AstNodeDecl, AstNodeKind::StructDecl);
+        AST_NODE(AstNodeField, AstNodeKind::StructDecl);
 
-        const AstNodeType* type = nullptr;
-        const AstNodeExpression* value = nullptr;
+        AstIdentifier name;
+        Array<const AstNodeAnnotation*> annotations;
+        const AstNode* type = nullptr;
+        const AstNode* value = nullptr;
         const AstNodeLiteralInt* proto = nullptr;
         const AstNodeLiteralInt* minVersion = nullptr;
         const AstNodeLiteralInt* maxVersion = nullptr;
     };
 
-    struct AstNodeEnumDecl : AstNodeDecl
+    struct AstNodeEnumDecl : AstNode
     {
-        AST_NODE(AstNodeEnumDecl, AstNodeDecl, AstNodeKind::EnumDecl);
+        AST_NODE(AstNodeEnumDecl, AstNodeKind::EnumDecl);
 
+        AstIdentifier name;
+        Array<const AstNodeAnnotation*> annotations;
         AstIdentifier base;
         Array<const AstNodeEnumItem*> items;
     };
 
-    struct AstNodeEnumItem : AstNodeDecl
+    struct AstNodeEnumItem : AstNode
     {
-        AST_NODE(AstNodeEnumItem, AstNodeDecl, AstNodeKind::EnumItem);
+        AST_NODE(AstNodeEnumItem, AstNodeKind::EnumItem);
 
+        AstIdentifier name;
+        Array<const AstNodeAnnotation*> annotations;
         const AstNodeLiteralInt* value = nullptr;
     };
 
-    struct AstNodeType : AstNode
+    struct AstNodeTypeName : AstNode
     {
-        using AstNode::AstNode;
-    };
-
-    struct AstNodeTypeName : AstNodeType
-    {
-        AST_NODE(AstNodeTypeName, AstNodeType, AstNodeKind::TypeName);
+        AST_NODE(AstNodeTypeName, AstNodeKind::TypeName);
 
         AstIdentifier name;
     };
 
-    struct AstNodeTypeArray : AstNodeType
+    struct AstNodeTypeArray : AstNode
     {
-        AST_NODE(AstNodeTypeArray, AstNodeType, AstNodeKind::TypeArray);
+        AST_NODE(AstNodeTypeArray, AstNodeKind::TypeArray);
 
-        const AstNodeType* type = nullptr;
+        const AstNode* type = nullptr;
         const AstNodeLiteralInt* size = nullptr;
     };
 
-    struct AstNodeTypePointer : AstNodeType
+    struct AstNodeTypePointer : AstNode
     {
-        AST_NODE(AstNodeTypePointer, AstNodeType, AstNodeKind::TypePointer);
+        AST_NODE(AstNodeTypePointer, AstNodeKind::TypePointer);
 
-        const AstNodeType* type = nullptr;
+        const AstNode* type = nullptr;
     };
 
-    struct AstNodeTypeNullable : AstNodeType
+    struct AstNodeTypeNullable : AstNode
     {
-        AST_NODE(AstNodeTypeNullable, AstNodeType, AstNodeKind::TypeNullable);
+        AST_NODE(AstNodeTypeNullable, AstNodeKind::TypeNullable);
 
-        const AstNodeType* type = nullptr;
+        const AstNode* type = nullptr;
     };
 
     struct AstNodeAnnotation : AstNode
     {
-        AST_NODE(AstNodeAnnotation, AstNode, AstNodeKind::Annotation);
+        AST_NODE(AstNodeAnnotation, AstNodeKind::Annotation);
 
         AstIdentifier name;
         Array<const AstNode*> arguments;
     };
 
-    struct AstNodeExpression : AstNode
+    struct AstNodeLiteralBool : AstNode
     {
-        using AstNode::AstNode;
-    };
-
-    struct AstNodeLiteral : AstNodeExpression
-    {
-        using AstNodeExpression::AstNodeExpression;
-    };
-
-    struct AstNodeLiteralBool : AstNodeLiteral
-    {
-        AST_NODE(AstNodeLiteralBool, AstNodeLiteral, AstNodeKind::LiteralBool);
+        AST_NODE(AstNodeLiteralBool, AstNodeKind::LiteralBool);
 
         bool value = true;
     };
 
-    struct AstNodeLiteralNull : AstNodeLiteral
+    struct AstNodeLiteralNull : AstNode
     {
-        AST_NODE(AstNodeLiteralNull, AstNodeLiteral, AstNodeKind::LiteralNull);
+        AST_NODE(AstNodeLiteralNull, AstNodeKind::LiteralNull);
     };
 
-    struct AstNodeLiteralInt : AstNodeLiteral
+    struct AstNodeLiteralInt : AstNode
     {
-        AST_NODE(AstNodeLiteralInt, AstNodeLiteral, AstNodeKind::LiteralInt);
+        AST_NODE(AstNodeLiteralInt, AstNodeKind::LiteralInt);
 
         int base = 10; // NOLINT(readability-magic-numbers)
         std::int64_t value = 0;
     };
 
-    struct AstNodeLiteralFloat : AstNodeLiteral
+    struct AstNodeLiteralFloat : AstNode
     {
-        AST_NODE(AstNodeLiteralFloat, AstNodeLiteral, AstNodeKind::LiteralFloat);
+        AST_NODE(AstNodeLiteralFloat, AstNodeKind::LiteralFloat);
 
         double value = 0.0;
     };
 
-    struct AstNodeLiteralString : AstNodeLiteral
+    struct AstNodeLiteralString : AstNode
     {
-        AST_NODE(AstNodeLiteralString, AstNodeLiteral, AstNodeKind::LiteralString);
+        AST_NODE(AstNodeLiteralString, AstNodeKind::LiteralString);
 
         const char* value = nullptr;
     };
 
     struct AstNodeNamedArgument : AstNode
     {
-        AST_NODE(AstNodeNamedArgument, AstNode, AstNodeKind::NamedArgument);
+        AST_NODE(AstNodeNamedArgument, AstNodeKind::NamedArgument);
 
         AstIdentifier name;
-        const AstNodeExpression* value = nullptr;
+        const AstNode* value = nullptr;
     };
 
-    struct AstNodeInitializerList : AstNodeExpression
+    struct AstNodeInitializerList : AstNode
     {
-        AST_NODE(AstNodeInitializerList, AstNodeExpression, AstNodeKind::InitializerList);
+        AST_NODE(AstNodeInitializerList, AstNodeKind::InitializerList);
 
         AstIdentifier type;
         Array<const AstNode*> elements;
     };
 
-    struct AstNodeIdentifier : AstNodeExpression
+    struct AstNodeIdentifier : AstNode
     {
-        AST_NODE(AstNodeIdentifier, AstNodeExpression, AstNodeKind::Identifier);
+        AST_NODE(AstNodeIdentifier, AstNodeKind::Identifier);
 
         AstIdentifier name;
     };

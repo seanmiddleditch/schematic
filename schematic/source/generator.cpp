@@ -81,7 +81,7 @@ struct Generator::StructInfo
 
 struct Generator::TypeInfo
 {
-    const AstNodeDecl* node = nullptr;
+    const AstNode* node = nullptr;
     Type* type = nullptr;
     std::int64_t enumItemNext = 0; // for auto-assigning values to enum items
 };
@@ -529,7 +529,6 @@ const Module* Generator::CreateBuiltins()
 }
 
 template <typename T, typename A>
-    requires std::is_base_of_v<Type, T> && std::is_base_of_v<AstNodeDecl, A>
 Generator::BuildTypeInfoResult<T> Generator::BuildTypeInfo(const A* node)
 {
     if (IsReserved(node->name.name))
@@ -687,7 +686,6 @@ void Generator::BuildArguments(std::span<const Argument>& out, const Type* type,
 }
 
 template <typename V, typename A>
-    requires std::is_base_of_v<Value, V> && std::is_base_of_v<AstNodeLiteral, A>
 const V* Generator::BuildLiteral(const A& node)
 {
     V* const value = arena_.New<V>();
@@ -838,7 +836,7 @@ const Type* Generator::Resolve(const AstIdentifier& ident)
     return nullptr;
 }
 
-const Type* Generator::Resolve(const AstNodeType* type)
+const Type* Generator::Resolve(const AstNode* type)
 {
     if (const AstNodeTypeName* qual = type->CastTo<AstNodeTypeName>(); qual != nullptr)
     {
@@ -909,6 +907,8 @@ const Type* Generator::Resolve(const AstNodeType* type)
 
         return type;
     }
+
+    Error(type->tokenIndex, "Internal error: unhandled AST node type: {}", std::to_underlying(type->kind));
 
     return nullptr;
 }

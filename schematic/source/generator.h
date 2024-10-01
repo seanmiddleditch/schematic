@@ -59,7 +59,6 @@ namespace potato::schematic::compiler
         const Module* CreateBuiltins();
 
         template <typename T, typename A>
-            requires std::is_base_of_v<Type, T> && std::is_base_of_v<AstNodeDecl, A>
         BuildTypeInfoResult<T> BuildTypeInfo(const A* node);
         template <typename T>
             requires std::is_base_of_v<Type, T>
@@ -69,7 +68,6 @@ namespace potato::schematic::compiler
         void BuildArguments(std::span<const Argument>& out, const Type* type, const std::span<const Field>& fields, const TypeStruct* baseType, Array<const AstNode*> ast);
 
         template <typename V, typename A>
-            requires std::is_base_of_v<Value, V> && std::is_base_of_v<AstNodeLiteral, A>
         const V* BuildLiteral(const A& node);
         const Value* BuildExpression(const Type* type, const AstNode& expr);
         const Value* BuildIdentValue(const Type* type, const AstNodeIdentifier& id);
@@ -78,7 +76,7 @@ namespace potato::schematic::compiler
 
         const Type* TryResolve(const char* name);
         const Type* Resolve(const AstIdentifier& ident);
-        const Type* Resolve(const AstNodeType* type);
+        const Type* Resolve(const AstNode* type);
 
         bool IsReserved(const char* ident) const noexcept;
 
