@@ -75,10 +75,10 @@ namespace potato::schematic::compiler
         const ValueObject* BuildObject(const TypeStruct* type, const AstNodeInitializerList& expr);
 
         const Type* TryResolve(const char* name);
-        const Type* Resolve(const AstIdentifier& ident);
+        const Type* Resolve(const AstNodeIdentifier* ident);
         const Type* Resolve(const AstNode* type);
 
-        bool IsReserved(const char* ident) const noexcept;
+        bool IsReserved(const AstNodeIdentifier* ident) const noexcept;
 
         template <typename... Args>
         void Error(std::uint32_t tokenIndex, fmt::format_string<Args...> format, const Args&... args);

@@ -37,8 +37,7 @@ namespace potato::schematic::compiler
         Identifier,
     };
 
-    struct AstIdentifier;
-
+    struct AstNodeIdentifier;
     struct AstNodeModule;
     struct AstNodeImport;
     struct AstNodeAliasDecl;
@@ -60,7 +59,6 @@ namespace potato::schematic::compiler
     struct AstNodeLiteralString;
     struct AstNodeNamedArgument;
     struct AstNodeInitializerList;
-    struct AstNodeIdentifier;
 
 #define AST_NODE(SELF, KIND) \
     explicit SELF(std::uint32_t tokenIndex) : AstNode((KIND), tokenIndex) { } \
@@ -87,10 +85,11 @@ namespace potato::schematic::compiler
         std::uint32_t tokenIndex = 0;
     };
 
-    struct AstIdentifier
+    struct AstNodeIdentifier : AstNode
     {
+        AST_NODE(AstNodeIdentifier, AstNodeKind::Identifier);
+
         const char* name = nullptr;
-        std::uint32_t tokenIndex = 0;
     };
 
     struct AstNodeModule : AstNode
@@ -110,7 +109,7 @@ namespace potato::schematic::compiler
     struct AstNodeAliasDecl : AstNode
     {
         AST_NODE(AstNodeAliasDecl, AstNodeKind::AliasDecl);
-        AstIdentifier name;
+        const AstNodeIdentifier* name = nullptr;
         Array<const AstNodeAnnotation*> annotations;
         const AstNode* target = nullptr;
     };
@@ -119,9 +118,9 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeStructDecl, AstNodeKind::StructDecl);
 
-        AstIdentifier name;
+        const AstNodeIdentifier* name = nullptr;
         Array<const AstNodeAnnotation*> annotations;
-        AstIdentifier base;
+        const AstNodeIdentifier* base = nullptr;
         Array<const AstNodeField*> fields;
         const AstNodeLiteralInt* minVersion = nullptr;
         const AstNodeLiteralInt* maxVersion = nullptr;
@@ -131,7 +130,7 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeMessageDecl, AstNodeKind::MessageDecl);
 
-        AstIdentifier name;
+        const AstNodeIdentifier* name = nullptr;
         Array<const AstNodeAnnotation*> annotations;
         Array<const AstNodeField*> fields;
     };
@@ -140,7 +139,7 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeAttributeDecl, AstNodeKind::Annotation);
 
-        AstIdentifier name;
+        const AstNodeIdentifier* name = nullptr;
         Array<const AstNodeAnnotation*> annotations;
         Array<const AstNodeField*> fields;
     };
@@ -149,7 +148,7 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeField, AstNodeKind::StructDecl);
 
-        AstIdentifier name;
+        const AstNodeIdentifier* name = nullptr;
         Array<const AstNodeAnnotation*> annotations;
         const AstNode* type = nullptr;
         const AstNode* value = nullptr;
@@ -162,9 +161,9 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeEnumDecl, AstNodeKind::EnumDecl);
 
-        AstIdentifier name;
+        const AstNodeIdentifier* name = nullptr;
+        const AstNodeIdentifier* base = nullptr;
         Array<const AstNodeAnnotation*> annotations;
-        AstIdentifier base;
         Array<const AstNodeEnumItem*> items;
     };
 
@@ -172,7 +171,7 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeEnumItem, AstNodeKind::EnumItem);
 
-        AstIdentifier name;
+        const AstNodeIdentifier* name = nullptr;
         Array<const AstNodeAnnotation*> annotations;
         const AstNodeLiteralInt* value = nullptr;
     };
@@ -181,7 +180,7 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeTypeName, AstNodeKind::TypeName);
 
-        AstIdentifier name;
+        const AstNodeIdentifier* name = nullptr;
     };
 
     struct AstNodeTypeArray : AstNode
@@ -210,7 +209,7 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeAnnotation, AstNodeKind::Annotation);
 
-        AstIdentifier name;
+        const AstNodeIdentifier* type = nullptr;
         Array<const AstNode*> arguments;
     };
 
@@ -252,7 +251,7 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeNamedArgument, AstNodeKind::NamedArgument);
 
-        AstIdentifier name;
+        const AstNodeIdentifier* name = nullptr;
         const AstNode* value = nullptr;
     };
 
@@ -260,15 +259,8 @@ namespace potato::schematic::compiler
     {
         AST_NODE(AstNodeInitializerList, AstNodeKind::InitializerList);
 
-        AstIdentifier type;
+        const AstNodeIdentifier* type = nullptr;
         Array<const AstNode*> elements;
-    };
-
-    struct AstNodeIdentifier : AstNode
-    {
-        AST_NODE(AstNodeIdentifier, AstNodeKind::Identifier);
-
-        AstIdentifier name;
     };
 
 #undef AST_NODE
