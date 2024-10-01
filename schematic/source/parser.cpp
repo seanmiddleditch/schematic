@@ -545,16 +545,14 @@ const AstNode* Parser::ParseArgument()
 
 const AstNode* Parser::ParseType()
 {
-    AstNode* type = nullptr;
+    const AstNode* type = nullptr;
 
     {
         const AstNodeIdentifier* ident = nullptr;
         if (!ExpectIdent(&ident))
-            return type;
+            return nullptr;
 
-        AstNodeTypeName* qual = arena_.New<AstNodeTypeName>(ident->tokenIndex);
-        qual->name = ident;
-        type = qual;
+        type = ident;
     }
 
     // Types can then either be arrays OR they can be pointers.

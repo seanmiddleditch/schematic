@@ -176,13 +176,6 @@ namespace potato::schematic::compiler
         const AstNodeLiteralInt* value = nullptr;
     };
 
-    struct AstNodeTypeName : AstNode
-    {
-        AST_NODE(AstNodeTypeName, AstNodeKind::TypeName);
-
-        const AstNodeIdentifier* name = nullptr;
-    };
-
     struct AstNodeTypeArray : AstNode
     {
         AST_NODE(AstNodeTypeArray, AstNodeKind::TypeArray);
