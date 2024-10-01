@@ -826,10 +826,8 @@ const Type* Generator::Resolve(const AstNodeIdentifier* ident)
 
 const Type* Generator::Resolve(const AstNode* type)
 {
-    if (const AstNodeTypeName* qual = type->CastTo<AstNodeTypeName>(); qual != nullptr)
-    {
-        return Resolve(qual->name);
-    }
+    if (const AstNodeIdentifier* name = type->CastTo<AstNodeIdentifier>(); name != nullptr)
+        return Resolve(name);
 
     if (const AstNodeTypeArray* array = type->CastTo<AstNodeTypeArray>(); array != nullptr)
     {
