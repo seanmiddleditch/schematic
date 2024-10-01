@@ -154,7 +154,7 @@ namespace potato::schematic::compiler
     {
         IR_TYPE(IRTypeIndirectIdentifier, IRTypeKind::IndirectIdentifier);
 
-        const AstNodeTypeName* ast = nullptr;
+        const AstNodeIdentifier* ast = nullptr;
         const char* name = nullptr;
     };
 

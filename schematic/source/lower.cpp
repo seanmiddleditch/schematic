@@ -279,11 +279,11 @@ IRType* LowerAstToIr::LowerType(const AstNode* ast)
         return indirect;
     }
 
-    if (const AstNodeTypeName* const astName = ast->CastTo<AstNodeTypeName>(); astName != nullptr)
+    if (const AstNodeIdentifier* const astName = ast->CastTo<AstNodeIdentifier>(); astName != nullptr)
     {
         IRTypeIndirectIdentifier* const indirect = arena_.New<IRTypeIndirectIdentifier>();
         indirect->ast = astName;
-        indirect->name = astName->name->name;
+        indirect->name = astName->name;
         return indirect;
     }
 

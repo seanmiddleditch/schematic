@@ -47,7 +47,6 @@ namespace potato::schematic::compiler
     struct AstNodeField;
     struct AstNodeEnumDecl;
     struct AstNodeEnumItem;
-    struct AstNodeTypeName;
     struct AstNodeTypeArray;
     struct AstNodeTypePointer;
     struct AstNodeTypeNullable;
