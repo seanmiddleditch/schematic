@@ -806,7 +806,6 @@ const Type* Generator::TryResolve(const char* name)
 
 const Type* Generator::Resolve(const AstNodeIdentifier* ident)
 {
-    // FIXME: we shouldn't be relying on this check; optional identifiers should be nodes
     if (ident == nullptr)
         return nullptr;
 
@@ -826,6 +825,9 @@ const Type* Generator::Resolve(const AstNodeIdentifier* ident)
 
 const Type* Generator::Resolve(const AstNode* type)
 {
+    if (type == nullptr)
+        return nullptr;
+
     if (const AstNodeIdentifier* name = type->CastTo<AstNodeIdentifier>(); name != nullptr)
         return Resolve(name);
 
