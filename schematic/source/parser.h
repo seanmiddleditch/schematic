@@ -60,7 +60,7 @@ namespace potato::schematic::compiler
 
         const bool ParseField(Array<const AstNodeField*>& fields, FieldMode mode);
         const AstNode* ParseExpression();
-        const AstNode* ParseInitializer(const AstIdentifier& name);
+        const AstNode* ParseInitializer();
         const AstNode* ParseArgument();
         const AstNode* ParseType();
 
@@ -78,8 +78,8 @@ namespace potato::schematic::compiler
         bool Consume(TokenType type, const Token** out = nullptr);
         bool Expect(TokenType type, const Token** out = nullptr);
 
-        bool ConsumeIdent(AstIdentifier& out);
-        bool ExpectIdent(AstIdentifier& out);
+        bool ConsumeIdent(const AstNodeIdentifier** out);
+        bool ExpectIdent(const AstNodeIdentifier** out);
 
         bool ConsumeKey(std::string_view keyword);
 

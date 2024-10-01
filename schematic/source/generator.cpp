@@ -24,18 +24,6 @@
 using namespace potato::schematic;
 using namespace potato::schematic::compiler;
 
-template <>
-struct fmt::formatter<AstIdentifier> : fmt::formatter<const char*>
-{
-    template <typename FormatContext>
-    FMT_CONSTEXPR auto format(const AstIdentifier& ident, FormatContext& ctx) const
-        -> decltype(ctx.out())
-    {
-        fmt::format_to(ctx.out(), ident.name);
-        return ctx.out();
-    }
-};
-
 template <typename... Args>
 static const char* NewStringFmt(ArenaAllocator& arena_, fmt::format_string<Args...> format, Args&&... args)
 {
@@ -162,13 +150,13 @@ void Generator::PassBuildTypeInfos()
 
             if (declNode->minVersion != nullptr)
             {
-                if (IsReserved(declNode->name.name))
-                    Error(declNode->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", declNode->name.name);
+                if (IsReserved(declNode->name))
+                    Error(declNode->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", declNode->name->name);
 
                 StructInfo* structInfo = nullptr;
                 for (StructInfo* const info : structInfos_)
                 {
-                    if (std::strcmp(info->name, declNode->name.name) == 0)
+                    if (std::strcmp(info->name, declNode->name->name) == 0)
                     {
                         structInfo = info;
                         break;
@@ -180,36 +168,36 @@ void Generator::PassBuildTypeInfos()
 
                 if (minVersion < 1)
                 {
-                    Error(declNode->minVersion->tokenIndex, "Start version must be positive: {}#{}", declNode->name.name, minVersion);
+                    Error(declNode->minVersion->tokenIndex, "Start version must be positive: {}#{}", declNode->name->name, minVersion);
                     continue;
                 }
                 if (maxVersion < minVersion)
                 {
-                    Error(declNode->maxVersion->tokenIndex, "End version of range is less than start version: {}#{}..{}", declNode->name.name, minVersion, maxVersion);
+                    Error(declNode->maxVersion->tokenIndex, "End version of range is less than start version: {}#{}..{}", declNode->name->name, minVersion, maxVersion);
                     continue;
                 }
 
                 if (structInfo == nullptr)
                 {
-                    if (const Type* const previous = FindType(module_, declNode->name.name); previous != nullptr)
+                    if (const Type* const previous = FindType(module_, declNode->name->name); previous != nullptr)
                     {
-                        Error(node->tokenIndex, "Type already defined: {}", declNode->name.name);
+                        Error(node->tokenIndex, "Type already defined: {}", declNode->name->name);
                         continue;
                     }
 
                     structInfo = structInfos_.EmplaceBack(arena_, arena_.New<StructInfo>());
-                    structInfo->name = declNode->name.name;
+                    structInfo->name = declNode->name->name;
 
-                    structInfo->alias = CreateType<TypeAlias>(declNode->tokenIndex, declNode->name.name);
+                    structInfo->alias = CreateType<TypeAlias>(declNode->tokenIndex, declNode->name->name);
                 }
 
                 for (std::int64_t version = minVersion; version <= maxVersion; ++version)
                 {
-                    const char* const name = NewStringFmt(arena_, "{}#{}", declNode->name.name, version);
+                    const char* const name = NewStringFmt(arena_, "{}#{}", declNode->name->name, version);
 
                     if (const Type* const previous = FindType(module_, name); previous != nullptr)
                     {
-                        Error(declNode->tokenIndex, "Struct version already defined: {}#{}", declNode->name.name, version);
+                        Error(declNode->tokenIndex, "Struct version already defined: {}#{}", declNode->name->name, version);
                         continue;
                     }
 
@@ -282,7 +270,7 @@ void Generator::PassBuildTypeInfos()
             for (const AstNodeEnumItem* itemNode : decl->items)
             {
                 EnumItem& item = items.EmplaceBack(arena_);
-                item.name = itemNode->name.name;
+                item.name = itemNode->name->name;
                 item.owner = type;
                 item.line = TokenLine(itemNode->tokenIndex);
 
@@ -330,7 +318,7 @@ void Generator::PassResolveBaseTypes()
 
             if (base->kind != TypeKind::Struct)
             {
-                Error(node->base.tokenIndex, "Struct base type is not a struct: {} : {}", info->type->name, base->name);
+                Error(node->base->tokenIndex, "Struct base type is not a struct: {} : {}", info->type->name, base->name);
                 continue;
             }
 
@@ -346,7 +334,7 @@ void Generator::PassResolveBaseTypes()
 
             if (base->kind != TypeKind::Int)
             {
-                Error(node->base.tokenIndex, "Enum base type is not an integer type: {} : {}", info->type->name, base->name);
+                Error(node->base->tokenIndex, "Enum base type is not an integer type: {} : {}", info->type->name, base->name);
                 continue;
             }
 
@@ -363,7 +351,7 @@ void Generator::PassResolveFieldTypes()
         if (auto* found = FindField(info->field->owner, info->field->name); found != info->field)
             Error(info->node->tokenIndex, "Duplicate field: {}.{}", info->field->owner->name, info->field->name);
 
-        if (IsReserved(info->field->name))
+        if (IsReserved(info->node->name))
             Error(info->node->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}.{}", info->field->owner->name, info->field->name);
 
         info->field->type = Resolve(info->node->type);
@@ -379,7 +367,7 @@ void Generator::PassResolveAnnotations()
 {
     for (const AnnotationInfo* const info : annotationItemInfos_)
     {
-        const Type* const type = Resolve(info->node->name);
+        const Type* const type = Resolve(info->node->type);
         if (type == nullptr)
             continue;
 
@@ -403,7 +391,7 @@ void Generator::PassAssignEnumItemValues()
         if (auto* found = FindItem(info->item->owner, info->item->name); found != info->item)
             Error(info->node->tokenIndex, "Duplicate item: {}.{}", info->item->owner->name, info->item->name);
 
-        if (IsReserved(info->item->name))
+        if (IsReserved(info->node->name))
             Error(info->node->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}.{}", info->item->owner->name, info->item->name);
 
         if (info->node->value != nullptr)
@@ -531,16 +519,16 @@ const Module* Generator::CreateBuiltins()
 template <typename T, typename A>
 Generator::BuildTypeInfoResult<T> Generator::BuildTypeInfo(const A* node)
 {
-    if (IsReserved(node->name.name))
-        Error(node->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", node->name.name);
+    if (IsReserved(node->name))
+        Error(node->tokenIndex, "Reserved identifier ($) is not allowed in declarations: {}", node->name->name);
 
-    if (const Type* const previous = FindType(module_, node->name.name); previous != nullptr)
+    if (const Type* const previous = FindType(module_, node->name->name); previous != nullptr)
     {
-        Error(node->tokenIndex, "Type already defined: {}", node->name.name);
+        Error(node->tokenIndex, "Type already defined: {}", node->name->name);
         return {};
     }
 
-    T* const type = CreateType<T>(node->tokenIndex, node->name.name);
+    T* const type = CreateType<T>(node->tokenIndex, node->name->name);
     if (type == nullptr)
         return {};
 
@@ -567,7 +555,7 @@ void Generator::BuildFieldInfos(T* type, TypeInfo* info, const std::span<const A
         }
 
         Field& field = fields.EmplaceBack(arena_);
-        field.name = fieldNode->name.name;
+        field.name = fieldNode->name->name;
         field.owner = type;
         field.line = TokenLine(fieldNode->tokenIndex);
 
@@ -611,7 +599,7 @@ void Generator::BuildArguments(std::span<const Argument>& out, const Type* type,
 
         if (named != nullptr)
         {
-            const char* const name = named->name.name;
+            const char* const name = named->name->name;
 
             hasNamed = true;
 
@@ -730,10 +718,10 @@ const Value* Generator::BuildIdentValue(const Type* type, const AstNodeIdentifie
 {
     if (const TypeEnum* const enumType = CastTo<TypeEnum>(type); enumType != nullptr)
     {
-        const EnumItem* const enumItem = FindItem(enumType, id.name.name);
+        const EnumItem* const enumItem = FindItem(enumType, id.name);
         if (enumItem == nullptr)
         {
-            Error(id.tokenIndex, "No such enumeration item: {}.{}", enumType->name, id.name.name);
+            Error(id.tokenIndex, "No such enumeration item: {}.{}", enumType->name, id.name);
             return nullptr;
         }
 
@@ -745,7 +733,7 @@ const Value* Generator::BuildIdentValue(const Type* type, const AstNodeIdentifie
 
     if (CastTo<TypeType>(type) != nullptr)
     {
-        const Type* type = Resolve(id.name);
+        const Type* type = Resolve(&id);
         if (type == nullptr)
             return nullptr;
 
@@ -755,7 +743,7 @@ const Value* Generator::BuildIdentValue(const Type* type, const AstNodeIdentifie
         return value;
     }
 
-    Error(id.tokenIndex, "Not found: {}", id.name.name);
+    Error(id.tokenIndex, "Not found: {}", id.name);
     return nullptr;
 }
 
@@ -785,7 +773,7 @@ const ValueObject* Generator::BuildObject(const TypeStruct* type, const AstNodeI
     value->type = type;
     value->line = TokenLine(expr.tokenIndex);
 
-    if (expr.type.name != nullptr)
+    if (expr.type != nullptr)
     {
         value->type = Resolve(expr.type);
         if (value->type != nullptr && !IsA(value->type, type))
@@ -816,13 +804,13 @@ const Type* Generator::TryResolve(const char* name)
     return nullptr;
 }
 
-const Type* Generator::Resolve(const AstIdentifier& ident)
+const Type* Generator::Resolve(const AstNodeIdentifier* ident)
 {
     // FIXME: we shouldn't be relying on this check; optional identifiers should be nodes
-    if (ident.name == nullptr)
+    if (ident == nullptr)
         return nullptr;
 
-    if (const Type* const type = TryResolve(ident.name); type != nullptr)
+    if (const Type* const type = TryResolve(ident->name); type != nullptr)
     {
         if (type->kind == TypeKind::Alias)
         {
@@ -832,7 +820,7 @@ const Type* Generator::Resolve(const AstIdentifier& ident)
         return type;
     }
 
-    Error(ident.tokenIndex, "Not found: {}", ident.name);
+    Error(ident->tokenIndex, "Not found: {}", ident->name);
     return nullptr;
 }
 
@@ -913,11 +901,11 @@ const Type* Generator::Resolve(const AstNode* type)
     return nullptr;
 }
 
-bool Generator::IsReserved(const char* ident) const noexcept
+bool Generator::IsReserved(const AstNodeIdentifier* ident) const noexcept
 {
     if (ident == nullptr)
         return false;
-    if (*ident == '$')
+    if (*ident->name == '$')
         return true;
     return false;
 }

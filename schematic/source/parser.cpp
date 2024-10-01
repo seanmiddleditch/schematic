@@ -122,7 +122,7 @@ bool Parser::ParseAnnotations()
 
             AstNodeAnnotation* const attr = arena_.New<AstNodeAnnotation>(Pos());
 
-            if (!ExpectIdent(attr->name))
+            if (!ExpectIdent(&attr->type))
                 return false;
 
             annotations_.PushBack(arena_, attr);
@@ -183,7 +183,7 @@ bool Parser::ParseAliasDecl()
     AstNodeAliasDecl* const decl = arena_.New<AstNodeAliasDecl>(Pos());
     decl->annotations = annotations_;
 
-    if (!ExpectIdent(decl->name))
+    if (!ExpectIdent(&decl->name))
         return false;
 
     if (!Expect(TokenType::Equals))
@@ -207,7 +207,7 @@ bool Parser::ParseStructDecl()
 
     mod->nodes.EmplaceBack(arena_, struct_);
 
-    if (!ExpectIdent(struct_->name))
+    if (!ExpectIdent(&struct_->name))
         return false;
 
     if (Consume(TokenType::Hash))
@@ -224,7 +224,7 @@ bool Parser::ParseStructDecl()
 
     if (Consume(TokenType::Colon))
     {
-        if (!ExpectIdent(struct_->base))
+        if (!ExpectIdent(&struct_->base))
             return false;
     }
 
@@ -266,7 +266,7 @@ bool Parser::ParseMessageDecl()
 
     mod->nodes.EmplaceBack(arena_, message);
 
-    if (!ExpectIdent(message->name))
+    if (!ExpectIdent(&message->name))
         return false;
 
     if (Consume(TokenType::SemiColon))
@@ -307,7 +307,7 @@ bool Parser::ParseAttributeDecl()
 
     mod->nodes.EmplaceBack(arena_, attr);
 
-    if (!ExpectIdent(attr->name))
+    if (!ExpectIdent(&attr->name))
         return false;
 
     if (Consume(TokenType::SemiColon))
@@ -348,7 +348,7 @@ const bool Parser::ParseField(Array<const AstNodeField*>& fields, FieldMode mode
     if (field->type == nullptr)
         return false;
 
-    if (!ExpectIdent(field->name))
+    if (!ExpectIdent(&field->name))
         return false;
 
     if (mode == FieldMode::Struct && Consume(TokenType::Hash))
@@ -387,12 +387,12 @@ bool Parser::ParseEnumDecl()
 
     mod->nodes.EmplaceBack(arena_, enum_);
 
-    if (!ExpectIdent(enum_->name))
+    if (!ExpectIdent(&enum_->name))
         return false;
 
     if (Consume(TokenType::Colon))
     {
-        if (!ExpectIdent(enum_->base))
+        if (!ExpectIdent(&enum_->base))
             return false;
     }
 
@@ -415,7 +415,7 @@ bool Parser::ParseEnumDecl()
 
             enum_->items.EmplaceBack(arena_, item);
 
-            if (!ExpectIdent(item->name))
+            if (!ExpectIdent(&item->name))
                 return false;
 
             if (Consume(TokenType::Equals))
@@ -468,25 +468,30 @@ const AstNode* Parser::ParseExpression()
     if (const AstNodeLiteralString* literal = nullptr; ConsumeString(literal))
         return literal;
 
-    AstIdentifier ident;
-    if (!ConsumeIdent(ident) && !Match(TokenType::LBrace))
+    if (Match(TokenType::LBrace))
+        return ParseInitializer();
+
+    const AstNodeIdentifier* ident = nullptr;
+    if (ConsumeIdent(&ident))
     {
-        ErrorExpect("literal or initializer list");
-        return nullptr;
+        if (!Match(TokenType::LBrace))
+            return ident;
+
+        Unwind();
+        return ParseInitializer();
     }
 
-    if (Match(TokenType::LBrace))
-        return ParseInitializer(ident);
-
-    AstNodeIdentifier* const literal = arena_.New<AstNodeIdentifier>(pos);
-    literal->name = ident;
-    return literal;
+    ErrorExpect("literal or initializer list");
+    return nullptr;
 }
 
-const AstNode* Parser::ParseInitializer(const AstIdentifier& name)
+const AstNode* Parser::ParseInitializer()
 {
-    AstNodeInitializerList* const list = arena_.New<AstNodeInitializerList>(name.name != nullptr ? name.tokenIndex : Pos());
-    list->type = name;
+    const AstNodeIdentifier* ident = nullptr;
+    ConsumeIdent(&ident);
+
+    AstNodeInitializerList* const list = arena_.New<AstNodeInitializerList>(ident != nullptr ? ident->tokenIndex : Pos());
+    list->type = ident;
 
     if (!Expect(TokenType::LBrace))
         return nullptr;
@@ -514,8 +519,8 @@ const AstNode* Parser::ParseInitializer(const AstIdentifier& name)
 
 const AstNode* Parser::ParseArgument()
 {
-    AstIdentifier ident;
-    if (ConsumeIdent(ident))
+    const AstNodeIdentifier* ident = nullptr;
+    if (ConsumeIdent(&ident))
     {
         if (Consume(TokenType::Equals))
         {
@@ -543,11 +548,11 @@ const AstNode* Parser::ParseType()
     AstNode* type = nullptr;
 
     {
-        AstIdentifier ident;
-        if (!ExpectIdent(ident))
+        const AstNodeIdentifier* ident = nullptr;
+        if (!ExpectIdent(&ident))
             return type;
 
-        AstNodeTypeName* qual = arena_.New<AstNodeTypeName>(ident.tokenIndex);
+        AstNodeTypeName* qual = arena_.New<AstNodeTypeName>(ident->tokenIndex);
         qual->name = ident;
         type = qual;
     }
@@ -817,7 +822,7 @@ bool Parser::Expect(TokenType type, const Token** out)
     return false;
 }
 
-bool Parser::ConsumeIdent(AstIdentifier& out)
+bool Parser::ConsumeIdent(const AstNodeIdentifier** out)
 {
     const auto pos = Pos();
 
@@ -825,13 +830,16 @@ bool Parser::ConsumeIdent(AstIdentifier& out)
     if (!Consume(TokenType::Identifier, &token))
         return false;
 
-    const std::string_view ident = source_.substr(token->offset, token->length);
-    out.name = arena_.NewString(ident);
-    out.tokenIndex = pos;
+    AstNodeIdentifier* const ident = arena_.New<AstNodeIdentifier>(pos);
+
+    const std::string_view name = source_.substr(token->offset, token->length);
+    ident->name = arena_.NewString(name);
+
+    *out = ident;
     return true;
 }
 
-bool Parser::ExpectIdent(AstIdentifier& out)
+bool Parser::ExpectIdent(const AstNodeIdentifier** out)
 {
     if (ConsumeIdent(out))
         return true;
