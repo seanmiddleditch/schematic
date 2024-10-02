@@ -4,9 +4,9 @@
 
 #include "ast.h"
 #include "generator.h"
+#include "ir_gen.h"
 #include "lexer.h"
 #include "location.h"
-#include "lower.h"
 #include "parser.h"
 #include "token.h"
 
@@ -81,9 +81,9 @@ const Schema* potato::schematic::Compile(ArenaAllocator& arena, Logger& logger, 
         return nullptr;
 
     IRState state2;
-    LowerAstToIr lower(arena, logger, ctx, state2, filename, source);
+    IRGenerator irGenerator(arena, logger, ctx, state2, filename, source);
 
-    const IRModule* const irRoot = lower.Lower();
+    const IRModule* const irRoot = irGenerator.Compile();
     if (irRoot == nullptr)
         return nullptr;
 

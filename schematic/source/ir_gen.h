@@ -20,10 +20,10 @@ namespace potato::schematic::compiler
         IRModule* builtins = nullptr;
     };
 
-    class LowerAstToIr final
+    class IRGenerator final
     {
     public:
-        explicit LowerAstToIr(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, IRState& state, std::string_view filename, std::string_view source) noexcept
+        explicit IRGenerator(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, IRState& state, std::string_view filename, std::string_view source) noexcept
             : arena_(arena)
             , logger_(logger)
             , ctx_(ctx)
@@ -33,7 +33,7 @@ namespace potato::schematic::compiler
         {
         }
 
-        IRModule* Lower();
+        IRModule* Compile();
 
     private:
         IRVersionRange ReadVersion(const AstNodeLiteralInt* min, const AstNodeLiteralInt* max);

@@ -1,6 +1,6 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
-#include "lower.h"
+#include "ir_gen.h"
 
 #include "find.h"
 #include "lexer.h"
@@ -17,7 +17,7 @@ static auto MatchNamePred(const char* name) noexcept
     };
 }
 
-IRModule* LowerAstToIr::Lower()
+IRModule* IRGenerator::Compile()
 {
     Lexer lexer(arena_, logger_, filename_, source_);
     tokens_ = lexer.Tokenize();
@@ -132,8 +132,8 @@ IRModule* LowerAstToIr::Lower()
             {
                 const std::string_view source = ctx_.ReadFileContents(arena_, target);
 
-                LowerAstToIr lower(arena_, logger_, ctx_, state_, target, source);
-                import->resolved = lower.Lower();
+                IRGenerator generator(arena_, logger_, ctx_, state_, target, source);
+                import->resolved = generator.Compile();
             }
 
             module_->imports.PushBack(arena_, import);
@@ -216,7 +216,7 @@ IRModule* LowerAstToIr::Lower()
     return module_;
 }
 
-IRVersionRange LowerAstToIr::ReadVersion(const AstNodeLiteralInt* min, const AstNodeLiteralInt* max)
+IRVersionRange IRGenerator::ReadVersion(const AstNodeLiteralInt* min, const AstNodeLiteralInt* max)
 {
     if (min == nullptr)
         return {};
@@ -248,20 +248,20 @@ IRVersionRange LowerAstToIr::ReadVersion(const AstNodeLiteralInt* min, const Ast
     return version;
 }
 
-void LowerAstToIr::ValidateTypeName(IRType* type)
+void IRGenerator::ValidateTypeName(IRType* type)
 {
     if (type->name[0] == '$')
         Error(type->ast, "Type declared with reserved name: {}", type->name);
 }
 
-void LowerAstToIr::ValidateTypeUnique(IRType* type)
+void IRGenerator::ValidateTypeUnique(IRType* type)
 {
     IRType* const existing = Find(module_->types, MatchNamePred(type->name));
     if (existing != nullptr)
         Error(type->ast, "Type already declared: {}", type->name);
 }
 
-void LowerAstToIr::ValidateStructField(IRTypeStruct* type, const AstNodeField* field)
+void IRGenerator::ValidateStructField(IRTypeStruct* type, const AstNodeField* field)
 {
     IRStructField* const existing = Find(type->fields, MatchNamePred(field->name->name));
     if (existing == nullptr)
@@ -310,7 +310,7 @@ static T* CreateBuiltinType(ArenaAllocator& arena, Array<IRType*>& types, TypeKi
     return type;
 };
 
-IRModule* LowerAstToIr::CreateBuiltins()
+IRModule* IRGenerator::CreateBuiltins()
 {
     if (builtins_ != nullptr)
         return builtins_;
@@ -349,7 +349,7 @@ IRModule* LowerAstToIr::CreateBuiltins()
     return builtins_;
 }
 
-IRType* LowerAstToIr::LowerType(const AstNode* ast)
+IRType* IRGenerator::LowerType(const AstNode* ast)
 {
     if (ast == nullptr)
         return nullptr;
@@ -400,7 +400,7 @@ IRType* LowerAstToIr::LowerType(const AstNode* ast)
     return nullptr;
 }
 
-IRType* LowerAstToIr::ResolveType(IRType* type)
+IRType* IRGenerator::ResolveType(IRType* type)
 {
     if (type == nullptr)
         return nullptr;
@@ -447,7 +447,7 @@ IRType* LowerAstToIr::ResolveType(IRType* type)
 }
 
 template <typename... Args>
-void LowerAstToIr::Error(const AstNode* node, fmt::format_string<Args...> format, Args&&... args)
+void IRGenerator::Error(const AstNode* node, fmt::format_string<Args...> format, Args&&... args)
 {
     failed_ = true;
 
