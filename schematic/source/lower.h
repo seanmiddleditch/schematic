@@ -13,29 +13,39 @@
 
 namespace potato::schematic::compiler
 {
+    struct IRState final
+    {
+        Array<IRModule*> modules;
+        Array<IRModule*> stack;
+        IRModule* builtins = nullptr;
+    };
+
     class LowerAstToIr final
     {
     public:
-        explicit LowerAstToIr(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, std::string_view filename, std::string_view source) noexcept
+        explicit LowerAstToIr(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, IRState& state, std::string_view filename, std::string_view source) noexcept
             : arena_(arena)
             , logger_(logger)
             , ctx_(ctx)
+            , state_(state)
             , filename_(filename)
             , source_(source)
         {
         }
 
-        const IRModule* Lower();
+        IRModule* Lower();
 
     private:
         IRVersionRange ReadVersion(const AstNodeLiteralInt* min, const AstNodeLiteralInt* max);
 
         void ValidateTypeName(IRType* type);
+        void ValidateTypeUnique(IRType* type);
         void ValidateStructField(IRTypeStruct* type, const AstNodeField* field);
 
-        const IRModule* CreateBuiltins();
+        IRModule* CreateBuiltins();
 
         IRType* LowerType(const AstNode* ast);
+        IRType* ResolveType(IRType* type);
 
         template <typename... Args>
         void Error(const AstNode* node, fmt::format_string<Args...> format, Args&&... args);
@@ -43,6 +53,8 @@ namespace potato::schematic::compiler
         ArenaAllocator& arena_;
         Logger& logger_;
         CompileContext& ctx_;
+        IRState& state_;
+
         std::string_view filename_;
         std::string_view source_;
 

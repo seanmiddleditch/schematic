@@ -2,30 +2,21 @@
 
 #pragma once
 
+#include "array.h"
+
 #include <type_traits>
 
 namespace potato::schematic::compiler
 {
-    template <typename Container, typename T>
-    auto* Find(Container& container, const T& value) noexcept
-    {
-        for (auto* it = container.begin(); it != container.end(); ++it)
-        {
-            if (*it == value)
-                return it;
-        }
-        return nullptr;
-    }
-
-    template <typename Container, typename Predicate>
-    auto* Find(Container& container, Predicate&& pred) noexcept
+    template <typename T, typename Predicate>
+    T* Find(const Array<T*>& container, Predicate&& pred) noexcept
         requires std::is_invocable_r_v<bool, Predicate, decltype(*container.begin())>
     {
-        for (auto* it = container.begin(); it != container.end(); ++it)
+        for (T* const* it = container.begin(); it != container.end(); ++it)
         {
-            if (std::forward<Predicate>(pred)(*it))
-                return it;
+            if (*it != nullptr && std::forward<Predicate>(pred)(*it))
+                return *it;
         }
-        return decltype(container.begin()){};
+        return nullptr;
     }
 } // namespace potato::schematic::compiler

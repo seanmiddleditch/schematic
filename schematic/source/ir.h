@@ -20,6 +20,7 @@ namespace potato::schematic::compiler
         Enum,
         Message,
         Struct,
+        StructVersioned,
 
         Builtin,
 
@@ -45,6 +46,7 @@ namespace potato::schematic::compiler
     struct IRTypeEnum;
     struct IRTypeIndirect;
     struct IRTypeMessage;
+    struct IRTypeStructVersioned;
     struct IRTypeStruct;
 
     struct IRImport;
@@ -53,8 +55,17 @@ namespace potato::schematic::compiler
     {
         IRTypeKind kind = IRTypeKind::None;
         const AstNode* ast = nullptr;
+        Type* type = nullptr;
         const char* name = nullptr;
         // FIXME: annotations
+
+        template <typename T>
+        friend T* CastTo(IRType* ir) noexcept
+        {
+            if (ir != nullptr && ir->kind == T::Kind)
+                return static_cast<T*>(ir);
+            return nullptr;
+        }
     };
 
     struct IRTypeIndirect : IRType
@@ -80,6 +91,7 @@ namespace potato::schematic::compiler
     {
         const char* name = nullptr;
         const AstNodeEnumItem* ast = nullptr;
+        EnumItem* item = nullptr;
         // FIXME: value
         // FIXME: annotations
     };
@@ -89,6 +101,7 @@ namespace potato::schematic::compiler
         const char* name = nullptr;
         IRType* type = nullptr;
         const AstNodeField* ast = nullptr;
+        Field* item = nullptr;
         IRVersionRange version;
         // FIXME: default value
         // FIXME: annotations
@@ -101,6 +114,8 @@ namespace potato::schematic::compiler
     struct IRTypeAlias : IRType
     {
         IR_TYPE(IRTypeAlias, IRTypeKind::Alias);
+
+        IRType* target = nullptr;
     };
 
     struct IRTypeBuiltin : IRType
@@ -141,12 +156,21 @@ namespace potato::schematic::compiler
         IRVersionRange version;
     };
 
+    struct IRTypeStructVersioned : IRType
+    {
+        IR_TYPE(IRTypeStructVersioned, IRTypeKind::StructVersioned);
+
+        IRTypeStruct* latest = nullptr;
+        Array<IRTypeStruct*> versions;
+    };
+
     struct IRTypeIndirectArray : IRTypeIndirect
     {
         IR_TYPE(IRTypeIndirectArray, IRTypeKind::IndirectArray);
 
         const AstNodeTypeArray* ast = nullptr;
-        IRType* type = nullptr;
+        IRType* target = nullptr;
+        Type* type = nullptr;
         std::uint32_t size = 0; // zero means unsized
     };
 
@@ -156,6 +180,7 @@ namespace potato::schematic::compiler
 
         const AstNodeIdentifier* ast = nullptr;
         const char* name = nullptr;
+        Type* type = nullptr;
     };
 
     struct IRTypeIndirectNullable : IRTypeIndirect
@@ -163,7 +188,8 @@ namespace potato::schematic::compiler
         IR_TYPE(IRTypeIndirectNullable, IRTypeKind::IndirectNullable);
 
         const AstNodeTypeNullable* ast = nullptr;
-        IRType* type = nullptr;
+        IRType* target = nullptr;
+        Type* type = nullptr;
     };
 
     struct IRTypeIndirectPointer : IRTypeIndirect
@@ -171,7 +197,8 @@ namespace potato::schematic::compiler
         IR_TYPE(IRTypeIndirectPointer, IRTypeKind::IndirectPointer);
 
         const AstNodeTypePointer* ast = nullptr;
-        IRType* type = nullptr;
+        IRType* target = nullptr;
+        Type* type = nullptr;
     };
 
 #undef IR_TYPE

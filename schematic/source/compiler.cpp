@@ -74,14 +74,14 @@ Logger& Logger::Default() noexcept
 const Schema* potato::schematic::Compile(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, std::string_view filename, std::string_view source)
 {
     CompilerState state;
-
     Generator generator(arena, logger, ctx, state);
 
     const Module* const root = generator.Compile(filename, source);
     if (root == nullptr)
         return nullptr;
 
-    LowerAstToIr lower(arena, logger, ctx, filename, source);
+    IRState state2;
+    LowerAstToIr lower(arena, logger, ctx, state2, filename, source);
 
     const IRModule* const irRoot = lower.Lower();
     if (irRoot == nullptr)

@@ -22,7 +22,6 @@ namespace potato::schematic::compiler
         Field,
         EnumDecl,
         EnumItem,
-        TypeName,
         TypeArray,
         TypePointer,
         TypeNullable,

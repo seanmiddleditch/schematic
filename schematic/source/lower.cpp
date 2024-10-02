@@ -9,15 +9,15 @@
 using namespace potato::schematic;
 using namespace potato::schematic::compiler;
 
-static auto MatchFieldNamePred(const char* name) noexcept
+static auto MatchNamePred(const char* name) noexcept
 {
-    return [name](IRStructField* const field) noexcept -> bool
+    return [name](auto* const entity) noexcept -> bool
     {
-        return std::strcmp(field->name, name) == 0;
+        return entity->name != nullptr && std::strcmp(entity->name, name) == 0;
     };
 }
 
-const IRModule* LowerAstToIr::Lower()
+IRModule* LowerAstToIr::Lower()
 {
     Lexer lexer(arena_, logger_, filename_, source_);
     tokens_ = lexer.Tokenize();
@@ -29,12 +29,38 @@ const IRModule* LowerAstToIr::Lower()
     if (ast_ == nullptr)
         return nullptr;
 
-    const IRModule* const builtins = CreateBuiltins();
+    if (state_.builtins == nullptr)
+    {
+        state_.builtins = CreateBuiltins();
+        state_.modules.PushBack(arena_, state_.builtins);
+    }
 
     module_ = arena_.New<IRModule>();
+    module_->filename = arena_.NewString(filename_);
+    state_.stack.PushBack(arena_, module_);
+
+    {
+        IRImport* const builtinsImport = arena_.New<IRImport>();
+        builtinsImport->resolved = state_.builtins;
+        module_->imports.PushBack(arena_, builtinsImport);
+    }
 
     for (const AstNode* const node : ast_->nodes)
     {
+        if (const AstNodeAliasDecl* const declNode = node->CastTo<AstNodeAliasDecl>(); declNode != nullptr)
+        {
+            IRTypeAlias* const type = arena_.New<IRTypeAlias>();
+            type->name = declNode->name->name;
+            type->ast = declNode;
+            type->target = LowerType(declNode->target);
+
+            ValidateTypeName(type);
+            ValidateTypeUnique(type);
+
+            module_->types.PushBack(arena_, type);
+            continue;
+        }
+
         if (const AstNodeAttributeDecl* const declNode = node->CastTo<AstNodeAttributeDecl>(); declNode != nullptr)
         {
             IRTypeAttribute* const type = arena_.New<IRTypeAttribute>();
@@ -42,6 +68,7 @@ const IRModule* LowerAstToIr::Lower()
             type->ast = declNode;
 
             ValidateTypeName(type);
+            ValidateTypeUnique(type);
 
             for (const AstNodeField* const fieldNode : declNode->fields)
             {
@@ -64,6 +91,7 @@ const IRModule* LowerAstToIr::Lower()
             type->base = LowerType(declNode->base);
 
             ValidateTypeName(type);
+            ValidateTypeUnique(type);
 
             for (const AstNodeEnumItem* const itemNode : declNode->items)
             {
@@ -81,6 +109,34 @@ const IRModule* LowerAstToIr::Lower()
         {
             IRImport* const import = arena_.New<IRImport>();
             import->ast = importNode;
+
+            const std::string_view target = ctx_.ResolveModule(arena_, importNode->target->value, filename_);
+            if (target.empty())
+            {
+                Error(importNode, "Module not found: {}", importNode->target->value);
+                continue;
+            }
+
+            bool doImport = true;
+            for (IRModule* const mod : state_.stack)
+            {
+                if (target == mod->filename)
+                {
+                    Error(importNode, "Recursive import: {}", mod->filename);
+                    doImport = false;
+                    break;
+                }
+            }
+
+            if (doImport)
+            {
+                const std::string_view source = ctx_.ReadFileContents(arena_, target);
+
+                LowerAstToIr lower(arena_, logger_, ctx_, state_, target, source);
+                import->resolved = lower.Lower();
+            }
+
+            module_->imports.PushBack(arena_, import);
             continue;
         }
 
@@ -105,13 +161,57 @@ const IRModule* LowerAstToIr::Lower()
                 type->fields.PushBack(arena_, field);
             }
 
-            module_->types.PushBack(arena_, type);
-            continue;
+            if (declNode->minVersion == nullptr)
+            {
+                ValidateTypeUnique(type);
+                module_->types.PushBack(arena_, type);
+                continue;
+            }
+
+            IRType* const struct_ = Find(module_->types, MatchNamePred(type->name));
+            if (struct_ == nullptr)
+            {
+                IRTypeStructVersioned* const versioned = arena_.New<IRTypeStructVersioned>();
+                versioned->name = type->name;
+                versioned->ast = declNode;
+                versioned->latest = type;
+                versioned->versions.PushBack(arena_, type);
+                module_->types.PushBack(arena_, versioned);
+                continue;
+            }
+
+            IRTypeStructVersioned* const versioned = CastTo<IRTypeStructVersioned>(struct_);
+            if (versioned == nullptr)
+            {
+                Error(type->ast, "Type already declared: {}", type->name);
+                module_->types.PushBack(arena_, type);
+                continue;
+            }
+
+            for (IRTypeStruct* const existing : versioned->versions)
+            {
+                if (type->version.min < existing->version.max && existing->version.min < type->version.max)
+                    Error(type->ast, "Struct versions overlap with previous declaration: {}", type->name);
+            }
+
+            versioned->versions.PushBack(arena_, type);
+            if (type->version.max > versioned->latest->version.max)
+                versioned->latest = type;
         }
     }
 
     if (failed_)
         return nullptr;
+
+    for (IRType* const type : module_->types)
+    {
+        if (IRTypeStruct* struct_ = CastTo<IRTypeStruct>(type); struct_ != nullptr)
+        {
+            struct_->base = ResolveType(struct_->base);
+            for (IRStructField* field : struct_->fields)
+                field->type = ResolveType(field->type);
+        }
+    }
 
     return module_;
 }
@@ -151,28 +251,21 @@ IRVersionRange LowerAstToIr::ReadVersion(const AstNodeLiteralInt* min, const Ast
 void LowerAstToIr::ValidateTypeName(IRType* type)
 {
     if (type->name[0] == '$')
-    {
         Error(type->ast, "Type declared with reserved name: {}", type->name);
-    }
+}
 
-    IRType* const* const existingIter = Find(module_->types, [type](IRType* other)
-        {
-            return std::strcmp(other->name, type->name) == 0;
-        });
-    if (existingIter != nullptr)
-    {
-        IRType* const existing = *existingIter;
-        Error(type->ast, "Type already declared with name: {}", type->name);
-    }
+void LowerAstToIr::ValidateTypeUnique(IRType* type)
+{
+    IRType* const existing = Find(module_->types, MatchNamePred(type->name));
+    if (existing != nullptr)
+        Error(type->ast, "Type already declared: {}", type->name);
 }
 
 void LowerAstToIr::ValidateStructField(IRTypeStruct* type, const AstNodeField* field)
 {
-    IRStructField* const* const existingIter = Find(type->fields, MatchFieldNamePred(field->name->name));
-    if (existingIter == nullptr)
+    IRStructField* const existing = Find(type->fields, MatchNamePred(field->name->name));
+    if (existing == nullptr)
         return;
-
-    IRStructField* const existing = *existingIter;
 
     // if either the existing or new field is not versioned, raise an error
     if (existing->version.min == 0 || field->minVersion == nullptr)
@@ -217,7 +310,7 @@ static T* CreateBuiltinType(ArenaAllocator& arena, Array<IRType*>& types, TypeKi
     return type;
 };
 
-const IRModule* LowerAstToIr::CreateBuiltins()
+IRModule* LowerAstToIr::CreateBuiltins()
 {
     if (builtins_ != nullptr)
         return builtins_;
@@ -265,7 +358,7 @@ IRType* LowerAstToIr::LowerType(const AstNode* ast)
     {
         IRTypeIndirectArray* const indirect = arena_.New<IRTypeIndirectArray>();
         indirect->ast = astArray;
-        indirect->type = LowerType(astArray->type);
+        indirect->target = LowerType(astArray->type);
         if (astArray->size != nullptr)
         {
             const std::int64_t size = astArray->size->value;
@@ -291,7 +384,7 @@ IRType* LowerAstToIr::LowerType(const AstNode* ast)
     {
         IRTypeIndirectNullable* const indirect = arena_.New<IRTypeIndirectNullable>();
         indirect->ast = astNullable;
-        indirect->type = LowerType(astNullable->type);
+        indirect->target = LowerType(astNullable->type);
         return indirect;
     }
 
@@ -299,12 +392,58 @@ IRType* LowerAstToIr::LowerType(const AstNode* ast)
     {
         IRTypeIndirectPointer* const indirect = arena_.New<IRTypeIndirectPointer>();
         indirect->ast = astPointer;
-        indirect->type = LowerType(astPointer->type);
+        indirect->target = LowerType(astPointer->type);
         return indirect;
     }
 
     Error(ast, "Internal error: unknown AST node type: {}", std::to_underlying(ast->kind));
     return nullptr;
+}
+
+IRType* LowerAstToIr::ResolveType(IRType* type)
+{
+    if (type == nullptr)
+        return nullptr;
+
+    if (IRTypeIndirectIdentifier* indirect = CastTo<IRTypeIndirectIdentifier>(type); indirect != nullptr)
+    {
+        IRType* resolved = Find(module_->types, MatchNamePred(indirect->name));
+        if (resolved == nullptr)
+        {
+            for (IRImport* import : module_->imports)
+            {
+                if (import->resolved == nullptr)
+                    continue;
+                resolved = Find(import->resolved->types, MatchNamePred(indirect->name));
+                if (resolved != nullptr)
+                    break;
+            }
+        }
+
+        if (resolved == nullptr)
+            Error(indirect->ast, "Type not found: {}", indirect->name);
+        return resolved;
+    }
+
+    if (IRTypeIndirectArray* indirect = CastTo<IRTypeIndirectArray>(type); indirect != nullptr)
+    {
+        indirect->target = ResolveType(indirect->target);
+        return indirect;
+    }
+
+    if (IRTypeIndirectNullable* indirect = CastTo<IRTypeIndirectNullable>(type); indirect != nullptr)
+    {
+        indirect->target = ResolveType(indirect->target);
+        return indirect;
+    }
+
+    if (IRTypeIndirectPointer* indirect = CastTo<IRTypeIndirectPointer>(type); indirect != nullptr)
+    {
+        indirect->target = ResolveType(indirect->target);
+        return indirect;
+    }
+
+    return type;
 }
 
 template <typename... Args>

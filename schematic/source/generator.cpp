@@ -118,12 +118,14 @@ void Generator::PassImports()
 
             Generator gen(arena_, logger_, ctx_, state_);
             const Module* const module = gen.Compile(filename, source);
-
-            if (module != nullptr)
+            if (module == nullptr)
             {
-                imports_.PushBack(arena_, module);
-                module_->imports = imports_;
+                failed_ = true;
+                continue;
             }
+
+            imports_.PushBack(arena_, module);
+            module_->imports = imports_;
         }
     }
 }
