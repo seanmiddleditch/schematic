@@ -105,6 +105,28 @@ IRModule* IRGenerator::Compile()
             continue;
         }
 
+        if (const AstNodeMessageDecl* const declNode = node->CastTo<AstNodeMessageDecl>(); declNode != nullptr)
+        {
+            IRTypeMessage* const type = arena_.New<IRTypeMessage>();
+            type->name = declNode->name->name;
+            type->ast = declNode;
+
+            ValidateTypeName(type);
+            ValidateTypeUnique(type);
+
+            for (const AstNodeField* const fieldNode : declNode->fields)
+            {
+                IRMessageField* const field = arena_.New<IRMessageField>();
+                field->ast = fieldNode;
+                field->name = fieldNode->name->name;
+                field->type = LowerType(fieldNode->type);
+                type->fields.PushBack(arena_, field);
+            }
+
+            module_->types.PushBack(arena_, type);
+            continue;
+        }
+
         if (const AstNodeImport* const importNode = node->CastTo<AstNodeImport>(); importNode != nullptr)
         {
             IRImport* const import = arena_.New<IRImport>();
