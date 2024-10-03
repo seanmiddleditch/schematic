@@ -64,5 +64,8 @@ namespace potato::schematic::compiler
 
         IRModule* module_ = nullptr;
         bool failed_ = false;
+
+        std::uint32_t nextTypeIndex_ = 0;
+        std::uint32_t nextModuleIndex_ = 0;
     };
 } // namespace potato::schematic::compiler

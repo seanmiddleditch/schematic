@@ -41,6 +41,8 @@ target_sources(schematic_compiler PRIVATE
     "source/location.h"
     "source/parser.cpp"
     "source/parser.h"
+    "source/schema_gen.cpp"
+    "source/schema_gen.h"
     "source/token.cpp"
     "source/token.h"
 )

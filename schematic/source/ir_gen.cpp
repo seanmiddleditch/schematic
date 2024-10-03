@@ -37,6 +37,7 @@ IRModule* IRGenerator::Compile()
 
     module_ = arena_.New<IRModule>();
     module_->filename = arena_.NewString(filename_);
+    module_->index = nextModuleIndex_++;
     state_.stack.PushBack(arena_, module_);
 
     {

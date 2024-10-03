@@ -8,6 +8,7 @@
 #include "lexer.h"
 #include "location.h"
 #include "parser.h"
+#include "schema_gen.h"
 #include "token.h"
 
 #include "schematic/allocator.h"
@@ -83,8 +84,13 @@ const Schema* potato::schematic::Compile(ArenaAllocator& arena, Logger& logger, 
     IRState state2;
     IRGenerator irGenerator(arena, logger, ctx, state2, filename, source);
 
-    const IRModule* const irRoot = irGenerator.Compile();
+    IRModule* const irRoot = irGenerator.Compile();
     if (irRoot == nullptr)
+        return nullptr;
+
+    SchemaGenerator schemaGenerator(arena, logger);
+    const Schema* const s = schemaGenerator.Compile(irRoot);
+    if (s == nullptr)
         return nullptr;
 
     Schema* const schema = arena.New<Schema>();

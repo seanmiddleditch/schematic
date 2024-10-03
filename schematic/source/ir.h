@@ -58,6 +58,7 @@ namespace potato::schematic::compiler
         const AstNode* ast = nullptr;
         Type* type = nullptr;
         const char* name = nullptr;
+        std::uint32_t index = 0;
         // FIXME: annotations
 
         template <typename T>
@@ -232,6 +233,7 @@ namespace potato::schematic::compiler
     {
         const char* filename = nullptr;
         const AstNodeModule* ast = nullptr;
+        std::uint32_t index = 0;
         Array<IRImport*> imports;
         Array<IRType*> types;
     };
