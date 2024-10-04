@@ -79,6 +79,18 @@ namespace potato::schematic::compiler
             return nullptr;
         }
 
+        template <typename To>
+        friend [[nodiscard]] const To* CastTo(const AstNode* node) noexcept
+        {
+            if (node == nullptr)
+                return nullptr;
+
+            if (node->kind == To::Kind)
+                return static_cast<const To*>(node);
+
+            return nullptr;
+        }
+
         AstNodeKind kind = AstNodeKind::None;
         std::uint32_t tokenIndex = 0;
     };

@@ -79,6 +79,7 @@ IRModule* IRGenerator::Compile()
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
                 field->type = LowerType(fieldNode->type);
+                field->value = LowerValue(fieldNode->value);
                 field->annotations = LowerAnnotations(fieldNode->annotations);
                 type->fields.PushBack(arena_, field);
             }
@@ -98,11 +99,23 @@ IRModule* IRGenerator::Compile()
             ValidateTypeName(type);
             ValidateTypeUnique(type);
 
+            std::int64_t nextValue = 0;
+
             for (const AstNodeEnumItem* const itemNode : declNode->items)
             {
                 IREnumItem* const item = arena_.New<IREnumItem>();
                 item->ast = itemNode;
                 item->name = itemNode->name->name;
+                IRValue* const value = LowerValue(itemNode->value);
+                if (IRValueLiteral* const literal = CastTo<IRValueLiteral>(value); literal != nullptr)
+                {
+                    if (const AstNodeLiteralInt* intNode = CastTo<AstNodeLiteralInt>(literal->ast); intNode != nullptr)
+                        nextValue = static_cast<const AstNodeLiteralInt*>(literal->ast)->value;
+                    else
+                        Error(literal->ast, "Enum value must be an integer");
+                }
+                item->value = nextValue++;
+
                 item->annotations = LowerAnnotations(itemNode->annotations);
                 type->items.PushBack(arena_, item);
             }
@@ -127,6 +140,10 @@ IRModule* IRGenerator::Compile()
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
                 field->type = LowerType(fieldNode->type);
+                field->value = LowerValue(fieldNode->value);
+                if (fieldNode->proto->value > UINT32_MAX)
+                    Error(fieldNode->proto, "Message proto must be no greater than {}: {}", UINT32_MAX, fieldNode->proto->value);
+                field->proto = static_cast<std::uint32_t>(fieldNode->proto->value);
                 field->annotations = LowerAnnotations(fieldNode->annotations);
                 type->fields.PushBack(arena_, field);
             }
@@ -188,6 +205,7 @@ IRModule* IRGenerator::Compile()
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
                 field->type = LowerType(fieldNode->type);
+                field->value = LowerValue(fieldNode->value);
                 field->version = ReadVersion(fieldNode->minVersion, fieldNode->maxVersion);
                 field->annotations = LowerAnnotations(fieldNode->annotations);
                 type->fields.PushBack(arena_, field);
@@ -592,11 +610,19 @@ void IRGenerator::ResolveAttributes(Array<IRAnnotation*> annotations)
     for (IRAnnotation* const annotation : annotations)
     {
         annotation->attribute = ResolveType(annotation->attribute);
-        if (annotation->attribute != nullptr)
+        if (annotation->attribute == nullptr)
+            continue;
+
+        if (annotation->attribute->kind != IRTypeKind::Attribute)
         {
-            if (CastTo<IRTypeAttribute>(annotation->attribute) == nullptr)
+            Error(annotation->ast, "Annotation must be an attribute type: {}", annotation->attribute->name);
+            continue;
+        }
+
+        for (const AstNode* const node : annotation->ast->arguments)
+        {
+            if (const AstNode* const namedNode = CastTo<AstNodeNamedArgument>(node); namedNode != nullptr)
             {
-                Error(annotation->ast, "Annotation must be an attribute type: {}", annotation->attribute->name);
             }
         }
     }
@@ -613,6 +639,30 @@ Array<IRAnnotation*> IRGenerator::LowerAnnotations(Array<const AstNodeAnnotation
         annotations.PushBack(arena_, annotation);
     }
     return annotations;
+}
+
+IRValue* IRGenerator::LowerValue(const AstNode* node)
+{
+    if (node == nullptr)
+        return nullptr;
+
+    switch (node->kind)
+    {
+        case AstNodeKind::LiteralBool:
+        case AstNodeKind::LiteralFloat:
+        case AstNodeKind::LiteralInt:
+        case AstNodeKind::LiteralNull:
+        case AstNodeKind::LiteralString:
+        {
+            IRValue* const value = arena_.New<IRValueLiteral>();
+            value->ast = node;
+            return value;
+        }
+        default:
+            break;
+    }
+
+    return nullptr;
 }
 
 template <typename... Args>

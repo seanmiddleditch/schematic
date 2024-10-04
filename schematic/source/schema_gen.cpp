@@ -95,6 +95,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             Field& field = fields.EmplaceBack(arena_);
             field.name = arena_.NewString(irField->name);
             field.type = Resolve(irField->type);
+            field.value = Resolve(irField->value);
             field.owner = type;
         }
         type->fields = fields;
@@ -121,6 +122,11 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         {
             EnumItem& item = items.EmplaceBack(arena_);
             item.name = arena_.NewString(irItem->name);
+            ValueInt* const value = arena_.New<ValueInt>();
+            value->value = irItem->value;
+            value->line = LineOf(irItem->ast);
+            value->owner = schema_->root;
+            item.value = value;
             item.owner = type;
         }
         type->items = items;
@@ -145,6 +151,9 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             Field& field = fields.EmplaceBack(arena_);
             field.name = arena_.NewString(irField->name);
             field.type = Resolve(irField->type);
+            field.value = Resolve(irField->value);
+            field.proto = irField->proto;
+            field.owner = type;
         }
         type->fields = fields;
 
@@ -171,6 +180,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             Field& field = fields.EmplaceBack(arena_);
             field.name = arena_.NewString(irField->name);
             field.type = Resolve(irField->type);
+            field.value = Resolve(irField->value);
             field.owner = type;
         }
         type->fields = fields;
@@ -289,7 +299,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             return;
         }
 
-        // FIXME: Error, unexpected builtin type kind
+        assert(false);
         return;
     }
 
@@ -342,7 +352,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         return;
     }
 
-    // FIXME: Error, unhandled IR Type
+    assert(false);
 }
 
 Span<Annotation*> SchemaGenerator::CreateAnnotations(Array<IRAnnotation*> irAnnotations)
@@ -356,6 +366,57 @@ Span<Annotation*> SchemaGenerator::CreateAnnotations(Array<IRAnnotation*> irAnno
         annotations.PushBack(arena_, annotation);
     }
     return annotations;
+}
+
+Value* SchemaGenerator::Resolve(IRValue* value)
+{
+    if (value == nullptr)
+        return nullptr;
+
+    switch (value->kind)
+    {
+        case IRValueKind::Literal:
+            if (const AstNodeLiteralBool* const node = CastTo<AstNodeLiteralBool>(value->ast); node != nullptr)
+            {
+                ValueBool* const result = arena_.New<ValueBool>();
+                result->line = LineOf(value->ast);
+                result->value = node->value;
+                return result;
+            }
+
+            if (const AstNodeLiteralInt* const node = CastTo<AstNodeLiteralInt>(value->ast); node != nullptr)
+            {
+                ValueInt* const result = arena_.New<ValueInt>();
+                result->line = LineOf(value->ast);
+                result->value = node->value;
+                return result;
+            }
+
+            if (const AstNodeLiteralFloat* const node = CastTo<AstNodeLiteralFloat>(value->ast); node != nullptr)
+            {
+                ValueFloat* const result = arena_.New<ValueFloat>();
+                result->line = LineOf(value->ast);
+                result->value = node->value;
+                return result;
+            }
+
+            if (const AstNodeLiteralString* const node = CastTo<AstNodeLiteralString>(value->ast); node != nullptr)
+            {
+                ValueString* const result = arena_.New<ValueString>();
+                result->line = LineOf(value->ast);
+                result->value = arena_.NewString(node->value);
+                return result;
+            }
+
+            // assert(false);
+            return nullptr;
+        case IRValueKind::Identifier:
+            assert(false);
+            return nullptr;
+    }
+
+    assert(false);
+    return nullptr;
 }
 
 std::uint32_t SchemaGenerator::LineOf(const AstNode* node)

@@ -51,6 +51,8 @@ namespace potato::schematic::compiler
 
         Array<IRAnnotation*> LowerAnnotations(Array<const AstNodeAnnotation*> astNodes);
 
+        IRValue* LowerValue(const AstNode* node);
+
         template <typename... Args>
         void Error(const AstNode* node, fmt::format_string<Args...> format, Args&&... args);
 
