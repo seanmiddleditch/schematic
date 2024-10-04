@@ -145,7 +145,7 @@ IRModule* IRGenerator::Compile()
             {
                 if (target == mod->filename)
                 {
-                    Error(importNode, "Recursive import: {}", mod->filename);
+                    Error(importNode, "Recursive import: {}", target);
                     doImport = false;
                     break;
                 }
@@ -226,13 +226,50 @@ IRModule* IRGenerator::Compile()
     if (failed_)
         return nullptr;
 
-    for (IRType* const type : module_->types)
+    for (IRType* const irTypeIter : module_->types)
     {
-        if (IRTypeStruct* struct_ = CastTo<IRTypeStruct>(type); struct_ != nullptr)
+        if (IRTypeAlias* type = CastTo<IRTypeAlias>(irTypeIter); type != nullptr)
         {
-            struct_->base = ResolveType(struct_->base);
-            for (IRStructField* field : struct_->fields)
+            type->target = ResolveType(type->target);
+            continue;
+        }
+
+        if (IRTypeAttribute* type = CastTo<IRTypeAttribute>(irTypeIter); type != nullptr)
+        {
+            for (IRAttributeField* field : type->fields)
                 field->type = ResolveType(field->type);
+            continue;
+        }
+
+        if (IRTypeEnum* type = CastTo<IRTypeEnum>(irTypeIter); type != nullptr)
+        {
+            IRType* const base = ResolveAlias(ResolveType(type->base));
+            if (base != nullptr)
+            {
+                if (base->kind != IRTypeKind::Builtin)
+                    Error(base->ast, "Enum base must be an integer type: {}", base->name);
+                else if (static_cast<IRTypeBuiltin*>(base)->typeKind != TypeKind::Int)
+                    Error(base->ast, "Enum base must be an integer type: {}", base->name);
+                else
+                    type->base = base;
+            }
+
+            continue;
+        }
+
+        if (IRTypeMessage* type = CastTo<IRTypeMessage>(irTypeIter); type != nullptr)
+        {
+            for (IRMessageField* field : type->fields)
+                field->type = ResolveType(field->type);
+            continue;
+        }
+
+        if (IRTypeStruct* type = CastTo<IRTypeStruct>(irTypeIter); type != nullptr)
+        {
+            type->base = ResolveAlias(ResolveType(type->base));
+            for (IRStructField* field : type->fields)
+                field->type = ResolveType(field->type);
+            continue;
         }
     }
 
@@ -247,23 +284,23 @@ IRVersionRange IRGenerator::ReadVersion(const AstNodeLiteralInt* min, const AstN
     IRVersionRange version;
 
     if (min->value <= 0)
-        Error(min, "Struct version must be positive, got {}", min->value);
+        Error(min, "Version must be positive {}", min->value);
     else if (min->value > UINT32_MAX)
-        Error(min, "Struct version must be no greater than {}, got {}", UINT32_MAX, min->value);
+        Error(min, "Version must be no greater than {}, got {}", UINT32_MAX, min->value);
     version.max = version.min = static_cast<std::uint32_t>(min->value);
 
     if (max != nullptr)
     {
         if (max->value <= 0)
-            Error(max, "Struct version must be positive, got {}", max->value);
+            Error(max, "Version must be positive, got {}", max->value);
         else if (max->value > UINT32_MAX)
-            Error(max, "Struct version must be no greater than {}, got {}", UINT32_MAX, max->value);
+            Error(max, "Version must be no greater than {}, got {}", UINT32_MAX, max->value);
         else
             version.max = static_cast<std::uint32_t>(max->value);
 
         if (max->value < min->value)
         {
-            Error(max, "Struct version range must be lower to higher, got {}..{}", version.min, version.max);
+            Error(max, "Version range must be lower to higher, got {}..{}", version.min, version.max);
             return {};
         }
     }
@@ -451,22 +488,51 @@ IRType* IRGenerator::ResolveType(IRType* type)
     if (IRTypeIndirectArray* indirect = CastTo<IRTypeIndirectArray>(type); indirect != nullptr)
     {
         indirect->target = ResolveType(indirect->target);
+        if (indirect->target == nullptr)
+            return nullptr;
+        for (IRTypeIndirectArray* array : indirect->target->arrayTypes)
+        {
+            if (array->size == indirect->size)
+                return array;
+        }
+        indirect->target->arrayTypes.PushBack(arena_, indirect);
         return indirect;
     }
 
     if (IRTypeIndirectNullable* indirect = CastTo<IRTypeIndirectNullable>(type); indirect != nullptr)
     {
         indirect->target = ResolveType(indirect->target);
+        if (indirect->target == nullptr)
+            return nullptr;
+        if (indirect->target->nullableType != nullptr)
+            return indirect->target->nullableType;
+        indirect->target->nullableType = indirect;
         return indirect;
     }
 
     if (IRTypeIndirectPointer* indirect = CastTo<IRTypeIndirectPointer>(type); indirect != nullptr)
     {
         indirect->target = ResolveType(indirect->target);
+        if (indirect->target == nullptr)
+            return nullptr;
+        if (indirect->target->pointerType != nullptr)
+            return indirect->target->pointerType;
+        indirect->target->pointerType = indirect;
         return indirect;
     }
 
     return type;
+}
+
+IRType* IRGenerator::ResolveAlias(IRType* type)
+{
+    if (type == nullptr)
+        return nullptr;
+
+    if (type->kind != IRTypeKind::Alias)
+        return type;
+
+    return ResolveAlias(static_cast<IRTypeAlias*>(type)->target);
 }
 
 template <typename... Args>

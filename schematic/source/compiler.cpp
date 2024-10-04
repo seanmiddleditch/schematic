@@ -74,43 +74,43 @@ Logger& Logger::Default() noexcept
 
 const Schema* potato::schematic::Compile(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, std::string_view filename, std::string_view source)
 {
-    CompilerState state;
-    Generator generator(arena, logger, ctx, state);
+    // CompilerState state;
+    // Generator generator(arena, logger, ctx, state);
 
-    const Module* const root = generator.Compile(filename, source);
-    if (root == nullptr)
-        return nullptr;
+    // const Module* const root = generator.Compile(filename, source);
+    // if (root == nullptr)
+    //     return nullptr;
 
-    IRState state2;
-    IRGenerator irGenerator(arena, logger, ctx, state2, filename, source);
+    IRState state;
+    IRGenerator irGen(arena, logger, ctx, state, filename, source);
 
-    IRModule* const irRoot = irGenerator.Compile();
+    IRModule* const irRoot = irGen.Compile();
     if (irRoot == nullptr)
         return nullptr;
 
-    SchemaGenerator schemaGenerator(arena, logger);
-    const Schema* const s = schemaGenerator.Compile(irRoot);
-    if (s == nullptr)
-        return nullptr;
-
-    Schema* const schema = arena.New<Schema>();
-    schema->root = root;
-
-    SchemaBuilder builder{ .arena = arena };
-
-    {
-        Array<const Type*> visited;
-        builder.VisitTypes(schema->root, visited);
-        schema->types = visited;
-    }
-
-    {
-        Array<const Module*> visited;
-        builder.VisitModules(schema->root, visited);
-        schema->modules = visited;
-    }
+    SchemaGenerator schemaGen(arena, logger);
+    const Schema* const schema = schemaGen.Compile(irRoot);
 
     return schema;
+
+    // Schema* const schema = arena.New<Schema>();
+    // schema->root = root;
+
+    // SchemaBuilder builder{ .arena = arena };
+
+    //{
+    //    Array<const Type*> visited;
+    //    builder.VisitTypes(schema->root, visited);
+    //    schema->types = visited;
+    //}
+
+    //{
+    //    Array<const Module*> visited;
+    //    builder.VisitModules(schema->root, visited);
+    //    schema->modules = visited;
+    //}
+
+    // return schema;
 }
 
 void SchemaBuilder::VisitTypes(const Module* mod, Array<const Type*>& visited)

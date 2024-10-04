@@ -24,6 +24,7 @@ namespace potato::schematic::compiler
 
     private:
         Type* Resolve(IRType* type);
+        void CreateType(IRType* type);
         std::uint32_t LineOf(const AstNode* node);
 
         ArenaAllocator& arena_;
@@ -31,6 +32,7 @@ namespace potato::schematic::compiler
         IRModule* module_ = nullptr;
         Schema* schema_ = nullptr;
 
+        Array<Module*> modules_;
         Array<Type*> types_;
     };
 } // namespace potato::schematic::compiler

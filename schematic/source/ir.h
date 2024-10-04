@@ -49,6 +49,9 @@ namespace potato::schematic::compiler
     struct IRTypeMessage;
     struct IRTypeStructVersioned;
     struct IRTypeStruct;
+    struct IRTypeIndirectArray;
+    struct IRTypeIndirectNullable;
+    struct IRTypeIndirectPointer;
 
     struct IRImport;
 
@@ -60,6 +63,10 @@ namespace potato::schematic::compiler
         const char* name = nullptr;
         std::uint32_t index = 0;
         // FIXME: annotations
+
+        Array<IRTypeIndirectArray*> arrayTypes;
+        IRTypeIndirectNullable* nullableType = nullptr;
+        IRTypeIndirectPointer* pointerType = nullptr;
 
         template <typename T>
         friend T* CastTo(IRType* ir) noexcept
@@ -188,37 +195,27 @@ namespace potato::schematic::compiler
     {
         IR_TYPE(IRTypeIndirectArray, IRTypeKind::IndirectArray);
 
-        const AstNodeTypeArray* ast = nullptr;
         IRType* target = nullptr;
-        Type* type = nullptr;
         std::uint32_t size = 0; // zero means unsized
     };
 
     struct IRTypeIndirectIdentifier : IRTypeIndirect
     {
         IR_TYPE(IRTypeIndirectIdentifier, IRTypeKind::IndirectIdentifier);
-
-        const AstNodeIdentifier* ast = nullptr;
-        const char* name = nullptr;
-        Type* type = nullptr;
     };
 
     struct IRTypeIndirectNullable : IRTypeIndirect
     {
         IR_TYPE(IRTypeIndirectNullable, IRTypeKind::IndirectNullable);
 
-        const AstNodeTypeNullable* ast = nullptr;
         IRType* target = nullptr;
-        Type* type = nullptr;
     };
 
     struct IRTypeIndirectPointer : IRTypeIndirect
     {
         IR_TYPE(IRTypeIndirectPointer, IRTypeKind::IndirectPointer);
 
-        const AstNodeTypePointer* ast = nullptr;
         IRType* target = nullptr;
-        Type* type = nullptr;
     };
 
 #undef IR_TYPE

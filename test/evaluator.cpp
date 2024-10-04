@@ -195,6 +195,9 @@ namespace potato::schematic::test
 
     void CheckEvaluator::Evaluate(const Annotation* annotation)
     {
+        if (annotation == nullptr)
+            return Finish(annotation);
+
         if (Match("@attribute"))
             return Evaluate(annotation->attribute);
         else if (Match("@fields"))
@@ -214,6 +217,9 @@ namespace potato::schematic::test
 
     void CheckEvaluator::Evaluate(const Field* field)
     {
+        if (field == nullptr)
+            return Finish(field);
+
         if (Match("@type"))
             return Evaluate(field->type);
         if (Match("@default"))
@@ -228,6 +234,9 @@ namespace potato::schematic::test
 
     void CheckEvaluator::Evaluate(const EnumItem* item)
     {
+        if (item == nullptr)
+            return Finish(item);
+
         if (Match("@value"))
             return Evaluate(item->value);
         if (Match("@annotations"))
@@ -238,6 +247,9 @@ namespace potato::schematic::test
 
     void CheckEvaluator::Evaluate(const Argument* arg)
     {
+        if (arg == nullptr)
+            return Finish(arg);
+
         if (Match("@field"))
             return Evaluate(arg->field);
 
@@ -246,6 +258,9 @@ namespace potato::schematic::test
 
     void CheckEvaluator::Evaluate(const Type* type)
     {
+        if (type == nullptr)
+            return Finish(type);
+
         if (const TypeAlias* alias = CastTo<TypeAlias>(type); alias != nullptr)
         {
             if (!Match("@self"))
