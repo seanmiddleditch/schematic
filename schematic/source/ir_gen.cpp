@@ -268,6 +268,7 @@ IRModule* IRGenerator::Compile()
             for (IRAttributeField* field : type->fields)
             {
                 field->type = ResolveType(field->type);
+                field->value = ResolveValue(field->type, field->value);
                 ResolveAttributes(field->annotations);
             }
             continue;
@@ -299,6 +300,7 @@ IRModule* IRGenerator::Compile()
             for (IRMessageField* field : type->fields)
             {
                 field->type = ResolveType(field->type);
+                field->value = ResolveValue(field->type, field->value);
                 ResolveAttributes(field->annotations);
             }
             ResolveAttributes(type->annotations);
@@ -319,6 +321,7 @@ IRModule* IRGenerator::Compile()
             for (IRStructField* field : type->fields)
             {
                 field->type = ResolveType(field->type);
+                field->value = ResolveValue(field->type, field->value);
                 ResolveAttributes(field->annotations);
             }
             continue;
@@ -333,6 +336,7 @@ IRModule* IRGenerator::Compile()
                 for (IRStructField* field : version->fields)
                 {
                     field->type = ResolveType(field->type);
+                    field->value = ResolveValue(field->type, field->value);
                     ResolveAttributes(field->annotations);
                 }
             }
@@ -479,6 +483,23 @@ IRModule* IRGenerator::CreateBuiltins()
     return builtins_;
 }
 
+IRType* IRGenerator::FindType(const char* name)
+{
+    if (IRType* type = Find(module_->types, MatchNamePred(name)); type != nullptr)
+        return type;
+
+    for (IRImport* import : module_->imports)
+    {
+        if (import->resolved == nullptr)
+            continue;
+
+        if (IRType* type = Find(import->resolved->types, MatchNamePred(name)); type != nullptr)
+            return type;
+    }
+
+    return nullptr;
+}
+
 IRType* IRGenerator::LowerType(const AstNode* ast)
 {
     if (ast == nullptr)
@@ -537,22 +558,11 @@ IRType* IRGenerator::ResolveType(IRType* type)
 
     if (IRTypeIndirectIdentifier* indirect = CastTo<IRTypeIndirectIdentifier>(type); indirect != nullptr)
     {
-        IRType* resolved = Find(module_->types, MatchNamePred(indirect->name));
-        if (resolved == nullptr)
-        {
-            for (IRImport* import : module_->imports)
-            {
-                if (import->resolved == nullptr)
-                    continue;
-                resolved = Find(import->resolved->types, MatchNamePred(indirect->name));
-                if (resolved != nullptr)
-                    break;
-            }
-        }
+        if (IRType* resolved = FindType(indirect->name); resolved != nullptr)
+            return resolved;
 
-        if (resolved == nullptr)
-            Error(indirect->ast, "Type not found: {}", indirect->name);
-        return resolved;
+        Error(indirect->ast, "Type not found: {}", indirect->name);
+        return type;
     }
 
     if (IRTypeIndirectArray* indirect = CastTo<IRTypeIndirectArray>(type); indirect != nullptr)
@@ -613,16 +623,43 @@ void IRGenerator::ResolveAttributes(Array<IRAnnotation*> annotations)
         if (annotation->attribute == nullptr)
             continue;
 
-        if (annotation->attribute->kind != IRTypeKind::Attribute)
+        IRTypeAttribute* const attribute = CastTo<IRTypeAttribute>(annotation->attribute);
+        if (attribute == nullptr)
         {
             Error(annotation->ast, "Annotation must be an attribute type: {}", annotation->attribute->name);
             continue;
         }
 
+        std::uint32_t nextArgumentIndex = 0;
         for (const AstNode* const node : annotation->ast->arguments)
         {
-            if (const AstNode* const namedNode = CastTo<AstNodeNamedArgument>(node); namedNode != nullptr)
+            if (const AstNodeNamedArgument* const namedNode = CastTo<AstNodeNamedArgument>(node); namedNode != nullptr)
             {
+                IRAttributeField* const field = Find(attribute->fields, MatchNamePred(namedNode->name->name));
+                if (field == nullptr)
+                {
+                    Error(node, "Field does not exist on attribute type: {}.{}", attribute->name, namedNode->name->name);
+                    continue;
+                }
+
+                IRAnnotationArgument* const arg = arena_.New<IRAnnotationArgument>();
+                arg->ast = node;
+                arg->field = field;
+                arg->value = ResolveValue(field->type, LowerValue(namedNode->value));
+                annotation->arguments.PushBack(arena_, arg);
+            }
+            else if (nextArgumentIndex < attribute->fields.Size())
+            {
+                IRAttributeField* const field = attribute->fields[nextArgumentIndex++];
+                IRAnnotationArgument* const arg = arena_.New<IRAnnotationArgument>();
+                arg->ast = node;
+                arg->field = field;
+                arg->value = ResolveValue(field->type, LowerValue(node));
+                annotation->arguments.PushBack(arena_, arg);
+            }
+            else
+            {
+                Error(node, "Too many arguments for attribute: {}", attribute->name);
             }
         }
     }
@@ -658,11 +695,57 @@ IRValue* IRGenerator::LowerValue(const AstNode* node)
             value->ast = node;
             return value;
         }
+        case AstNodeKind::Identifier:
+        {
+            IRValueIdentifier* const value = arena_.New<IRValueIdentifier>();
+            value->ast = node;
+            value->name = static_cast<const AstNodeIdentifier*>(node)->name;
+            return value;
+        }
         default:
             break;
     }
 
     return nullptr;
+}
+
+IRValue* IRGenerator::ResolveValue(IRType* type, IRValue* value)
+{
+    if (value == nullptr)
+        return nullptr;
+
+    if (value->kind == IRValueKind::Literal)
+        return value;
+
+    if (IRValueIdentifier* const ident = CastTo<IRValueIdentifier>(value); ident != nullptr)
+    {
+        if (IRType* const target = FindType(ident->name); target != nullptr)
+        {
+            IRValueType* valueType = arena_.New<IRValueType>();
+            valueType->ast = ident->ast;
+            valueType->target = target;
+            return valueType;
+        }
+
+        if (IRTypeEnum* const enumType = CastTo<IRTypeEnum>(type); enumType != nullptr)
+        {
+            IREnumItem* const item = Find(enumType->items, MatchNamePred(ident->name));
+            if (item != nullptr)
+            {
+                IRValueEnumItem* valueItem = arena_.New<IRValueEnumItem>();
+                valueItem->ast = ident->ast;
+                valueItem->type = enumType;
+                valueItem->item = item;
+                return valueItem;
+            }
+        }
+
+        Error(ident->ast, "Type not found: {}", ident->name);
+        return value;
+    }
+
+    assert(false);
+    return value;
 }
 
 template <typename... Args>

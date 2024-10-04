@@ -33,6 +33,8 @@ namespace potato::schematic::compiler
     {
         Literal,
         Identifier,
+        Type,
+        EnumItem,
     };
 
     struct IRImport;
@@ -42,6 +44,7 @@ namespace potato::schematic::compiler
 
     struct IRAnnotation;
 
+    struct IRAnnotationArgument;
     struct IRAttributeField;
     struct IREnumItem;
     struct IRMessageField;
@@ -63,6 +66,8 @@ namespace potato::schematic::compiler
     struct IRValue;
     struct IRValueLiteral;
     struct IRValueIdentifier;
+    struct IRValueType;
+    struct IRValueEnumItem;
 
     struct IRImport;
 
@@ -70,6 +75,7 @@ namespace potato::schematic::compiler
     {
         const AstNodeAnnotation* ast = nullptr;
         IRType* attribute;
+        Array<IRAnnotationArgument*> arguments;
     };
 
     struct IRType
@@ -98,7 +104,6 @@ namespace potato::schematic::compiler
     {
         IRValueKind kind = IRValueKind::Literal;
         const AstNode* ast = nullptr;
-        Value* value = nullptr;
 
         template <typename T>
         friend T* CastTo(IRValue* ir) noexcept
@@ -117,6 +122,13 @@ namespace potato::schematic::compiler
     {
         std::uint64_t min = 0;
         std::uint64_t max = 0;
+    };
+
+    struct IRAnnotationArgument
+    {
+        const AstNode* ast = nullptr;
+        IRAttributeField* field = nullptr;
+        IRValue* value = nullptr;
     };
 
     struct IRAttributeField
@@ -264,7 +276,26 @@ namespace potato::schematic::compiler
     struct IRValueIdentifier : IRValue
     {
         IR_VALUE(IRValueIdentifier, IRValueKind::Identifier);
+
+        const char* name = nullptr;
     };
+
+    struct IRValueType : IRValue
+    {
+        IR_VALUE(IRValueType, IRValueKind::Type);
+
+        IRType* target = nullptr;
+    };
+
+    struct IRValueEnumItem : IRValue
+    {
+        IR_VALUE(IRValueEnumItem, IRValueKind::EnumItem);
+
+        IRTypeEnum* type = nullptr;
+        IREnumItem* item = nullptr;
+    };
+
+    struct IRValueEnumItem;
 
 #undef IR_VALUE
 

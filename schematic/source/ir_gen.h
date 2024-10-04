@@ -44,6 +44,8 @@ namespace potato::schematic::compiler
 
         IRModule* CreateBuiltins();
 
+        IRType* FindType(const char* name);
+
         IRType* LowerType(const AstNode* ast);
         IRType* ResolveType(IRType* type);
         IRType* ResolveAlias(IRType* type);
@@ -52,6 +54,7 @@ namespace potato::schematic::compiler
         Array<IRAnnotation*> LowerAnnotations(Array<const AstNodeAnnotation*> astNodes);
 
         IRValue* LowerValue(const AstNode* node);
+        IRValue* ResolveValue(IRType* type, IRValue* value);
 
         template <typename... Args>
         void Error(const AstNode* node, fmt::format_string<Args...> format, Args&&... args);

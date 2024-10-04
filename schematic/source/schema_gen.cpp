@@ -128,6 +128,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             value->owner = schema_->root;
             item.value = value;
             item.owner = type;
+            item.annotations = CreateAnnotations(irItem->annotations);
         }
         type->items = items;
 
@@ -363,6 +364,17 @@ Span<Annotation*> SchemaGenerator::CreateAnnotations(Array<IRAnnotation*> irAnno
         Annotation* const annotation = arena_.New<Annotation>();
         annotation->attribute = CastTo<TypeAttribute>(Resolve(irAnnotation->attribute));
         annotation->line = LineOf(irAnnotation->ast);
+
+        Array<Argument> arguments = arena_.NewArray<Argument>(irAnnotation->arguments.Size());
+        for (IRAnnotationArgument* irArgument : irAnnotation->arguments)
+        {
+            Argument& arg = arguments.EmplaceBack(arena_);
+            arg.field = FindField(annotation->attribute, irArgument->field->name);
+            arg.value = Resolve(irArgument->value);
+            arg.line = LineOf(irArgument->ast);
+        }
+        annotation->arguments = arguments;
+
         annotations.PushBack(arena_, annotation);
     }
     return annotations;
@@ -373,46 +385,59 @@ Value* SchemaGenerator::Resolve(IRValue* value)
     if (value == nullptr)
         return nullptr;
 
-    switch (value->kind)
+    if (IRValueLiteral* literal = CastTo<IRValueLiteral>(value))
     {
-        case IRValueKind::Literal:
-            if (const AstNodeLiteralBool* const node = CastTo<AstNodeLiteralBool>(value->ast); node != nullptr)
-            {
-                ValueBool* const result = arena_.New<ValueBool>();
-                result->line = LineOf(value->ast);
-                result->value = node->value;
-                return result;
-            }
+        if (const AstNodeLiteralBool* const node = CastTo<AstNodeLiteralBool>(value->ast); node != nullptr)
+        {
+            ValueBool* const result = arena_.New<ValueBool>();
+            result->line = LineOf(value->ast);
+            result->value = node->value;
+            return result;
+        }
 
-            if (const AstNodeLiteralInt* const node = CastTo<AstNodeLiteralInt>(value->ast); node != nullptr)
-            {
-                ValueInt* const result = arena_.New<ValueInt>();
-                result->line = LineOf(value->ast);
-                result->value = node->value;
-                return result;
-            }
+        if (const AstNodeLiteralInt* const node = CastTo<AstNodeLiteralInt>(value->ast); node != nullptr)
+        {
+            ValueInt* const result = arena_.New<ValueInt>();
+            result->line = LineOf(value->ast);
+            result->value = node->value;
+            return result;
+        }
 
-            if (const AstNodeLiteralFloat* const node = CastTo<AstNodeLiteralFloat>(value->ast); node != nullptr)
-            {
-                ValueFloat* const result = arena_.New<ValueFloat>();
-                result->line = LineOf(value->ast);
-                result->value = node->value;
-                return result;
-            }
+        if (const AstNodeLiteralFloat* const node = CastTo<AstNodeLiteralFloat>(value->ast); node != nullptr)
+        {
+            ValueFloat* const result = arena_.New<ValueFloat>();
+            result->line = LineOf(value->ast);
+            result->value = node->value;
+            return result;
+        }
 
-            if (const AstNodeLiteralString* const node = CastTo<AstNodeLiteralString>(value->ast); node != nullptr)
-            {
-                ValueString* const result = arena_.New<ValueString>();
-                result->line = LineOf(value->ast);
-                result->value = arena_.NewString(node->value);
-                return result;
-            }
+        if (const AstNodeLiteralString* const node = CastTo<AstNodeLiteralString>(value->ast); node != nullptr)
+        {
+            ValueString* const result = arena_.New<ValueString>();
+            result->line = LineOf(value->ast);
+            result->value = arena_.NewString(node->value);
+            return result;
+        }
 
-            // assert(false);
-            return nullptr;
-        case IRValueKind::Identifier:
-            assert(false);
-            return nullptr;
+        // assert(false);
+        return nullptr;
+    }
+
+    if (IRValueType* type = CastTo<IRValueType>(value))
+    {
+        ValueType* const result = arena_.New<ValueType>();
+        result->line = LineOf(value->ast);
+        result->type = Resolve(type->target);
+        return result;
+    }
+
+    if (IRValueEnumItem* item = CastTo<IRValueEnumItem>(value))
+    {
+        ValueEnum* const result = arena_.New<ValueEnum>();
+        result->line = LineOf(value->ast);
+        const TypeEnum* const type = CastTo<TypeEnum>(Resolve(item->type));
+        result->item = FindItem(type, item->item->name);
+        return result;
     }
 
     assert(false);
