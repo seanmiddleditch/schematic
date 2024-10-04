@@ -31,8 +31,6 @@ target_sources(schematic_compiler PRIVATE
     "source/ast.h"
     "source/compiler.cpp"
     "source/find.h"
-    "source/generator.cpp"
-    "source/generator.h"
     "source/ir.h"
     "source/ir_gen.cpp"
     "source/ir_gen.h"
