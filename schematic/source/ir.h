@@ -35,6 +35,8 @@ namespace potato::schematic::compiler
 
     struct IRVersionRange;
 
+    struct IRAnnotation;
+
     struct IRAttributeField;
     struct IREnumItem;
     struct IRMessageField;
@@ -55,6 +57,12 @@ namespace potato::schematic::compiler
 
     struct IRImport;
 
+    struct IRAnnotation
+    {
+        const AstNode* ast = nullptr;
+        IRType* attribute;
+    };
+
     struct IRType
     {
         IRTypeKind kind = IRTypeKind::None;
@@ -62,7 +70,7 @@ namespace potato::schematic::compiler
         Type* type = nullptr;
         const char* name = nullptr;
         std::uint32_t index = 0;
-        // FIXME: annotations
+        Array<IRAnnotation*> annotations;
 
         Array<IRTypeIndirectArray*> arrayTypes;
         IRTypeIndirectNullable* nullableType = nullptr;
@@ -93,7 +101,7 @@ namespace potato::schematic::compiler
         IRType* type = nullptr;
         const AstNodeField* ast = nullptr;
         // FIXME: value
-        // FIXME: annotations
+        Array<IRAnnotation*> annotations;
     };
 
     struct IREnumItem
@@ -102,7 +110,7 @@ namespace potato::schematic::compiler
         const AstNodeEnumItem* ast = nullptr;
         EnumItem* item = nullptr;
         // FIXME: value
-        // FIXME: annotations
+        Array<IRAnnotation*> annotations;
     };
 
     struct IRMessageField
@@ -113,7 +121,7 @@ namespace potato::schematic::compiler
         Field* item = nullptr;
         std::uint32_t proto = 0;
         // FIXME: default value
-        // FIXME: annotations
+        Array<IRAnnotation*> annotations;
     };
 
     struct IRStructField
@@ -124,7 +132,7 @@ namespace potato::schematic::compiler
         Field* item = nullptr;
         IRVersionRange version;
         // FIXME: default value
-        // FIXME: annotations
+        Array<IRAnnotation*> annotations;
     };
 
 #define IR_TYPE(TYPE, KIND) \

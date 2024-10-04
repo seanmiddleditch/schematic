@@ -47,6 +47,9 @@ namespace potato::schematic::compiler
         IRType* LowerType(const AstNode* ast);
         IRType* ResolveType(IRType* type);
         IRType* ResolveAlias(IRType* type);
+        void ResolveAttributes(Array<IRAnnotation*> annotations);
+
+        Array<IRAnnotation*> LowerAnnotations(Array<const AstNodeAnnotation*> astNodes);
 
         template <typename... Args>
         void Error(const AstNode* node, fmt::format_string<Args...> format, Args&&... args);

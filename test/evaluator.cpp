@@ -183,7 +183,7 @@ namespace potato::schematic::test
 
         for (const Annotation* anno : annotations)
         {
-            if (Match(anno->attribute->name))
+            if (anno->attribute != nullptr && Match(anno->attribute->name))
                 return Evaluate(anno);
         }
 
@@ -209,8 +209,24 @@ namespace potato::schematic::test
                 return Evaluate(&arg);
         }
 
+        if (annotation->attribute != nullptr)
+        {
+            for (const Field& field : annotation->attribute->fields)
+            {
+                if (Match(field.name))
+                {
+                    if (Match("@field"))
+                        return Evaluate(&field);
+                    return Evaluate(field.value);
+                }
+            }
+        }
+
         if (auto [success, index] = MatchIndex(annotation->arguments.size()); success)
             return Evaluate(annotation->arguments[index]);
+
+        if (auto [success, index] = MatchIndex(annotation->attribute->fields.size()); success)
+            return Evaluate(annotation->attribute->fields[index]);
 
         Finish(annotation);
     }

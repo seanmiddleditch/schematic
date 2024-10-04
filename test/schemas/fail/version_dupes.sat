@@ -1,12 +1,12 @@
 struct Pos #2 {}
 
-// ERROR: schemas/fail/version_dupes.sat(4): Struct version already defined: Pos#2
+// ERROR: schemas/fail/version_dupes.sat(4): Struct versions overlap with previous declaration: Pos
 struct Pos #2 {}
 
 struct Pos #3 {}
 
-// ERROR: schemas/fail/version_dupes.sat(10): Struct version already defined: Pos#2
-// ERROR: schemas/fail/version_dupes.sat(10): Struct version already defined: Pos#3
+// ERROR: schemas/fail/version_dupes.sat(10): Struct versions overlap with previous declaration: Pos
+// ERROR: schemas/fail/version_dupes.sat(10): Struct versions overlap with previous declaration: Pos
 struct Pos #1..3 {}
 
 struct Pos #4..5 {
@@ -25,5 +25,5 @@ struct Vec {}
 // ERROR: schemas/fail/version_dupes.sat(26): Type already defined: Vec
 struct Vec#2 {}
 
-// ERROR: schemas/fail/version_dupes.sat(29): Start version must be positive: Zero#0
+// ERROR: schemas/fail/version_dupes.sat(29): Version must be positive: 0
 struct Zero#0 {}

@@ -93,7 +93,8 @@ TEST_CASE("Schemas", "[potato][schematic]")
                 if (expected.encounted)
                     continue;
 
-                FAIL_CHECK("Expected error NOT encountered: " << expected.message);
+                FAIL_CHECK("Expected error NOT encountered:\n"
+                    << expected.message);
             }
         }
     }

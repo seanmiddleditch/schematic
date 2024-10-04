@@ -25,6 +25,7 @@ namespace potato::schematic::compiler
     private:
         Type* Resolve(IRType* type);
         void CreateType(IRType* type);
+        Span<Annotation*> CreateAnnotations(Array<IRAnnotation*> irAnnotations);
         std::uint32_t LineOf(const AstNode* node);
 
         ArenaAllocator& arena_;

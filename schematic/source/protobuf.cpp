@@ -682,7 +682,7 @@ void Deserializer::Deserialize(TypeAlias& out, const proto::Type::Alias& in)
 {
     DeserializeTypeCommon(out, in);
 
-    if (VERIFY_INDEX(types_, in.type(), "Invalid type index"))
+    if (VERIFY_INDEX(types_, in.type(), "Invalid alias type index"))
         out.type = types_[in.type()];
 }
 
@@ -789,7 +789,7 @@ void Deserializer::Deserialize(TypeNullable& out, const proto::Type::Nullable& i
 {
     DeserializeTypeCommon(out, in);
 
-    if (VERIFY_INDEX(types_, in.type(), "Invalid type index"))
+    if (VERIFY_INDEX(types_, in.type(), "Invalid nullable type index"))
         out.type = types_[in.type()];
 }
 

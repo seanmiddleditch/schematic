@@ -54,6 +54,7 @@ IRModule* IRGenerator::Compile()
             type->name = declNode->name->name;
             type->ast = declNode;
             type->target = LowerType(declNode->target);
+            type->annotations = LowerAnnotations(declNode->annotations);
 
             ValidateTypeName(type);
             ValidateTypeUnique(type);
@@ -67,6 +68,7 @@ IRModule* IRGenerator::Compile()
             IRTypeAttribute* const type = arena_.New<IRTypeAttribute>();
             type->name = declNode->name->name;
             type->ast = declNode;
+            type->annotations = LowerAnnotations(declNode->annotations);
 
             ValidateTypeName(type);
             ValidateTypeUnique(type);
@@ -77,6 +79,7 @@ IRModule* IRGenerator::Compile()
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
                 field->type = LowerType(fieldNode->type);
+                field->annotations = LowerAnnotations(fieldNode->annotations);
                 type->fields.PushBack(arena_, field);
             }
 
@@ -90,6 +93,7 @@ IRModule* IRGenerator::Compile()
             type->name = declNode->name->name;
             type->ast = declNode;
             type->base = LowerType(declNode->base);
+            type->annotations = LowerAnnotations(declNode->annotations);
 
             ValidateTypeName(type);
             ValidateTypeUnique(type);
@@ -99,6 +103,7 @@ IRModule* IRGenerator::Compile()
                 IREnumItem* const item = arena_.New<IREnumItem>();
                 item->ast = itemNode;
                 item->name = itemNode->name->name;
+                item->annotations = LowerAnnotations(itemNode->annotations);
                 type->items.PushBack(arena_, item);
             }
 
@@ -111,6 +116,7 @@ IRModule* IRGenerator::Compile()
             IRTypeMessage* const type = arena_.New<IRTypeMessage>();
             type->name = declNode->name->name;
             type->ast = declNode;
+            type->annotations = LowerAnnotations(declNode->annotations);
 
             ValidateTypeName(type);
             ValidateTypeUnique(type);
@@ -121,6 +127,7 @@ IRModule* IRGenerator::Compile()
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
                 field->type = LowerType(fieldNode->type);
+                field->annotations = LowerAnnotations(fieldNode->annotations);
                 type->fields.PushBack(arena_, field);
             }
 
@@ -169,6 +176,7 @@ IRModule* IRGenerator::Compile()
             type->name = declNode->name->name;
             type->ast = declNode;
             type->base = LowerType(declNode->base);
+            type->annotations = LowerAnnotations(declNode->annotations);
 
             ValidateTypeName(type);
 
@@ -181,6 +189,7 @@ IRModule* IRGenerator::Compile()
                 field->name = fieldNode->name->name;
                 field->type = LowerType(fieldNode->type);
                 field->version = ReadVersion(fieldNode->minVersion, fieldNode->maxVersion);
+                field->annotations = LowerAnnotations(fieldNode->annotations);
                 type->fields.PushBack(arena_, field);
             }
 
@@ -206,7 +215,7 @@ IRModule* IRGenerator::Compile()
             IRTypeStructVersioned* const versioned = CastTo<IRTypeStructVersioned>(struct_);
             if (versioned == nullptr)
             {
-                Error(type->ast, "Type already declared: {}", type->name);
+                Error(type->ast, "Type already defined: {}", type->name);
                 module_->types.PushBack(arena_, type);
                 continue;
             }
@@ -231,27 +240,37 @@ IRModule* IRGenerator::Compile()
         if (IRTypeAlias* type = CastTo<IRTypeAlias>(irTypeIter); type != nullptr)
         {
             type->target = ResolveType(type->target);
+            ResolveAttributes(type->annotations);
             continue;
         }
 
         if (IRTypeAttribute* type = CastTo<IRTypeAttribute>(irTypeIter); type != nullptr)
         {
+            ResolveAttributes(type->annotations);
             for (IRAttributeField* field : type->fields)
+            {
                 field->type = ResolveType(field->type);
+                ResolveAttributes(field->annotations);
+            }
             continue;
         }
 
         if (IRTypeEnum* type = CastTo<IRTypeEnum>(irTypeIter); type != nullptr)
         {
             IRType* const base = ResolveAlias(ResolveType(type->base));
+            ResolveAttributes(type->annotations);
             if (base != nullptr)
             {
                 if (base->kind != IRTypeKind::Builtin)
-                    Error(base->ast, "Enum base must be an integer type: {}", base->name);
+                    Error(type->ast, "Enum base type is not an integer type: {}", type->name);
                 else if (static_cast<IRTypeBuiltin*>(base)->typeKind != TypeKind::Int)
-                    Error(base->ast, "Enum base must be an integer type: {}", base->name);
+                    Error(type->ast, "Enum base type is not an integer type: {}", type->name);
                 else
                     type->base = base;
+            }
+            for (IREnumItem* item : type->items)
+            {
+                ResolveAttributes(item->annotations);
             }
 
             continue;
@@ -260,18 +279,51 @@ IRModule* IRGenerator::Compile()
         if (IRTypeMessage* type = CastTo<IRTypeMessage>(irTypeIter); type != nullptr)
         {
             for (IRMessageField* field : type->fields)
+            {
                 field->type = ResolveType(field->type);
+                ResolveAttributes(field->annotations);
+            }
+            ResolveAttributes(type->annotations);
             continue;
         }
 
         if (IRTypeStruct* type = CastTo<IRTypeStruct>(irTypeIter); type != nullptr)
         {
-            type->base = ResolveAlias(ResolveType(type->base));
+            IRType* const base = ResolveAlias(ResolveType(type->base));
+            if (base != nullptr)
+            {
+                if (base->kind != IRTypeKind::Struct)
+                    Error(type->ast, "Struct base type is not a struct type: {}", type->name);
+                else
+                    type->base = base;
+            }
+            ResolveAttributes(type->annotations);
             for (IRStructField* field : type->fields)
+            {
                 field->type = ResolveType(field->type);
+                ResolveAttributes(field->annotations);
+            }
+            continue;
+        }
+
+        if (IRTypeStructVersioned* type = CastTo<IRTypeStructVersioned>(irTypeIter); type != nullptr)
+        {
+            for (IRTypeStruct* version : type->versions)
+            {
+                version->base = ResolveAlias(ResolveType(version->base));
+                ResolveAttributes(type->annotations);
+                for (IRStructField* field : version->fields)
+                {
+                    field->type = ResolveType(field->type);
+                    ResolveAttributes(field->annotations);
+                }
+            }
             continue;
         }
     }
+
+    if (failed_)
+        return nullptr;
 
     return module_;
 }
@@ -284,23 +336,23 @@ IRVersionRange IRGenerator::ReadVersion(const AstNodeLiteralInt* min, const AstN
     IRVersionRange version;
 
     if (min->value <= 0)
-        Error(min, "Version must be positive {}", min->value);
+        Error(min, "Version must be positive: {}", min->value);
     else if (min->value > UINT32_MAX)
-        Error(min, "Version must be no greater than {}, got {}", UINT32_MAX, min->value);
+        Error(min, "Version must be no greater than {}: {}", UINT32_MAX, min->value);
     version.max = version.min = static_cast<std::uint32_t>(min->value);
 
     if (max != nullptr)
     {
         if (max->value <= 0)
-            Error(max, "Version must be positive, got {}", max->value);
+            Error(max, "Version must be positive: {}", max->value);
         else if (max->value > UINT32_MAX)
-            Error(max, "Version must be no greater than {}, got {}", UINT32_MAX, max->value);
+            Error(max, "Version must be no greater than {}: {}", UINT32_MAX, max->value);
         else
             version.max = static_cast<std::uint32_t>(max->value);
 
         if (max->value < min->value)
         {
-            Error(max, "Version range must be lower to higher, got {}..{}", version.min, version.max);
+            Error(max, "Version range must be lower to higher: {}..{}", version.min, version.max);
             return {};
         }
     }
@@ -318,7 +370,7 @@ void IRGenerator::ValidateTypeUnique(IRType* type)
 {
     IRType* const existing = Find(module_->types, MatchNamePred(type->name));
     if (existing != nullptr)
-        Error(type->ast, "Type already declared: {}", type->name);
+        Error(type->ast, "Type already defined: {}", type->name);
 }
 
 void IRGenerator::ValidateStructField(IRTypeStruct* type, const AstNodeField* field)
@@ -330,7 +382,7 @@ void IRGenerator::ValidateStructField(IRTypeStruct* type, const AstNodeField* fi
     // if either the existing or new field is not versioned, raise an error
     if (existing->version.min == 0 || field->minVersion == nullptr)
     {
-        Error(field, "Field already declared: {}.{}", type->name, field->name->name);
+        Error(field, "Field already defined: {}.{}", type->name, field->name->name);
         return;
     }
 
@@ -339,18 +391,18 @@ void IRGenerator::ValidateStructField(IRTypeStruct* type, const AstNodeField* fi
     {
         if (existing->version.max == 0)
         {
-            Error(field, "Field version already declared: {}.{}#{}", type->name, field->name->name, existing->version.min);
+            Error(field, "Field version already defined: {}.{}#{}", type->name, field->name->name, existing->version.min);
             return;
         }
         if (existing->version.max >= field->minVersion->value)
         {
-            Error(field, "Field version already declared: {}.{}#{}..{}", type->name, field->name->name, existing->version.min, existing->version.max);
+            Error(field, "Field version already defined: {}.{}#{}..{}", type->name, field->name->name, existing->version.min, existing->version.max);
             return;
         }
     }
     else if (existing->version.min == field->minVersion->value)
     {
-        Error(field, "Field version already declared: {}.{}#{}..{}", type->name, field->name->name, existing->version.min, existing->version.max);
+        Error(field, "Field version already defined: {}.{}#{}..{}", type->name, field->name->name, existing->version.min, existing->version.max);
         return;
     }
 
@@ -533,6 +585,34 @@ IRType* IRGenerator::ResolveAlias(IRType* type)
         return type;
 
     return ResolveAlias(static_cast<IRTypeAlias*>(type)->target);
+}
+
+void IRGenerator::ResolveAttributes(Array<IRAnnotation*> annotations)
+{
+    for (IRAnnotation* const annotation : annotations)
+    {
+        annotation->attribute = ResolveType(annotation->attribute);
+        if (annotation->attribute != nullptr)
+        {
+            if (CastTo<IRTypeAttribute>(annotation->attribute) == nullptr)
+            {
+                Error(annotation->ast, "Annotation must be an attribute type: {}", annotation->attribute->name);
+            }
+        }
+    }
+}
+
+Array<IRAnnotation*> IRGenerator::LowerAnnotations(Array<const AstNodeAnnotation*> astNodes)
+{
+    Array<IRAnnotation*> annotations = arena_.NewArray<IRAnnotation*>(astNodes.Size());
+    for (const AstNodeAnnotation* const astAnnotation : astNodes)
+    {
+        IRAnnotation* const annotation = arena_.New<IRAnnotation>();
+        annotation->ast = astAnnotation;
+        annotation->attribute = LowerType(astAnnotation->type);
+        annotations.PushBack(arena_, annotation);
+    }
+    return annotations;
 }
 
 template <typename... Args>

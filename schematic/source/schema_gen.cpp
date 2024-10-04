@@ -6,6 +6,8 @@
 
 #include <fmt/core.h>
 
+#include <cassert>
+
 using namespace potato::schematic;
 using namespace potato::schematic::compiler;
 
@@ -55,6 +57,7 @@ Type* SchemaGenerator::Resolve(IRType* inIrType)
         return inIrType->type;
 
     CreateType(inIrType);
+    assert(inIrType->type != nullptr);
     return inIrType->type;
 }
 
@@ -70,6 +73,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         type->owner = schema_->root;
         type->line = LineOf(irType->ast);
         type->type = target;
+        type->annotations = CreateAnnotations(irType->annotations);
 
         types_.PushBack(arena_, type);
         inIrType->type = type;
@@ -83,6 +87,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         type->name = arena_.NewString(irType->name);
         type->owner = schema_->root;
         type->line = LineOf(irType->ast);
+        type->annotations = CreateAnnotations(irType->annotations);
 
         Array<Field> fields = arena_.NewArray<Field>(irType->fields.Size());
         for (IRAttributeField* const irField : irType->fields)
@@ -90,6 +95,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             Field& field = fields.EmplaceBack(arena_);
             field.name = arena_.NewString(irField->name);
             field.type = Resolve(irField->type);
+            field.owner = type;
         }
         type->fields = fields;
 
@@ -108,12 +114,14 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         type->owner = schema_->root;
         type->line = LineOf(irType->ast);
         type->base = CastTo<TypeInt>(base);
+        type->annotations = CreateAnnotations(irType->annotations);
 
         Array<EnumItem> items = arena_.NewArray<EnumItem>(irType->items.Size());
         for (IREnumItem* const irItem : irType->items)
         {
             EnumItem& item = items.EmplaceBack(arena_);
             item.name = arena_.NewString(irItem->name);
+            item.owner = type;
         }
         type->items = items;
 
@@ -129,6 +137,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         type->name = arena_.NewString(irType->name);
         type->owner = schema_->root;
         type->line = LineOf(irType->ast);
+        type->annotations = CreateAnnotations(irType->annotations);
 
         Array<Field> fields = arena_.NewArray<Field>(irType->fields.Size());
         for (IRMessageField* const irField : irType->fields)
@@ -154,6 +163,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         type->owner = schema_->root;
         type->line = LineOf(irType->ast);
         type->base = CastTo<TypeStruct>(base);
+        type->annotations = CreateAnnotations(irType->annotations);
 
         Array<Field> fields = arena_.NewArray<Field>(irType->fields.Size());
         for (IRStructField* const irField : irType->fields)
@@ -161,6 +171,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             Field& field = fields.EmplaceBack(arena_);
             field.name = arena_.NewString(irField->name);
             field.type = Resolve(irField->type);
+            field.owner = type;
         }
         type->fields = fields;
 
@@ -177,31 +188,44 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         {
             const Type* const base = Resolve(irVersion->base);
 
-            TypeStruct* const type = arena_.New<TypeStruct>();
-            types_.PushBack(arena_, type);
-            type->name = arena_.NewString(irType->name);
-            type->owner = schema_->root;
-            type->line = LineOf(irVersion->ast);
-            type->base = CastTo<TypeStruct>(base);
-
-            Array<Field> fields = arena_.NewArray<Field>(irVersion->fields.Size());
-            for (IRStructField* const irField : irVersion->fields)
+            for (std::uint32_t version = irVersion->version.min; version <= irVersion->version.max; ++version)
             {
-                Field& field = fields.EmplaceBack(arena_);
-                field.name = arena_.NewString(irField->name);
-                field.type = Resolve(irField->type);
-            }
-            type->fields = fields;
+                TypeStruct* const type = arena_.New<TypeStruct>();
+                types_.PushBack(arena_, type);
+                type->name = NewStringFmt(arena_, "{}#{}", irVersion->name, version);
+                type->owner = schema_->root;
+                type->line = LineOf(irVersion->ast);
+                type->base = CastTo<TypeStruct>(base);
+                type->version = version;
+                type->annotations = CreateAnnotations(irVersion->annotations);
 
-            types_.PushBack(arena_, type);
-            irVersion->type = type;
+                Array<Field> fields = arena_.NewArray<Field>(irVersion->fields.Size());
+                for (IRStructField* const irField : irVersion->fields)
+                {
+                    Field& field = fields.EmplaceBack(arena_);
+                    field.name = arena_.NewString(irField->name);
+                    field.type = Resolve(irField->type);
+                    field.owner = type;
+                }
+                type->fields = fields;
 
-            if (type->version > maxVersion)
-            {
-                maxVersion = type->version;
-                irType->type = type;
+                types_.PushBack(arena_, type);
+                irVersion->type = type;
+
+                if (type->version > maxVersion)
+                {
+                    maxVersion = type->version;
+                    irType->type = type;
+                }
             }
         }
+
+        TypeAlias* type = arena_.New<TypeAlias>();
+        type->name = arena_.NewString(irType->name);
+        type->owner = irType->type->owner;
+        type->line = irType->type->line;
+        type->type = irType->type;
+        types_.PushBack(arena_, type);
         return;
     }
 
@@ -319,6 +343,19 @@ void SchemaGenerator::CreateType(IRType* inIrType)
     }
 
     // FIXME: Error, unhandled IR Type
+}
+
+Span<Annotation*> SchemaGenerator::CreateAnnotations(Array<IRAnnotation*> irAnnotations)
+{
+    Array<Annotation*> annotations = arena_.NewArray<Annotation*>(irAnnotations.Size());
+    for (IRAnnotation* irAnnotation : irAnnotations)
+    {
+        Annotation* const annotation = arena_.New<Annotation>();
+        annotation->attribute = CastTo<TypeAttribute>(Resolve(irAnnotation->attribute));
+        annotation->line = LineOf(irAnnotation->ast);
+        annotations.PushBack(arena_, annotation);
+    }
+    return annotations;
 }
 
 std::uint32_t SchemaGenerator::LineOf(const AstNode* node)

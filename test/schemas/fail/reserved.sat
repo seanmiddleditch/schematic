@@ -1,10 +1,10 @@
-// ERROR: schemas/fail/reserved.sat(2): Reserved identifier ($) is not allowed in declarations: $struct
+// ERROR: schemas/fail/reserved.sat(2): Type declared with reserved name: $struct
 struct $struct {
     // ERROR: schemas/fail/reserved.sat(4): Reserved identifier ($) is not allowed in declarations: $struct.$field
     int32 $field;
 }
 
-// ERROR: schemas/fail/reserved.sat(8): Reserved identifier ($) is not allowed in declarations: $enum
+// ERROR: schemas/fail/reserved.sat(8): Type declared with reserved name: $enum
 enum $enum {
     // ERROR: schemas/fail/reserved.sat(10): Reserved identifier ($) is not allowed in declarations: $enum.$item
     $item = 1
