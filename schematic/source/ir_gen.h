@@ -40,7 +40,7 @@ namespace potato::schematic::compiler
 
         void ValidateTypeName(IRType* type);
         void ValidateTypeUnique(IRType* type);
-        void ValidateStructField(IRTypeStruct* type, const AstNodeField* field);
+        void ValidateStructField(IRTypeStruct* type, IRStructField* field);
 
         IRModule* CreateBuiltins();
 
@@ -58,6 +58,8 @@ namespace potato::schematic::compiler
 
         template <typename... Args>
         void Error(const AstNode* node, fmt::format_string<Args...> format, Args&&... args);
+
+        void ErrorReservedName(const AstNode* node, const char* name, const char* entityTypeName);
 
         ArenaAllocator& arena_;
         Logger& logger_;

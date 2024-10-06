@@ -17,6 +17,19 @@ static auto MatchNamePred(const char* name) noexcept
     };
 }
 
+static auto MatchNameAndVersionPred(const char* name, std::uint32_t version) noexcept
+{
+    return [name, version](auto* const entity) noexcept -> bool
+    {
+        return entity->version.min <= version && entity.version.max >= version && entity->name != nullptr && std::strcmp(entity->name, name) == 0;
+    };
+}
+
+static bool IsReservedName(const char* name)
+{
+    return name[0] == '$';
+}
+
 IRModule* IRGenerator::Compile()
 {
     Lexer lexer(arena_, logger_, filename_, source_);
@@ -78,6 +91,13 @@ IRModule* IRGenerator::Compile()
                 IRAttributeField* const field = arena_.New<IRAttributeField>();
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
+
+                if (IsReservedName(field->name))
+                    ErrorReservedName(field->ast, field->name, "Field");
+
+                if (Find(type->fields, MatchNamePred(field->name)) != nullptr)
+                    Error(field->ast, "Field already defined: {}.{}", type->name, field->name);
+
                 field->type = LowerType(fieldNode->type);
                 field->value = LowerValue(fieldNode->value);
                 field->annotations = LowerAnnotations(fieldNode->annotations);
@@ -106,6 +126,13 @@ IRModule* IRGenerator::Compile()
                 IREnumItem* const item = arena_.New<IREnumItem>();
                 item->ast = itemNode;
                 item->name = itemNode->name->name;
+
+                if (IsReservedName(item->name))
+                    ErrorReservedName(item->ast, item->name, "Enum item");
+
+                if (Find(type->items, MatchNamePred(item->name)) != nullptr)
+                    Error(item->ast, "Enum item already defined: {}.{}", type->name, item->name);
+
                 IRValue* const value = LowerValue(itemNode->value);
                 if (IRValueLiteral* const literal = CastTo<IRValueLiteral>(value); literal != nullptr)
                 {
@@ -139,6 +166,13 @@ IRModule* IRGenerator::Compile()
                 IRMessageField* const field = arena_.New<IRMessageField>();
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
+
+                if (IsReservedName(field->name))
+                    ErrorReservedName(field->ast, field->name, "Field");
+
+                if (Find(type->fields, MatchNamePred(field->name)) != nullptr)
+                    Error(field->ast, "Enum item already defined: {}.{}", type->name, field->name);
+
                 field->type = LowerType(fieldNode->type);
                 field->value = LowerValue(fieldNode->value);
                 if (fieldNode->proto->value > UINT32_MAX)
@@ -204,10 +238,13 @@ IRModule* IRGenerator::Compile()
                 IRStructField* const field = arena_.New<IRStructField>();
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
+                if (IsReservedName(field->name))
+                    ErrorReservedName(field->ast, field->name, "Field");
                 field->type = LowerType(fieldNode->type);
                 field->value = LowerValue(fieldNode->value);
                 field->version = ReadVersion(fieldNode->minVersion, fieldNode->maxVersion);
                 field->annotations = LowerAnnotations(fieldNode->annotations);
+                ValidateStructField(type, field);
                 type->fields.PushBack(arena_, field);
             }
 
@@ -384,8 +421,8 @@ IRVersionRange IRGenerator::ReadVersion(const AstNodeLiteralInt* min, const AstN
 
 void IRGenerator::ValidateTypeName(IRType* type)
 {
-    if (type->name[0] == '$')
-        Error(type->ast, "Type declared with reserved name: {}", type->name);
+    if (IsReservedName(type->name))
+        ErrorReservedName(type->ast, type->name, "Type");
 }
 
 void IRGenerator::ValidateTypeUnique(IRType* type)
@@ -395,42 +432,38 @@ void IRGenerator::ValidateTypeUnique(IRType* type)
         Error(type->ast, "Type already defined: {}", type->name);
 }
 
-void IRGenerator::ValidateStructField(IRTypeStruct* type, const AstNodeField* field)
+void IRGenerator::ValidateStructField(IRTypeStruct* type, IRStructField* field)
 {
-    IRStructField* const existing = Find(type->fields, MatchNamePred(field->name->name));
+    IRStructField* const existing = Find(type->fields, MatchNamePred(field->name));
     if (existing == nullptr)
         return;
 
     // if either the existing or new field is not versioned, raise an error
-    if (existing->version.min == 0 || field->minVersion == nullptr)
+    if (existing->version.min == 0 || field->version.min == 0)
     {
-        Error(field, "Field already defined: {}.{}", type->name, field->name->name);
+        Error(field->ast, "Field already defined: {}.{}", type->name, field->name);
         return;
     }
 
     // if the versions overlap, raise an error
-    if (existing->version.min < field->minVersion->value)
+    if (existing->version.min < field->version.min)
     {
         if (existing->version.max == 0)
         {
-            Error(field, "Field version already defined: {}.{}#{}", type->name, field->name->name, existing->version.min);
+            Error(field->ast, "Field version already defined: {}.{}#{}", type->name, field->name, existing->version.min);
             return;
         }
-        if (existing->version.max >= field->minVersion->value)
+        if (existing->version.max >= field->version.min)
         {
-            Error(field, "Field version already defined: {}.{}#{}..{}", type->name, field->name->name, existing->version.min, existing->version.max);
+            Error(field->ast, "Field version already defined: {}.{}#{}..{}", type->name, field->name, existing->version.min, existing->version.max);
             return;
         }
     }
-    else if (existing->version.min == field->minVersion->value)
+    else if (existing->version.min == field->version.min)
     {
-        Error(field, "Field version already defined: {}.{}#{}..{}", type->name, field->name->name, existing->version.min, existing->version.max);
+        Error(field->ast, "Field version already defined: {}.{}#{}..{}", type->name, field->name, existing->version.min, existing->version.max);
         return;
     }
-
-    if (field->minVersion != nullptr)
-
-        return;
 }
 
 template <typename T>
@@ -760,4 +793,9 @@ void IRGenerator::Error(const AstNode* node, fmt::format_string<Args...> format,
         logger_.Error(filename_, FindRange(source_, tokens_[node->tokenIndex]), std::string_view(buffer, rs.out));
     else
         logger_.Error(filename_, {}, std::string_view(buffer, rs.out));
+}
+
+void IRGenerator::ErrorReservedName(const AstNode* node, const char* name, const char* entityTypeName)
+{
+    Error(node, "{} declared with reserved name: {}", entityTypeName, name);
 }
