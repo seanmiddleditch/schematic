@@ -68,7 +68,6 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         Type* const target = Resolve(irType->target);
 
         TypeAlias* const type = arena_.New<TypeAlias>();
-        types_.PushBack(arena_, type);
         type->name = arena_.NewString(irType->name);
         type->owner = schema_->root;
         type->line = LineOf(irType->ast);
@@ -83,7 +82,6 @@ void SchemaGenerator::CreateType(IRType* inIrType)
     if (IRTypeAttribute* irType = CastTo<IRTypeAttribute>(inIrType); irType != nullptr)
     {
         TypeAttribute* const type = arena_.New<TypeAttribute>();
-        types_.PushBack(arena_, type);
         type->name = arena_.NewString(irType->name);
         type->owner = schema_->root;
         type->line = LineOf(irType->ast);
@@ -110,7 +108,6 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         const Type* const base = Resolve(irType->base);
 
         TypeEnum* const type = arena_.New<TypeEnum>();
-        types_.PushBack(arena_, type);
         type->name = arena_.NewString(irType->name);
         type->owner = schema_->root;
         type->line = LineOf(irType->ast);
@@ -140,7 +137,6 @@ void SchemaGenerator::CreateType(IRType* inIrType)
     if (IRTypeMessage* irType = CastTo<IRTypeMessage>(inIrType); irType != nullptr)
     {
         TypeMessage* const type = arena_.New<TypeMessage>();
-        types_.PushBack(arena_, type);
         type->name = arena_.NewString(irType->name);
         type->owner = schema_->root;
         type->line = LineOf(irType->ast);
@@ -168,7 +164,6 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         const Type* const base = Resolve(irType->base);
 
         TypeStruct* const type = arena_.New<TypeStruct>();
-        types_.PushBack(arena_, type);
         type->name = arena_.NewString(irType->name);
         type->owner = schema_->root;
         type->line = LineOf(irType->ast);
@@ -202,7 +197,6 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             for (std::uint32_t version = irVersion->version.min; version <= irVersion->version.max; ++version)
             {
                 TypeStruct* const type = arena_.New<TypeStruct>();
-                types_.PushBack(arena_, type);
                 type->name = NewStringFmt(arena_, "{}#{}", irVersion->name, version);
                 type->owner = schema_->root;
                 type->line = LineOf(irVersion->ast);
