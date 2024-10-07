@@ -1,2 +1,2 @@
-// ERROR: schemas/fail/circular_import_child.sat(2): Recursive import: circular_import.sat
+// ERROR: schemas/fail/circular_import_child.sat(2): Recursive import: schemas/fail/circular_import.sat
 import "circular_import_child.sat";

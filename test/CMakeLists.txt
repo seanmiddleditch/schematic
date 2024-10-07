@@ -8,6 +8,7 @@ add_executable(schematic_test)
 target_link_libraries(schematic_test schematic::schematic Catch2::Catch2WithMain)
 target_compile_features(schematic_test PRIVATE cxx_std_23)
 target_include_directories(schematic_test PRIVATE "${PROJECT_SOURCE_DIR}/schematic/source")
+target_compile_definitions(schematic_test PRIVATE "SCHEMATIC_PROTOBUF=$<BOOL:${SCHEMATIC_PROTOBUF}>")
 target_sources(schematic_test PRIVATE FILE_SET HEADERS BASE_DIRS include FILES
     "include/embed_tests.h"
     "include/evaluator.h"
@@ -19,7 +20,6 @@ target_sources(schematic_test PRIVATE FILE_SET HEADERS BASE_DIRS include FILES
 target_sources(schematic_test PRIVATE
     "evaluator.cpp"
     "lexer_tests.cpp"
-    $<$<BOOL:${SCHEMATIC_PROTOBUF}>:protobuf_tests.cpp>
     "schema_tests.cpp"
 )
 catch_discover_tests(schematic_test)

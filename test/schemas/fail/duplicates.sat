@@ -1,6 +1,6 @@
 struct dupes {
     int32 field;
-    // ERROR: schemas/fail/duplicates.sat(4): Duplicate field: dupes.field
+    // ERROR: schemas/fail/duplicates.sat(4): Field already defined: dupes.field
     int32 field;
 }
 
@@ -9,6 +9,6 @@ struct dupes {}
 
 enum e {
     one,
-    // ERROR: schemas/fail/duplicates.sat(13): Duplicate item: e.one
+    // ERROR: schemas/fail/duplicates.sat(13): Enum item already defined: e.one
     one,
 }
