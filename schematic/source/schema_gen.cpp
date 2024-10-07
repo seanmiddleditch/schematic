@@ -436,7 +436,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             return result;
         }
 
-        // assert(false);
+        assert(false);
         return nullptr;
     }
 
@@ -455,6 +455,52 @@ Value* SchemaGenerator::Resolve(IRValue* value)
         const TypeEnum* const type = CastTo<TypeEnum>(Resolve(item->type));
         result->item = FindItem(type, item->item->name);
         return result;
+    }
+
+    if (IRValueInitializerList* initializerList = CastTo<IRValueInitializerList>(value))
+    {
+        if (initializerList->type->kind == IRTypeKind::IndirectArray)
+        {
+            ValueArray* const result = arena_.New<ValueArray>();
+            result->type = Resolve(initializerList->type);
+            result->line = LineOf(value->ast);
+
+            Array<Value*> elements = arena_.NewArray<Value*>(initializerList->positional.Size());
+            for (IRValue* const element : initializerList->positional)
+                elements.PushBack(arena_, Resolve(element));
+
+            result->elements = elements;
+            return result;
+        }
+
+        if (initializerList->type->kind == IRTypeKind::Struct)
+        {
+            ValueObject* const result = arena_.New<ValueObject>();
+            result->type = Resolve(initializerList->type);
+            result->line = LineOf(value->ast);
+
+            Array<Argument> fields = arena_.NewArray<Argument>(initializerList->positional.Size() + initializerList->named.Size());
+
+            std::uint32_t fieldIndex = 0;
+            for (IRValue* const element : initializerList->positional)
+            {
+                Argument& field = fields.EmplaceBack(arena_);
+                field.field = &static_cast<const TypeStruct*>(initializerList->type->type)->fields[fieldIndex];
+                field.value = Resolve(element);
+                ++fieldIndex;
+            }
+
+            for (IRInitializerNamedArgument* const named : initializerList->named)
+            {
+                Argument& field = fields.EmplaceBack(arena_);
+                field.field = FindField(static_cast<const TypeStruct*>(initializerList->type->type), named->field->name);
+                field.value = Resolve(named->value);
+                ++fieldIndex;
+            }
+
+            result->fields = fields;
+            return result;
+        }
     }
 
     assert(false);

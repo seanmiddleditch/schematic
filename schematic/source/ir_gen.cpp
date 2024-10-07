@@ -735,7 +735,36 @@ IRValue* IRGenerator::LowerValue(const AstNode* node)
             value->name = static_cast<const AstNodeIdentifier*>(node)->name;
             return value;
         }
+        case AstNodeKind::InitializerList:
+        {
+            const AstNodeInitializerList* const initializerList = CastTo<AstNodeInitializerList>(node);
+            IRValueInitializerList* const value = arena_.New<IRValueInitializerList>();
+            value->ast = initializerList;
+            value->type = LowerType(initializerList->type);
+
+            for (const AstNode* element : initializerList->elements)
+            {
+                if (const AstNodeNamedArgument* const namedNode = CastTo<AstNodeNamedArgument>(element))
+                {
+                    IRInitializerNamedArgument* const named = arena_.New<IRInitializerNamedArgument>();
+                    named->ast = namedNode;
+                    named->name = namedNode->name->name;
+                    named->value = LowerValue(namedNode->value);
+                    value->named.PushBack(arena_, named);
+                }
+                else
+                {
+                    if (!value->named.IsEmpty())
+                        Error(element, "Positional initializer arguments must come before any named arguments");
+
+                    IRValue* const positional = LowerValue(element);
+                    value->positional.PushBack(arena_, positional);
+                }
+            }
+            return value;
+        }
         default:
+            assert(false);
             break;
     }
 
@@ -746,6 +775,8 @@ IRValue* IRGenerator::ResolveValue(IRType* type, IRValue* value)
 {
     if (value == nullptr)
         return nullptr;
+
+    type = ResolveAlias(type);
 
     if (value->kind == IRValueKind::Literal)
         return value;
@@ -774,6 +805,95 @@ IRValue* IRGenerator::ResolveValue(IRType* type, IRValue* value)
         }
 
         Error(ident->ast, "Type not found: {}", ident->name);
+        return value;
+    }
+
+    if (IRValueInitializerList* const initializerList = CastTo<IRValueInitializerList>(value); initializerList != nullptr)
+    {
+        if (initializerList->type == nullptr)
+        {
+            initializerList->type = type;
+        }
+        else
+        {
+            initializerList->type = ResolveType(initializerList->type);
+            type = ResolveAlias(initializerList->type);
+        }
+
+        if (type == nullptr)
+        {
+            Error(initializerList->ast, "Initializer list requires known type");
+        }
+        else if (IRTypeIndirectArray* const arrayType = CastTo<IRTypeIndirectArray>(type))
+        {
+            if (!initializerList->named.IsEmpty())
+                Error(initializerList->named.Front()->ast, "Named initializer elements may only be used for struct types");
+
+            if (arrayType->size != 0 && initializerList->positional.Size() > arrayType->size)
+                Error(initializerList->ast, "Too many initializer elements for fixed-size array type: {}", arrayType->name);
+
+            IRType* const elementType = arrayType->target;
+
+            for (IRValue*& positional : initializerList->positional)
+                positional = ResolveValue(elementType, positional);
+        }
+        else if (IRTypeStruct* const structType = CastTo<IRTypeStruct>(type))
+        {
+            std::uint32_t firstNamedIndex = UINT32_MAX;
+            IRInitializerNamedArgument* firstNamedField = nullptr;
+
+            std::uint32_t namedIndex = 0;
+            for (IRInitializerNamedArgument* const named : initializerList->named)
+            {
+                const std::uint32_t currentNamedIndex = namedIndex++;
+
+                const auto fieldIndex = FindIndex(structType->fields, MatchNamePred(named->name));
+                if (fieldIndex >= structType->fields.Size())
+                {
+                    Error(named->ast, "Field does not exist on struct type: {}.{}", structType->name, named->name);
+                    continue;
+                }
+
+                if (FindIndex(initializerList->named, MatchNamePred(named->name)) != currentNamedIndex)
+                {
+                    Error(named->ast, "Field initializer cannot be used more than once: {}", named->name);
+                    continue;
+                }
+
+                IRStructField* const field = structType->fields[fieldIndex];
+
+                if (fieldIndex < firstNamedIndex)
+                {
+                    firstNamedIndex = fieldIndex;
+                    firstNamedField = named;
+                }
+
+                named->field = field;
+                named->value = ResolveValue(field->type, named->value);
+            }
+
+            if (!initializerList->positional.IsEmpty() && structType->base != nullptr)
+                Error(initializerList->positional.Front()->ast, "Positional field initializer cannot be used for struct type with base: {}", structType->name);
+            else if (initializerList->positional.Size() > firstNamedIndex)
+                Error(firstNamedField->ast, "Named and positional field initializer cannot be used for the same field: {}", firstNamedField->name);
+
+            std::uint32_t fieldIndex = 0;
+            for (IRValue*& positional : initializerList->positional)
+            {
+                if (fieldIndex >= structType->fields.Size())
+                    Error(positional->ast, "Too many positional initializers for struct type: {}", structType->name);
+
+                IRStructField* const field = structType->fields[fieldIndex];
+                positional = ResolveValue(field->type, positional);
+
+                ++fieldIndex;
+            }
+        }
+        else
+        {
+            Error(initializerList->ast, "Initializer list may only be used for array or struct types");
+        }
+
         return value;
     }
 

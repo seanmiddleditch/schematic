@@ -19,4 +19,16 @@ namespace potato::schematic::compiler
         }
         return nullptr;
     }
+
+    template <typename T, typename Predicate>
+    auto FindIndex(const Array<T*>& container, Predicate&& pred) noexcept
+        requires std::is_invocable_r_v<bool, Predicate, decltype(*container.begin())>
+    {
+        for (T* const* it = container.begin(); it != container.end(); ++it)
+        {
+            if (*it != nullptr && std::forward<Predicate>(pred)(*it))
+                return it - container.begin();
+        }
+        return container.end() - container.begin();
+    }
 } // namespace potato::schematic::compiler

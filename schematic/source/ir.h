@@ -35,6 +35,7 @@ namespace potato::schematic::compiler
         Identifier,
         Type,
         EnumItem,
+        InitializerList,
     };
 
     struct IRImport;
@@ -49,6 +50,7 @@ namespace potato::schematic::compiler
     struct IREnumItem;
     struct IRMessageField;
     struct IRStructField;
+    struct IRInitializerNamedArgument;
 
     struct IRType;
     struct IRTypeAlias;
@@ -68,6 +70,7 @@ namespace potato::schematic::compiler
     struct IRValueIdentifier;
     struct IRValueType;
     struct IRValueEnumItem;
+    struct IRValueInitializerList;
 
     struct IRImport;
 
@@ -169,6 +172,14 @@ namespace potato::schematic::compiler
         IRVersionRange version;
         IRValue* value = nullptr;
         Array<IRAnnotation*> annotations;
+    };
+
+    struct IRInitializerNamedArgument
+    {
+        const char* name = nullptr;
+        const AstNodeNamedArgument* ast = nullptr;
+        IRStructField* field = nullptr;
+        IRValue* value = nullptr;
     };
 
 #define IR_TYPE(TYPE, KIND) \
@@ -295,7 +306,14 @@ namespace potato::schematic::compiler
         IREnumItem* item = nullptr;
     };
 
-    struct IRValueEnumItem;
+    struct IRValueInitializerList : IRValue
+    {
+        IR_VALUE(IRValueInitializerList, IRValueKind::InitializerList);
+
+        IRType* type = nullptr;
+        Array<IRValue*> positional;
+        Array<IRInitializerNamedArgument*> named;
+    };
 
 #undef IR_VALUE
 
