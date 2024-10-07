@@ -204,9 +204,25 @@ void SchemaGenerator::CreateType(IRType* inIrType)
                 type->version = version;
                 type->annotations = CreateAnnotations(irVersion->annotations);
 
-                Array<Field> fields = arena_.NewArray<Field>(irVersion->fields.Size());
+                std::uint32_t fieldCount = 0; // FIXME: do this in IR
                 for (IRStructField* const irField : irVersion->fields)
                 {
+                    if (irField->version.min == 0)
+                        ++fieldCount;
+                    else if (irField->version.min <= version && irField->version.max >= version)
+                        ++fieldCount;
+                }
+
+                Array<Field> fields = arena_.NewArray<Field>(fieldCount);
+                for (IRStructField* const irField : irVersion->fields)
+                {
+                    if (irField->version.min != 0 &&
+                        (irField->version.min > version ||
+                            irField->version.max < version))
+                    {
+                        continue;
+                    }
+
                     Field& field = fields.EmplaceBack(arena_);
                     field.name = arena_.NewString(irField->name);
                     field.type = Resolve(irField->type);
