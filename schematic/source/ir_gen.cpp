@@ -30,7 +30,25 @@ static bool IsReservedName(const char* name)
     return name[0] == '$';
 }
 
-IRModule* IRGenerator::Compile()
+IRSchema* IRGenerator::Compile()
+{
+    if (state_.builtins == nullptr)
+    {
+        state_.builtins = CreateBuiltins();
+        state_.modules.PushBack(arena_, state_.builtins);
+    }
+
+    if (state_.schema == nullptr)
+        state_.schema = arena_.New<IRSchema>();
+
+    state_.schema->root = CompileModule();
+    if (state_.schema->root == nullptr)
+        return nullptr;
+
+    return state_.schema;
+}
+
+IRModule* IRGenerator::CompileModule()
 {
     Lexer lexer(arena_, logger_, filename_, source_);
     tokens_ = lexer.Tokenize();
@@ -42,15 +60,8 @@ IRModule* IRGenerator::Compile()
     if (ast_ == nullptr)
         return nullptr;
 
-    if (state_.builtins == nullptr)
-    {
-        state_.builtins = CreateBuiltins();
-        state_.modules.PushBack(arena_, state_.builtins);
-    }
-
     module_ = arena_.New<IRModule>();
     module_->filename = arena_.NewString(filename_);
-    module_->index = nextModuleIndex_++;
     state_.stack.PushBack(arena_, module_);
 
     {
@@ -214,7 +225,9 @@ IRModule* IRGenerator::Compile()
                 const std::string_view source = ctx_.ReadFileContents(arena_, target);
 
                 IRGenerator generator(arena_, logger_, ctx_, state_, target, source);
-                import->resolved = generator.Compile();
+                import->resolved = generator.CompileModule();
+                if (import->resolved == nullptr)
+                    failed_ = true;
             }
 
             module_->imports.PushBack(arena_, import);

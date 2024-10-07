@@ -17,6 +17,7 @@ namespace potato::schematic::compiler
     {
         Array<IRModule*> modules;
         Array<IRModule*> stack;
+        IRSchema* schema = nullptr;
         IRModule* builtins = nullptr;
     };
 
@@ -33,9 +34,11 @@ namespace potato::schematic::compiler
         {
         }
 
-        IRModule* Compile();
+        IRSchema* Compile();
 
     private:
+        IRModule* CompileModule();
+
         IRVersionRange ReadVersion(const AstNodeLiteralInt* min, const AstNodeLiteralInt* max);
 
         void ValidateTypeName(IRType* type);
@@ -75,8 +78,5 @@ namespace potato::schematic::compiler
 
         IRModule* module_ = nullptr;
         bool failed_ = false;
-
-        std::uint32_t nextTypeIndex_ = 0;
-        std::uint32_t nextModuleIndex_ = 0;
     };
 } // namespace potato::schematic::compiler

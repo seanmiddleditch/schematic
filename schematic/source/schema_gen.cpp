@@ -21,20 +21,26 @@ static const char* NewStringFmt(ArenaAllocator& arena_, fmt::format_string<Args.
     return buffer;
 }
 
-const Schema* SchemaGenerator::Compile(IRModule* module)
+const Schema* SchemaGenerator::Compile(IRSchema* irSchema)
 {
-    module_ = module;
     schema_ = arena_.New<Schema>();
-    types_ = arena_.NewArray<Type*>(module->types.Size());
+    types_ = arena_.NewArray<Type*>(irSchema->types.Size());
     modules_ = arena_.NewArray<Module*>(2);
 
     Module* const root = arena_.New<Module>();
     schema_->root = root;
-    root->filename = arena_.NewString(module->filename);
+    root->filename = arena_.NewString(irSchema->root->filename);
 
     modules_.PushBack(arena_, root);
 
-    for (IRType* const irTypeIter : module->types)
+    for (IRImport* const irImport : irSchema->root->imports)
+    {
+        Module* const import = arena_.New<Module>();
+        import->filename = arena_.NewString(irImport->resolved->filename);
+        modules_.PushBack(arena_, import);
+    }
+
+    for (IRType* const irTypeIter : irSchema->root->types)
     {
         // the type may have already been resolved into a real type as a dependency
         if (irTypeIter->type != nullptr)
@@ -118,6 +124,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         for (IREnumItem* const irItem : irType->items)
         {
             EnumItem& item = items.EmplaceBack(arena_);
+            irItem->item = &item;
             item.name = arena_.NewString(irItem->name);
             ValueInt* const value = arena_.New<ValueInt>();
             value->value = irItem->value;
@@ -174,6 +181,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         for (IRStructField* const irField : irType->fields)
         {
             Field& field = fields.EmplaceBack(arena_);
+            irField->field = &field;
             field.name = arena_.NewString(irField->name);
             field.type = Resolve(irField->type);
             field.value = Resolve(irField->value);
@@ -224,6 +232,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
                     }
 
                     Field& field = fields.EmplaceBack(arena_);
+                    irField->field = &field;
                     field.name = arena_.NewString(irField->name);
                     field.type = Resolve(irField->type);
                     field.owner = type;
@@ -473,7 +482,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             return result;
         }
 
-        if (initializerList->type->kind == IRTypeKind::Struct)
+        if (IRTypeStruct* typeStruct = CastTo<IRTypeStruct>(initializerList->type); typeStruct != nullptr)
         {
             ValueObject* const result = arena_.New<ValueObject>();
             result->type = Resolve(initializerList->type);
@@ -485,7 +494,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             for (IRValue* const element : initializerList->positional)
             {
                 Argument& field = fields.EmplaceBack(arena_);
-                field.field = &static_cast<const TypeStruct*>(initializerList->type->type)->fields[fieldIndex];
+                field.field = typeStruct->fields[fieldIndex]->field;
                 field.value = Resolve(element);
                 ++fieldIndex;
             }
@@ -493,7 +502,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             for (IRInitializerNamedArgument* const named : initializerList->named)
             {
                 Argument& field = fields.EmplaceBack(arena_);
-                field.field = FindField(static_cast<const TypeStruct*>(initializerList->type->type), named->field->name);
+                field.field = named->field->field;
                 field.value = Resolve(named->value);
                 ++fieldIndex;
             }

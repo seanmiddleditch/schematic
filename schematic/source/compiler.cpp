@@ -64,12 +64,12 @@ const Schema* potato::schematic::Compile(ArenaAllocator& arena, Logger& logger, 
     IRState state;
     IRGenerator irGen(arena, logger, ctx, state, filename, source);
 
-    IRModule* const irRoot = irGen.Compile();
-    if (irRoot == nullptr)
+    IRSchema* const irSchema = irGen.Compile();
+    if (irSchema == nullptr)
         return nullptr;
 
     SchemaGenerator schemaGen(arena, logger);
-    const Schema* const schema = schemaGen.Compile(irRoot);
+    const Schema* const schema = schemaGen.Compile(irSchema);
 
     return schema;
 }

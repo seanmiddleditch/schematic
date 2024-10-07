@@ -20,7 +20,7 @@ namespace potato::schematic::compiler
         {
         }
 
-        const Schema* Compile(IRModule* module);
+        const Schema* Compile(IRSchema* irSchema);
 
     private:
         Type* Resolve(IRType* type);
@@ -33,7 +33,6 @@ namespace potato::schematic::compiler
 
         ArenaAllocator& arena_;
         Logger& logger_;
-        IRModule* module_ = nullptr;
         Schema* schema_ = nullptr;
 
         Array<Module*> modules_;

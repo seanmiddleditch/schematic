@@ -40,6 +40,7 @@ namespace potato::schematic::compiler
 
     struct IRImport;
     struct IRModule;
+    struct IRSchema;
 
     struct IRVersionRange;
 
@@ -168,7 +169,7 @@ namespace potato::schematic::compiler
         const char* name = nullptr;
         IRType* type = nullptr;
         const AstNodeField* ast = nullptr;
-        Field* item = nullptr;
+        Field* field = nullptr;
         IRVersionRange version;
         IRValue* value = nullptr;
         Array<IRAnnotation*> annotations;
@@ -327,9 +328,16 @@ namespace potato::schematic::compiler
     {
         const char* filename = nullptr;
         const AstNodeModule* ast = nullptr;
-        std::uint32_t index = 0;
+        const Module* module = nullptr;
         Array<IRImport*> imports;
         Array<IRType*> types;
+    };
+
+    struct IRSchema
+    {
+        Array<IRModule*> modules;
+        Array<IRType*> types;
+        IRModule* root = nullptr;
     };
 
 } // namespace potato::schematic::compiler
