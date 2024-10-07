@@ -277,7 +277,7 @@ IRModule* IRGenerator::Compile()
 
             for (IRTypeStruct* const existing : versioned->versions)
             {
-                if (type->version.min < existing->version.max && existing->version.min < type->version.max)
+                if (type->version.min <= existing->version.max && existing->version.min <= type->version.max)
                     Error(type->ast, "Struct versions overlap with previous declaration: {}", type->name);
             }
 

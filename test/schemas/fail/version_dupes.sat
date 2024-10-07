@@ -5,24 +5,25 @@ struct Pos #2 {}
 
 struct Pos #3 {}
 
-// ERROR: schemas/fail/version_dupes.sat(10): Struct versions overlap with previous declaration: Pos
-// ERROR: schemas/fail/version_dupes.sat(10): Struct versions overlap with previous declaration: Pos
+// ERROR: schemas/fail/version_dupes.sat(11): Struct versions overlap with previous declaration: Pos
+// ERROR: schemas/fail/version_dupes.sat(11): Struct versions overlap with previous declaration: Pos
+// ERROR: schemas/fail/version_dupes.sat(11): Struct versions overlap with previous declaration: Pos
 struct Pos #1..3 {}
 
 struct Pos #4..5 {
     int32 x #4..5;
-    // ERROR: schemas/fail/version_dupes.sat(15): Field version already defined: Pos.x#4..5
+    // ERROR: schemas/fail/version_dupes.sat(16): Field version already defined: Pos.x#4..5
     int32 x #4;
-    // ERROR: schemas/fail/version_dupes.sat(17): Field version already defined: Pos.x#4..5
+    // ERROR: schemas/fail/version_dupes.sat(18): Field version already defined: Pos.x#4..5
     int32 x #5;
 }
 
-// ERROR: schemas/fail/version_dupes.sat(21): Type already defined: Pos
+// ERROR: schemas/fail/version_dupes.sat(22): Type already defined: Pos
 struct Pos {}
 
 struct Vec {}
-// ERROR: schemas/fail/version_dupes.sat(25): Type already defined: Vec
+// ERROR: schemas/fail/version_dupes.sat(26): Type already defined: Vec
 struct Vec#2 {}
 
-// ERROR: schemas/fail/version_dupes.sat(28): Version must be positive: 0
+// ERROR: schemas/fail/version_dupes.sat(29): Version must be positive: 0
 struct Zero#0 {}
