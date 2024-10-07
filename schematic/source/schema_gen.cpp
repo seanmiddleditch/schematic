@@ -421,6 +421,13 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             return result;
         }
 
+        if (const AstNodeLiteralNull* const node = CastTo<AstNodeLiteralNull>(value->ast); node != nullptr)
+        {
+            ValueNull* const result = arena_.New<ValueNull>();
+            result->line = LineOf(value->ast);
+            return result;
+        }
+
         if (const AstNodeLiteralString* const node = CastTo<AstNodeLiteralString>(value->ast); node != nullptr)
         {
             ValueString* const result = arena_.New<ValueString>();
