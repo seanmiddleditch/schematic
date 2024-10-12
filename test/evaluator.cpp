@@ -176,7 +176,7 @@ namespace potato::schematic::test
         handler.complete();
     }
 
-    void CheckEvaluator::Evaluate(Span<const Annotation*> annotations)
+    void CheckEvaluator::Evaluate(ReadOnlySpan<const Annotation*> annotations)
     {
         if (Match("@length"))
             return Evaluate(annotations.size());
@@ -428,16 +428,8 @@ namespace potato::schematic::test
 
     void CheckEvaluator::Evaluate(const Module* mod)
     {
-        if (Match("@types"))
-            return Evaluate(mod->types.size());
         if (Match("@imports"))
             return Evaluate(mod->imports.size());
-
-        for (const Type* type : mod->types)
-        {
-            if (Match(type->name))
-                return Evaluate(type);
-        }
 
         Finish(mod);
     }

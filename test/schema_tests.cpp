@@ -65,7 +65,7 @@ TEST_CASE("Schemas", "[potato][schematic]")
             if (!checks.empty())
             {
                 REQUIRE(schema != nullptr);
-                REQUIRE(schema->root != nullptr);
+                REQUIRE(schema->root < schema->modules.size());
 
                 for (CheckEvaluator& check : checks)
                     check.Check(schema);

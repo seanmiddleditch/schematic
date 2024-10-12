@@ -25,17 +25,15 @@ namespace potato::schematic::compiler
     private:
         Type* Resolve(IRType* type);
         void CreateType(IRType* type);
-        Span<Annotation*> CreateAnnotations(Array<IRAnnotation*> irAnnotations);
+        ReadOnlySpan<Annotation*> CreateAnnotations(Array<IRAnnotation*> irAnnotations);
 
         Value* Resolve(IRValue* value);
-
-        std::uint32_t LineOf(const AstNode* node);
 
         ArenaAllocator& arena_;
         Logger& logger_;
         Schema* schema_ = nullptr;
 
-        Array<Module*> modules_;
+        Array<Module> modules_;
         Array<Type*> types_;
     };
 } // namespace potato::schematic::compiler

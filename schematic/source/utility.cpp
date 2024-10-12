@@ -204,19 +204,6 @@ bool potato::schematic::HasAttribute(const EnumItem* item, std::string_view name
     return FindAnnotation(item, name) != nullptr;
 }
 
-const Type* potato::schematic::FindType(const Module* mod, std::string_view name) noexcept
-{
-    if (mod == nullptr)
-        return nullptr;
-
-    for (const Type* type : mod->types)
-    {
-        if (type->name == name)
-            return type;
-    }
-    return nullptr;
-}
-
 const Type* potato::schematic::FindType(const Schema* schema, std::string_view name) noexcept
 {
     if (schema == nullptr)
@@ -225,6 +212,19 @@ const Type* potato::schematic::FindType(const Schema* schema, std::string_view n
     for (const Type* type : schema->types)
     {
         if (type->name == name)
+            return type;
+    }
+    return nullptr;
+}
+
+const Type* potato::schematic::FindType(const Schema* schema, ModuleIndex moduleIndex, std::string_view name) noexcept
+{
+    if (schema == nullptr)
+        return nullptr;
+
+    for (const Type* type : schema->types)
+    {
+        if (type->owner == moduleIndex && type->name == name)
             return type;
     }
     return nullptr;

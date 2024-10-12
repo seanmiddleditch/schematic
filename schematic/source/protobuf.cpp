@@ -27,7 +27,6 @@ namespace
 
     private:
         std::uint32_t IndexOfType(const Type* type) const noexcept;
-        std::uint32_t IndexOfModule(const Module* mod) const noexcept;
 
         void Serialize(proto::Type& out, const Type& in);
         void Serialize(proto::Type::Alias& out, const TypeAlias& in);
@@ -43,6 +42,8 @@ namespace
         void Serialize(proto::Type::String& out, const TypeString& in);
         void Serialize(proto::Type::Struct& out, const TypeStruct& in);
         void Serialize(proto::Type::TypeRef& out, const TypeType& in);
+
+        void SerializeLocation(proto::Location* out, const Location& in);
 
         void SerializeField(proto::Field& out, const Field& in);
 
@@ -95,6 +96,8 @@ namespace
         void Deserialize(TypeStruct& out, const proto::Type::Struct& in);
         void Deserialize(TypeType& out, const proto::Type::TypeRef& in);
 
+        void DeserializeLocation(Location& out, const proto::Location& in);
+
         void DeserializeField(Field& out, const Type* owner, const proto::Field& in);
 
         template <typename T>
@@ -124,7 +127,7 @@ namespace
         ArenaAllocator& arena_;
         Logger& logger_;
         const proto::Schema& proto_;
-        Array<Module*> modules_;
+        Array<Module> modules_;
         Array<Type*> types_;
         bool failed_ = false;
     };
@@ -155,16 +158,15 @@ const Schema* potato::schematic::ParseSchemaProto(ArenaAllocator& arena, Logger&
 
 void Serializer::Serialize(proto::Schema& out)
 {
-    for (const Module* const mod : schema_.modules)
+    for (const Module& mod : schema_.modules)
     {
         proto::Module* const pmod = out.add_modules();
-        pmod->set_filename(mod->filename);
-        for (const Module* const import : mod->imports)
-            pmod->add_imports(IndexOfModule(import));
+        pmod->set_filename(mod.filename);
+        for (const ModuleIndex index : mod.imports)
+            pmod->add_imports(index);
     }
 
-    if (schema_.root != nullptr)
-        out.set_root(IndexOfModule(schema_.root));
+    out.set_root(schema_.root);
 
     for (const Type* const type : schema_.types)
         Serialize(*out.add_types(), *type);
@@ -176,18 +178,6 @@ std::uint32_t Serializer::IndexOfType(const Type* type) const noexcept
     for (const Type* const candidate : schema_.types)
     {
         if (candidate == type)
-            break;
-        ++index;
-    }
-    return index;
-}
-
-std::uint32_t Serializer::IndexOfModule(const Module* mod) const noexcept
-{
-    std::uint32_t index = 0;
-    for (const Module* const candidate : schema_.modules)
-    {
-        if (candidate == mod)
             break;
         ++index;
     }
@@ -303,7 +293,9 @@ void Serializer::Serialize(proto::Type::Enum& out, const TypeEnum& in)
     {
         proto::EnumItem& out_item = *out.add_items();
         out_item.set_name(item.name);
-        out_item.set_line(item.line);
+
+        SerializeLocation(out_item.mutable_location(), item.location);
+
         if (item.value != nullptr)
             out_item.set_value(item.value->value);
 
@@ -349,11 +341,18 @@ void Serializer::Serialize(proto::Type::Attribute& out, const TypeAttribute& in)
         SerializeField(*out.add_fields(), field);
 }
 
+void Serializer::SerializeLocation(proto::Location* out, const Location& in)
+{
+    out->set_line(in.line);
+    out->set_column(in.column);
+}
+
 void Serializer::SerializeField(proto::Field& out, const Field& in)
 {
     out.set_name(in.name);
     out.set_type(IndexOfType(in.type));
-    out.set_line(in.line);
+
+    SerializeLocation(out.mutable_location(), in.location);
 
     if (in.proto != 0)
         out.set_proto(in.proto);
@@ -369,18 +368,18 @@ template <typename T>
 void Serializer::SerializeTypeCommon(T& out, const Type& in)
 {
     out.set_name(in.name);
-    out.set_module(IndexOfModule(in.owner));
+    out.set_module(in.owner);
 
     for (const Annotation* const annotation : in.annotations)
         Serialize(*out.add_annotations(), *annotation);
 
-    out.set_line(in.line);
+    SerializeLocation(out.mutable_location(), in.location);
 }
 
 template <typename T>
 void Serializer::SerializeValueCommon(T& out, const Value& in)
 {
-    out.set_line(in.line);
+    SerializeLocation(out.mutable_location(), in.location);
 }
 
 void Serializer::Serialize(proto::Value& out, const Value& in)
@@ -427,7 +426,8 @@ void Serializer::Serialize(proto::Value::Object& out, const ValueObject& in)
     {
         proto::Argument& out_arg = *out.add_arguments();
         out_arg.set_field(arg.field->name);
-        out_arg.set_line(arg.line);
+
+        SerializeLocation(out_arg.mutable_location(), arg.location);
 
         if (arg.value != nullptr)
             Serialize(*out_arg.mutable_value(), *arg.value);
@@ -501,13 +501,13 @@ void Serializer::Serialize(proto::Value::Null& out, const ValueNull& in)
 void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
 {
     out.set_attribute(IndexOfType(in.attribute));
-    out.set_line(in.line);
+    SerializeLocation(out.mutable_location(), in.location);
 
     for (const Argument& arg : in.arguments)
     {
         proto::Argument& out_arg = *out.add_arguments();
         out_arg.set_field(arg.field->name);
-        out_arg.set_line(arg.line);
+        SerializeLocation(out_arg.mutable_location(), arg.location);
 
         if (arg.value != nullptr)
             Serialize(*out_arg.mutable_value(), *arg.value);
@@ -525,25 +525,25 @@ void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
 bool Deserializer::Deserialize(Schema& out)
 {
     // Deserialize modules, excluding their child types (we haven't deserialized those yet)
-    modules_ = arena_.NewArray<Module*>(proto_.modules_size());
+    modules_ = arena_.NewArray<Module>(proto_.modules_size());
     for (std::size_t index = 0; index != modules_.Capacity(); ++index)
-        modules_.PushBack(arena_, arena_.New<Module>());
+        modules_.EmplaceBack(arena_);
 
-    const std::size_t root_index = proto_.root();
+    const std::uint32_t root_index = proto_.root();
     if (VERIFY_INDEX(modules_, root_index, "Invalid root module index {}", root_index))
-        out.root = modules_[proto_.root()];
+        out.root = root_index;
 
     std::size_t module_index = 0;
     for (const proto::Module& mod : proto_.modules())
     {
-        Module& out_mod = *modules_[module_index++];
+        Module& out_mod = modules_[module_index++];
         out_mod.filename = arena_.NewString(mod.filename());
 
-        Array<const Module*> imports = arena_.NewArray<const Module*>(mod.imports_size());
+        Array<ModuleIndex> imports = arena_.NewArray<ModuleIndex>(mod.imports_size());
         for (std::uint32_t target_index : mod.imports())
         {
             if (VERIFY_INDEX(modules_, target_index, "Invalid import index {}", target_index))
-                imports.EmplaceBack(arena_, modules_[target_index]);
+                imports.PushBack(arena_, target_index);
         }
         out_mod.imports = imports;
     }
@@ -607,25 +607,6 @@ bool Deserializer::Deserialize(Schema& out)
         potato::schematic::Type* const out_type = types_[type_index++];
         assert(out_type != nullptr); // previous unknown tag check should return, cannot reach this statement
         Deserialize(*out_type, type);
-    }
-
-    // Link types to modules (could be way less... bad)
-    for (Module* const mod : modules_)
-    {
-        std::size_t type_count = 0;
-        for (const Type* const type : types_)
-        {
-            if (type->owner == mod)
-                ++type_count;
-        }
-
-        Array<const Type*> mod_types = arena_.NewArray<const Type*>(type_count);
-        for (const Type* const type : types_)
-        {
-            if (type->owner == mod)
-                mod_types.PushBack(arena_, type);
-        }
-        mod->types = mod_types;
     }
 
     return !failed_;
@@ -759,7 +740,8 @@ void Deserializer::Deserialize(TypeEnum& out, const proto::Type::Enum& in)
         EnumItem& out_item = items.EmplaceBack(arena_);
         out_item.name = arena_.NewString(item.name());
         out_item.owner = &out;
-        out_item.line = item.line();
+
+        DeserializeLocation(out_item.location, item.location());
 
         ValueInt* const value = arena_.New<ValueInt>();
         value->value = item.value();
@@ -811,11 +793,18 @@ void Deserializer::Deserialize(TypeAttribute& out, const proto::Type::Attribute&
     out.fields = fields;
 }
 
+void Deserializer::DeserializeLocation(Location& out, const proto::Location& in)
+{
+    out.line = in.line();
+    out.column = in.column();
+}
+
 void Deserializer::DeserializeField(Field& out, const Type* owner, const proto::Field& in)
 {
     out.name = arena_.NewString(in.name());
     out.owner = owner;
-    out.line = in.line();
+
+    DeserializeLocation(out.location, in.location());
 
     if (in.has_proto())
         out.proto = in.proto();
@@ -847,17 +836,18 @@ void Deserializer::DeserializeTypeCommon(Type& out, const T& in)
 {
     out.name = arena_.NewString(in.name());
     if (VERIFY_INDEX(modules_, in.module(), "Invalid module index {}", in.module()))
-        out.owner = modules_[in.module()];
+        out.owner = in.module();
 
     out.annotations = DeserializeAnnotations(in);
 
-    out.line = in.line();
+    out.location.line = in.location().line();
+    out.location.column = in.location().column();
 }
 
 template <typename T>
 void Deserializer::DeserializeValueCommon(Value& out, const T& in)
 {
-    out.line = in.line();
+    DeserializeLocation(out.location, in.location());
 }
 
 Value* Deserializer::Deserialize(const proto::Value& in)
@@ -895,7 +885,7 @@ ValueObject* Deserializer::Deserialize(const proto::Value::Object& in)
     for (const proto::Argument& arg : in.arguments())
     {
         Argument& out_arg = args.EmplaceBack(arena_);
-        out_arg.line = arg.line();
+        DeserializeLocation(out_arg.location, arg.location());
         out_arg.field = FindField(static_cast<const TypeStruct*>(value->type), arg.field());
         if (arg.has_value())
             out_arg.value = Deserialize(arg.value());
@@ -1000,15 +990,14 @@ void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
     for (const proto::Argument& arg : in.arguments())
     {
         Argument& out_arg = args.EmplaceBack(arena_);
-        out_arg.line = arg.line();
+        DeserializeLocation(out_arg.location, arg.location());
         out_arg.field = FindField(out.attribute, arg.field());
         if (arg.has_value())
             out_arg.value = Deserialize(arg.value());
-        out_arg.line = arg.line();
     }
     out.arguments = args;
 
-    out.line = in.line();
+    DeserializeLocation(out.location, in.location());
 }
 
 template <typename... Args>

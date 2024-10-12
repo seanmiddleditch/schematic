@@ -80,6 +80,7 @@ namespace potato::schematic::compiler
         const AstNodeAnnotation* ast = nullptr;
         IRType* attribute;
         Array<IRAnnotationArgument*> arguments;
+        Location location;
     };
 
     struct IRType
@@ -90,6 +91,8 @@ namespace potato::schematic::compiler
         const char* name = nullptr;
         std::uint32_t index = 0;
         Array<IRAnnotation*> annotations;
+        IRModule* owner = nullptr;
+        Location location;
 
         Array<IRTypeIndirectArray*> arrayTypes;
         IRTypeIndirectNullable* nullableType = nullptr;
@@ -108,6 +111,7 @@ namespace potato::schematic::compiler
     {
         IRValueKind kind = IRValueKind::Literal;
         const AstNode* ast = nullptr;
+        Location location;
 
         template <typename T>
         friend T* CastTo(IRValue* ir) noexcept
@@ -133,6 +137,7 @@ namespace potato::schematic::compiler
         const AstNode* ast = nullptr;
         IRAttributeField* field = nullptr;
         IRValue* value = nullptr;
+        Location location;
     };
 
     struct IRAttributeField
@@ -142,6 +147,7 @@ namespace potato::schematic::compiler
         const AstNodeField* ast = nullptr;
         IRValue* value = nullptr;
         Array<IRAnnotation*> annotations;
+        Location location;
     };
 
     struct IREnumItem
@@ -151,6 +157,7 @@ namespace potato::schematic::compiler
         EnumItem* item = nullptr;
         std::int64_t value = 0;
         Array<IRAnnotation*> annotations;
+        Location location;
     };
 
     struct IRMessageField
@@ -162,6 +169,7 @@ namespace potato::schematic::compiler
         std::uint32_t proto = 0;
         IRValue* value = nullptr;
         Array<IRAnnotation*> annotations;
+        Location location;
     };
 
     struct IRStructField
@@ -173,6 +181,7 @@ namespace potato::schematic::compiler
         IRVersionRange version;
         IRValue* value = nullptr;
         Array<IRAnnotation*> annotations;
+        Location location;
     };
 
     struct IRInitializerNamedArgument
@@ -181,6 +190,7 @@ namespace potato::schematic::compiler
         const AstNodeNamedArgument* ast = nullptr;
         IRStructField* field = nullptr;
         IRValue* value = nullptr;
+        Location location;
     };
 
 #define IR_TYPE(TYPE, KIND) \
@@ -329,6 +339,7 @@ namespace potato::schematic::compiler
         const char* filename = nullptr;
         const AstNodeModule* ast = nullptr;
         const Module* module = nullptr;
+        ModuleIndex index = 0;
         Array<IRImport*> imports;
         Array<IRType*> types;
     };

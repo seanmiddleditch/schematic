@@ -45,7 +45,7 @@ namespace potato::schematic::test
             Finish(value);
         }
 
-        void Evaluate(Span<const Annotation*> annotations);
+        void Evaluate(ReadOnlySpan<const Annotation*> annotations);
 
         void Evaluate(const Annotation* annotation);
         void Evaluate(const Field* field);

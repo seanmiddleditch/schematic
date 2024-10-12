@@ -77,8 +77,10 @@ IRModule* IRGenerator::CompileModule()
             IRTypeAlias* const type = arena_.New<IRTypeAlias>();
             type->name = declNode->name->name;
             type->ast = declNode;
+            type->owner = module_;
             type->target = LowerType(declNode->target);
             type->annotations = LowerAnnotations(declNode->annotations);
+            type->location = GetLocation(declNode);
 
             ValidateTypeName(type);
             ValidateTypeUnique(type);
@@ -92,7 +94,9 @@ IRModule* IRGenerator::CompileModule()
             IRTypeAttribute* const type = arena_.New<IRTypeAttribute>();
             type->name = declNode->name->name;
             type->ast = declNode;
+            type->owner = module_;
             type->annotations = LowerAnnotations(declNode->annotations);
+            type->location = GetLocation(declNode);
 
             ValidateTypeName(type);
             ValidateTypeUnique(type);
@@ -112,6 +116,7 @@ IRModule* IRGenerator::CompileModule()
                 field->type = LowerType(fieldNode->type);
                 field->value = LowerValue(fieldNode->value);
                 field->annotations = LowerAnnotations(fieldNode->annotations);
+                field->location = GetLocation(fieldNode);
                 type->fields.PushBack(arena_, field);
             }
 
@@ -124,8 +129,10 @@ IRModule* IRGenerator::CompileModule()
             IRTypeEnum* const type = arena_.New<IRTypeEnum>();
             type->name = declNode->name->name;
             type->ast = declNode;
+            type->owner = module_;
             type->base = LowerType(declNode->base);
             type->annotations = LowerAnnotations(declNode->annotations);
+            type->location = GetLocation(declNode);
 
             ValidateTypeName(type);
             ValidateTypeUnique(type);
@@ -155,6 +162,7 @@ IRModule* IRGenerator::CompileModule()
                 item->value = nextValue++;
 
                 item->annotations = LowerAnnotations(itemNode->annotations);
+                item->location = GetLocation(itemNode);
                 type->items.PushBack(arena_, item);
             }
 
@@ -167,7 +175,9 @@ IRModule* IRGenerator::CompileModule()
             IRTypeMessage* const type = arena_.New<IRTypeMessage>();
             type->name = declNode->name->name;
             type->ast = declNode;
+            type->owner = module_;
             type->annotations = LowerAnnotations(declNode->annotations);
+            type->location = GetLocation(declNode);
 
             ValidateTypeName(type);
             ValidateTypeUnique(type);
@@ -190,6 +200,7 @@ IRModule* IRGenerator::CompileModule()
                     Error(fieldNode->proto, "Message proto must be no greater than {}: {}", UINT32_MAX, fieldNode->proto->value);
                 field->proto = static_cast<std::uint32_t>(fieldNode->proto->value);
                 field->annotations = LowerAnnotations(fieldNode->annotations);
+                field->location = GetLocation(fieldNode);
                 type->fields.PushBack(arena_, field);
             }
 
@@ -239,8 +250,10 @@ IRModule* IRGenerator::CompileModule()
             IRTypeStruct* const type = arena_.New<IRTypeStruct>();
             type->name = declNode->name->name;
             type->ast = declNode;
+            type->owner = module_;
             type->base = LowerType(declNode->base);
             type->annotations = LowerAnnotations(declNode->annotations);
+            type->location = GetLocation(declNode);
 
             ValidateTypeName(type);
 
@@ -257,6 +270,7 @@ IRModule* IRGenerator::CompileModule()
                 field->value = LowerValue(fieldNode->value);
                 field->version = ReadVersion(fieldNode->minVersion, fieldNode->maxVersion);
                 field->annotations = LowerAnnotations(fieldNode->annotations);
+                field->location = GetLocation(fieldNode);
                 ValidateStructField(type, field);
                 type->fields.PushBack(arena_, field);
             }
@@ -274,8 +288,10 @@ IRModule* IRGenerator::CompileModule()
                 IRTypeStructVersioned* const versioned = arena_.New<IRTypeStructVersioned>();
                 versioned->name = type->name;
                 versioned->ast = declNode;
+                versioned->owner = module_;
                 versioned->latest = type;
                 versioned->versions.PushBack(arena_, type);
+                versioned->location = GetLocation(declNode);
                 module_->types.PushBack(arena_, versioned);
                 continue;
             }
@@ -480,13 +496,14 @@ void IRGenerator::ValidateStructField(IRTypeStruct* type, IRStructField* field)
 }
 
 template <typename T>
-static T* CreateBuiltinType(ArenaAllocator& arena, Array<IRType*>& types, TypeKind kind, const char* name)
+static T* CreateBuiltinType(ArenaAllocator& arena, IRModule* module, TypeKind kind, const char* name)
 {
     T* const type = arena.New<T>();
     type->name = name;
     type->typeKind = kind;
+    type->owner = module;
 
-    types.PushBack(arena, type);
+    module->types.PushBack(arena, type);
     return type;
 };
 
@@ -500,19 +517,19 @@ IRModule* IRGenerator::CreateBuiltins()
 
     auto AddInt = [this]<typename T>(const char* name, T)
     {
-        IRTypeBuiltin* const type = CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_->types, TypeKind::Int, name);
+        IRTypeBuiltin* const type = CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::Int, name);
         type->isSigned = std::is_signed_v<T>;
         type->width = CHAR_BIT * sizeof(T);
     };
     auto AddFloat = [this]<typename T>(const char* name, T)
     {
-        IRTypeBuiltin* const type = CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_->types, TypeKind::Float, name);
+        IRTypeBuiltin* const type = CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::Float, name);
         type->width = CHAR_BIT * sizeof(T);
     };
 
-    CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_->types, TypeKind::Type, "$type");
-    CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_->types, TypeKind::Bool, "bool");
-    CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_->types, TypeKind::String, "string");
+    CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::Type, "$type");
+    CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::Bool, "bool");
+    CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::String, "string");
 
     AddInt("int8", std::int8_t{});
     AddInt("uint8", std::uint8_t{});
@@ -555,6 +572,8 @@ IRType* IRGenerator::LowerType(const AstNode* ast)
     {
         IRTypeIndirectArray* const indirect = arena_.New<IRTypeIndirectArray>();
         indirect->ast = astArray;
+        indirect->owner = module_;
+        indirect->location = GetLocation(astArray);
         indirect->target = LowerType(astArray->type);
         if (astArray->size != nullptr)
         {
@@ -573,6 +592,8 @@ IRType* IRGenerator::LowerType(const AstNode* ast)
     {
         IRTypeIndirectIdentifier* const indirect = arena_.New<IRTypeIndirectIdentifier>();
         indirect->ast = astName;
+        indirect->owner = module_;
+        indirect->location = GetLocation(astName);
         indirect->name = astName->name;
         return indirect;
     }
@@ -581,6 +602,8 @@ IRType* IRGenerator::LowerType(const AstNode* ast)
     {
         IRTypeIndirectNullable* const indirect = arena_.New<IRTypeIndirectNullable>();
         indirect->ast = astNullable;
+        indirect->owner = module_;
+        indirect->location = GetLocation(astNullable);
         indirect->target = LowerType(astNullable->type);
         return indirect;
     }
@@ -589,6 +612,8 @@ IRType* IRGenerator::LowerType(const AstNode* ast)
     {
         IRTypeIndirectPointer* const indirect = arena_.New<IRTypeIndirectPointer>();
         indirect->ast = astPointer;
+        indirect->owner = module_;
+        indirect->location = GetLocation(astPointer);
         indirect->target = LowerType(astPointer->type);
         return indirect;
     }
@@ -739,6 +764,7 @@ IRValue* IRGenerator::LowerValue(const AstNode* node)
         {
             IRValue* const value = arena_.New<IRValueLiteral>();
             value->ast = node;
+            value->location = GetLocation(node);
             return value;
         }
         case AstNodeKind::Identifier:
@@ -746,6 +772,7 @@ IRValue* IRGenerator::LowerValue(const AstNode* node)
             IRValueIdentifier* const value = arena_.New<IRValueIdentifier>();
             value->ast = node;
             value->name = static_cast<const AstNodeIdentifier*>(node)->name;
+            value->location = GetLocation(node);
             return value;
         }
         case AstNodeKind::InitializerList:
@@ -753,6 +780,7 @@ IRValue* IRGenerator::LowerValue(const AstNode* node)
             const AstNodeInitializerList* const initializerList = CastTo<AstNodeInitializerList>(node);
             IRValueInitializerList* const value = arena_.New<IRValueInitializerList>();
             value->ast = initializerList;
+            value->location = GetLocation(node);
             value->type = LowerType(initializerList->type);
 
             for (const AstNode* element : initializerList->elements)
@@ -763,6 +791,7 @@ IRValue* IRGenerator::LowerValue(const AstNode* node)
                     named->ast = namedNode;
                     named->name = namedNode->name->name;
                     named->value = LowerValue(namedNode->value);
+                    named->location = GetLocation(namedNode);
                     value->named.PushBack(arena_, named);
                 }
                 else
@@ -800,6 +829,7 @@ IRValue* IRGenerator::ResolveValue(IRType* type, IRValue* value)
         {
             IRValueType* valueType = arena_.New<IRValueType>();
             valueType->ast = ident->ast;
+            valueType->location = ident->location;
             valueType->target = target;
             return valueType;
         }
@@ -811,6 +841,7 @@ IRValue* IRGenerator::ResolveValue(IRType* type, IRValue* value)
             {
                 IRValueEnumItem* valueItem = arena_.New<IRValueEnumItem>();
                 valueItem->ast = ident->ast;
+                valueItem->location = ident->location;
                 valueItem->type = enumType;
                 valueItem->item = item;
                 return valueItem;
@@ -912,6 +943,22 @@ IRValue* IRGenerator::ResolveValue(IRType* type, IRValue* value)
 
     assert(false);
     return value;
+}
+
+Location IRGenerator::GetLocation(const AstNode* node)
+{
+    if (node == nullptr)
+        return {};
+
+    if (node->tokenIndex >= tokens_.Size())
+        return {};
+
+    const Token& token = tokens_[node->tokenIndex];
+
+    return Location{
+        .line = token.line,
+        .column = FindColumn(source_, token),
+    };
 }
 
 template <typename... Args>

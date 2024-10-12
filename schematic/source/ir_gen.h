@@ -59,6 +59,8 @@ namespace potato::schematic::compiler
         IRValue* LowerValue(const AstNode* node);
         IRValue* ResolveValue(IRType* type, IRValue* value);
 
+        Location GetLocation(const AstNode* node);
+
         template <typename... Args>
         void Error(const AstNode* node, fmt::format_string<Args...> format, Args&&... args);
 
