@@ -23,6 +23,8 @@ namespace potato::schematic::compiler
         const Schema* Compile(IRSchema* irSchema);
 
     private:
+        ModuleIndex CreateModule(IRModule* irModule);
+
         Type* Resolve(IRType* type);
         void CreateType(IRType* type);
         ReadOnlySpan<Annotation*> CreateAnnotations(Array<IRAnnotation*> irAnnotations);

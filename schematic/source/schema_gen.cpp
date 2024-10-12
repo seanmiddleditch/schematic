@@ -27,23 +27,7 @@ const Schema* SchemaGenerator::Compile(IRSchema* irSchema)
     types_ = arena_.NewArray<Type*>(irSchema->types.Size());
     modules_ = arena_.NewArray<Module>(irSchema->modules.Size());
 
-    {
-        irSchema->root->index = static_cast<ModuleIndex>(modules_.Size());
-        Module& root = modules_.EmplaceBack(arena_);
-        root.filename = arena_.NewString(irSchema->root->filename);
-    }
-
-    schema_->root = irSchema->root->index;
-
-    Array<ModuleIndex> imports = arena_.NewArray<ModuleIndex>(irSchema->root->imports.Size());
-    for (IRImport* const irImport : irSchema->root->imports)
-    {
-        irImport->resolved->index = static_cast<ModuleIndex>(modules_.Size());
-        Module& import = modules_.EmplaceBack(arena_);
-        import.filename = arena_.NewString(irImport->resolved->filename);
-        imports.PushBack(arena_, irImport->resolved->index);
-    }
-    modules_[schema_->root].imports = imports;
+    schema_->root = CreateModule(irSchema->root);
 
     for (IRType* const irTypeIter : irSchema->root->types)
     {
@@ -57,6 +41,25 @@ const Schema* SchemaGenerator::Compile(IRSchema* irSchema)
     schema_->types = types_;
     schema_->modules = modules_;
     return schema_;
+}
+
+ModuleIndex SchemaGenerator::CreateModule(IRModule* irModule)
+{
+    irModule->index = static_cast<ModuleIndex>(modules_.Size());
+    modules_.EmplaceBack(arena_);
+    modules_[irModule->index].filename = arena_.NewString(irModule->filename);
+
+    Array<ModuleIndex> imports = arena_.NewArray<ModuleIndex>(irModule->imports.Size());
+    for (IRImport* const irImport : irModule->imports)
+    {
+        if (irImport->resolved->index == 0)
+            CreateModule(irImport->resolved);
+
+        imports.PushBack(arena_, irImport->resolved->index);
+    }
+    modules_[irModule->index].imports = imports;
+
+    return irModule->index;
 }
 
 Type* SchemaGenerator::Resolve(IRType* inIrType)
