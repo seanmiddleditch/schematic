@@ -6,6 +6,8 @@
 #include "lexer.h"
 #include "parser.h"
 
+#include <utility>
+
 using namespace potato::schematic;
 using namespace potato::schematic::compiler;
 
@@ -14,14 +16,6 @@ static auto MatchNamePred(const char* name) noexcept
     return [name](auto* const entity) noexcept -> bool
     {
         return entity->name != nullptr && std::strcmp(entity->name, name) == 0;
-    };
-}
-
-static auto MatchNameAndVersionPred(const char* name, std::uint32_t version) noexcept
-{
-    return [name, version](auto* const entity) noexcept -> bool
-    {
-        return entity->version.min <= version && entity.version.max >= version && entity->name != nullptr && std::strcmp(entity->name, name) == 0;
     };
 }
 
