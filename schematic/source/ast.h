@@ -22,7 +22,6 @@ namespace potato::schematic::compiler
         Field,
         EnumDecl,
         EnumItem,
-        TypeName,
         TypeArray,
         TypePointer,
         TypeNullable,
@@ -47,7 +46,6 @@ namespace potato::schematic::compiler
     struct AstNodeField;
     struct AstNodeEnumDecl;
     struct AstNodeEnumItem;
-    struct AstNodeTypeName;
     struct AstNodeTypeArray;
     struct AstNodeTypePointer;
     struct AstNodeTypeNullable;
@@ -77,6 +75,18 @@ namespace potato::schematic::compiler
         {
             if (kind == To::Kind)
                 return static_cast<const To*>(this);
+
+            return nullptr;
+        }
+
+        template <typename To>
+        [[nodiscard]] friend const To* CastTo(const AstNode* node) noexcept
+        {
+            if (node == nullptr)
+                return nullptr;
+
+            if (node->kind == To::Kind)
+                return static_cast<const To*>(node);
 
             return nullptr;
         }

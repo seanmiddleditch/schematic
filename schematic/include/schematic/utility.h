@@ -27,6 +27,8 @@ namespace potato::schematic
 
     struct ValueObject;
 
+    using ModuleIndex = std::uint32_t;
+
     class Visitor;
 
     const Field* FindField(const TypeAttribute* type, std::string_view name) noexcept;
@@ -54,8 +56,8 @@ namespace potato::schematic
     bool HasAttribute(const EnumItem* item, const TypeAttribute* attribute) noexcept;
     bool HasAttribute(const EnumItem* item, std::string_view name) noexcept;
 
-    const Type* FindType(const Module* mod, std::string_view name) noexcept;
     const Type* FindType(const Schema* schema, std::string_view name) noexcept;
+    const Type* FindType(const Schema* schema, ModuleIndex moduleIndex, std::string_view name) noexcept;
 
     const Value* FindArgument(const ValueObject* object, const Field* field) noexcept;
     const Value* FindArgument(const ValueObject* object, std::string_view name) noexcept;
