@@ -80,7 +80,7 @@ namespace potato::schematic::compiler
         }
 
         template <typename To>
-        friend [[nodiscard]] const To* CastTo(const AstNode* node) noexcept
+        [[nodiscard]] friend const To* CastTo(const AstNode* node) noexcept
         {
             if (node == nullptr)
                 return nullptr;
