@@ -6,7 +6,21 @@
 
 using namespace potato::schematic;
 
-const Field* potato::schematic::FindField(const TypeAttribute* type, std::string_view name) noexcept
+const Type* potato::schematic::GetType(const Schema* schema, TypeIndex typeIndex) noexcept
+{
+    if (schema == nullptr)
+        return nullptr;
+
+    if (typeIndex == InvalidIndex)
+        return nullptr;
+
+    if (typeIndex >= schema->types.size())
+        return nullptr;
+
+    return schema->types[typeIndex];
+}
+
+const Field* potato::schematic::FindField(const Schema*, const TypeAttribute* type, std::string_view name) noexcept
 {
     if (type == nullptr)
         return nullptr;
@@ -20,7 +34,7 @@ const Field* potato::schematic::FindField(const TypeAttribute* type, std::string
     return nullptr;
 }
 
-const Field* potato::schematic::FindField(const TypeMessage* type, std::string_view name) noexcept
+const Field* potato::schematic::FindField(const Schema*, const TypeMessage* type, std::string_view name) noexcept
 {
     if (type == nullptr)
         return nullptr;
@@ -34,7 +48,7 @@ const Field* potato::schematic::FindField(const TypeMessage* type, std::string_v
     return nullptr;
 }
 
-const Field* potato::schematic::FindField(const TypeStruct* type, std::string_view name) noexcept
+const Field* potato::schematic::FindField(const Schema* schema, const TypeStruct* type, std::string_view name) noexcept
 {
     if (type == nullptr)
         return nullptr;
@@ -45,28 +59,33 @@ const Field* potato::schematic::FindField(const TypeStruct* type, std::string_vi
             return &field;
     }
 
-    if (type->base != nullptr)
-        return FindField(type->base, name);
+    if (type->base != InvalidIndex)
+        return FindField(schema, type->base, name);
 
     return nullptr;
 }
 
-const Field* potato::schematic::FindField(const Type* type, std::string_view name) noexcept
+const Field* potato::schematic::FindField(const Schema* schema, const Type* type, std::string_view name) noexcept
 {
     if (type == nullptr)
         return nullptr;
 
-    if (const Field* const field = FindField(CastTo<TypeStruct>(type), name); field != nullptr)
+    if (const Field* const field = FindField(schema, CastTo<TypeStruct>(type), name); field != nullptr)
         return field;
-    if (const Field* const field = FindField(CastTo<TypeMessage>(type), name); field != nullptr)
+    if (const Field* const field = FindField(schema, CastTo<TypeMessage>(type), name); field != nullptr)
         return field;
-    if (const Field* const field = FindField(CastTo<TypeAttribute>(type), name); field != nullptr)
+    if (const Field* const field = FindField(schema, CastTo<TypeAttribute>(type), name); field != nullptr)
         return field;
 
     return nullptr;
 }
 
-const EnumItem* potato::schematic::FindItem(const TypeEnum* type, std::string_view name) noexcept
+const Field* potato::schematic::FindField(const Schema* schema, TypeIndex typeIndex, std::string_view name) noexcept
+{
+    return FindField(schema, GetType(schema, typeIndex), name);
+}
+
+const EnumItem* potato::schematic::FindItem(const Schema*, const TypeEnum* type, std::string_view name) noexcept
 {
     if (type == nullptr)
         return nullptr;
@@ -102,7 +121,7 @@ static const Annotation* FindAnnotation(std::span<const Annotation* const> annot
     return nullptr;
 }
 
-const Annotation* potato::schematic::FindAnnotation(const Type* type, const TypeAttribute* attribute) noexcept
+const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const Type* type, const TypeAttribute* attribute) noexcept
 {
     if (type == nullptr)
         return nullptr;
@@ -113,12 +132,12 @@ const Annotation* potato::schematic::FindAnnotation(const Type* type, const Type
         return annotation;
 
     if (const TypeStruct* const struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
-        return FindAnnotation(struct_->base, attribute);
+        return FindAnnotation(schema, struct_->base, attribute);
 
     return nullptr;
 }
 
-const Annotation* potato::schematic::FindAnnotation(const Type* type, std::string_view name) noexcept
+const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const Type* type, std::string_view name) noexcept
 {
     if (type == nullptr)
         return nullptr;
@@ -129,12 +148,22 @@ const Annotation* potato::schematic::FindAnnotation(const Type* type, std::strin
         return annotation;
 
     if (const TypeStruct* const struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
-        return FindAnnotation(struct_->base, name);
+        return FindAnnotation(schema, struct_->base, name);
 
     return nullptr;
 }
 
-const Annotation* potato::schematic::FindAnnotation(const Field* field, const TypeAttribute* attribute) noexcept
+const Annotation* potato::schematic::FindAnnotation(const Schema* schema, TypeIndex typeIndex, const TypeAttribute* attribute) noexcept
+{
+    return FindAnnotation(schema, GetType(schema, typeIndex), attribute);
+}
+
+const Annotation* potato::schematic::FindAnnotation(const Schema* schema, TypeIndex typeIndex, std::string_view name) noexcept
+{
+    return FindAnnotation(schema, GetType(schema, typeIndex), name);
+}
+
+const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const Field* field, const TypeAttribute* attribute) noexcept
 {
     if (field == nullptr)
         return nullptr;
@@ -144,7 +173,7 @@ const Annotation* potato::schematic::FindAnnotation(const Field* field, const Ty
     return ::FindAnnotation(field->annotations, attribute);
 }
 
-const Annotation* potato::schematic::FindAnnotation(const Field* field, std::string_view name) noexcept
+const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const Field* field, std::string_view name) noexcept
 {
     if (field == nullptr)
         return nullptr;
@@ -154,7 +183,7 @@ const Annotation* potato::schematic::FindAnnotation(const Field* field, std::str
     return ::FindAnnotation(field->annotations, name);
 }
 
-const Annotation* potato::schematic::FindAnnotation(const EnumItem* item, const TypeAttribute* attribute) noexcept
+const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const EnumItem* item, const TypeAttribute* attribute) noexcept
 {
     if (item == nullptr)
         return nullptr;
@@ -164,7 +193,7 @@ const Annotation* potato::schematic::FindAnnotation(const EnumItem* item, const 
     return ::FindAnnotation(item->annotations, attribute);
 }
 
-const Annotation* potato::schematic::FindAnnotation(const EnumItem* item, std::string_view name) noexcept
+const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const EnumItem* item, std::string_view name) noexcept
 {
     if (item == nullptr)
         return nullptr;
@@ -174,34 +203,34 @@ const Annotation* potato::schematic::FindAnnotation(const EnumItem* item, std::s
     return ::FindAnnotation(item->annotations, name);
 }
 
-bool potato::schematic::HasAttribute(const Type* type, const TypeAttribute* attribute) noexcept
+bool potato::schematic::HasAttribute(const Schema* schema, const Type* type, const TypeAttribute* attribute) noexcept
 {
-    return FindAnnotation(type, attribute) != nullptr;
+    return FindAnnotation(schema, type, attribute) != nullptr;
 }
 
-bool potato::schematic::HasAttribute(const Type* type, std::string_view name) noexcept
+bool potato::schematic::HasAttribute(const Schema* schema, const Type* type, std::string_view name) noexcept
 {
-    return FindAnnotation(type, name) != nullptr;
+    return FindAnnotation(schema, type, name) != nullptr;
 }
 
-bool potato::schematic::HasAttribute(const Field* field, const TypeAttribute* attribute) noexcept
+bool potato::schematic::HasAttribute(const Schema* schema, const Field* field, const TypeAttribute* attribute) noexcept
 {
-    return FindAnnotation(field, attribute) != nullptr;
+    return FindAnnotation(schema, field, attribute) != nullptr;
 }
 
-bool potato::schematic::HasAttribute(const Field* field, std::string_view name) noexcept
+bool potato::schematic::HasAttribute(const Schema* schema, const Field* field, std::string_view name) noexcept
 {
-    return FindAnnotation(field, name) != nullptr;
+    return FindAnnotation(schema, field, name) != nullptr;
 }
 
-bool potato::schematic::HasAttribute(const EnumItem* item, const TypeAttribute* attribute) noexcept
+bool potato::schematic::HasAttribute(const Schema* schema, const EnumItem* item, const TypeAttribute* attribute) noexcept
 {
-    return FindAnnotation(item, attribute) != nullptr;
+    return FindAnnotation(schema, item, attribute) != nullptr;
 }
 
-bool potato::schematic::HasAttribute(const EnumItem* item, std::string_view name) noexcept
+bool potato::schematic::HasAttribute(const Schema* schema, const EnumItem* item, std::string_view name) noexcept
 {
-    return FindAnnotation(item, name) != nullptr;
+    return FindAnnotation(schema, item, name) != nullptr;
 }
 
 const Type* potato::schematic::FindType(const Schema* schema, std::string_view name) noexcept
@@ -244,7 +273,7 @@ static const Value* FindArgument(const std::span<const Argument>& arguments, con
     return field->value;
 }
 
-const Value* potato::schematic::FindArgument(const ValueObject* object, const Field* field) noexcept
+const Value* potato::schematic::FindArgument(const Schema* schema, const ValueObject* object, const Field* field) noexcept
 {
     if (object == nullptr)
         return nullptr;
@@ -252,15 +281,15 @@ const Value* potato::schematic::FindArgument(const ValueObject* object, const Fi
     return ::FindArgument(object->fields, field);
 }
 
-const Value* potato::schematic::FindArgument(const ValueObject* object, std::string_view name) noexcept
+const Value* potato::schematic::FindArgument(const Schema* schema, const ValueObject* object, std::string_view name) noexcept
 {
     if (object == nullptr)
         return nullptr;
 
-    return FindArgument(object, FindField(CastTo<TypeStruct>(object->type), name));
+    return FindArgument(schema, object, FindField(schema, CastTo<TypeStruct>(object->type), name));
 }
 
-const Value* potato::schematic::FindArgument(const Annotation* annotation, const Field* field) noexcept
+const Value* potato::schematic::FindArgument(const Schema* schema, const Annotation* annotation, const Field* field) noexcept
 {
     if (annotation == nullptr)
         return nullptr;
@@ -268,18 +297,21 @@ const Value* potato::schematic::FindArgument(const Annotation* annotation, const
     return ::FindArgument(annotation->arguments, field);
 }
 
-const Value* potato::schematic::FindArgument(const Annotation* annotation, std::string_view name) noexcept
+const Value* potato::schematic::FindArgument(const Schema* schema, const Annotation* annotation, std::string_view name) noexcept
 {
     if (annotation == nullptr)
         return nullptr;
 
-    return FindArgument(annotation, FindField(annotation->attribute, name));
+    return FindArgument(schema, annotation, FindField(schema, annotation->attribute, name));
 }
 
-bool potato::schematic::IsA(const Type* type, const Type* parent) noexcept
+bool potato::schematic::IsA(const Schema* schema, const Type* type, const Type* parent) noexcept
 {
-    if (parent == nullptr)
+    if (type == nullptr || parent == nullptr)
         return false;
+
+    if (type == parent)
+        return true;
 
     while (type != nullptr)
     {
@@ -287,9 +319,21 @@ bool potato::schematic::IsA(const Type* type, const Type* parent) noexcept
             return true;
 
         if (const TypeStruct* const agg = CastTo<TypeStruct>(type))
-            type = agg->base;
+        {
+            if (agg->base == InvalidIndex)
+                break;
+            type = schema->types[agg->base];
+        }
+        else if (const TypeEnum* const enum_ = CastTo<TypeEnum>(type))
+        {
+            if (enum_->base == InvalidIndex)
+                break;
+            type = schema->types[enum_->base];
+        }
         else
+        {
             break;
+        }
     }
 
     return false;

@@ -129,7 +129,8 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         type->name = arena_.NewString(irType->name);
         type->owner = irType->owner->index;
         type->location = irType->location;
-        type->base = CastTo<TypeInt>(base);
+        if (irType->base != nullptr)
+            type->base = irType->base->index;
         type->annotations = CreateAnnotations(irType->annotations);
 
         Array<EnumItem> items = arena_.NewArray<EnumItem>(irType->items.Size());
@@ -190,7 +191,8 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         type->name = arena_.NewString(irType->name);
         type->owner = irType->owner->index;
         type->location = irType->location;
-        type->base = CastTo<TypeStruct>(base);
+        if (irType->base != nullptr)
+            type->base = irType->base->index;
         type->annotations = CreateAnnotations(irType->annotations);
 
         Array<Field> fields = arena_.NewArray<Field>(irType->fields.Size());
@@ -226,7 +228,8 @@ void SchemaGenerator::CreateType(IRType* inIrType)
                 type->name = NewStringFmt(arena_, "{}#{}", irVersion->name, version);
                 type->owner = irType->owner->index;
                 type->location = irType->location;
-                type->base = CastTo<TypeStruct>(base);
+                if (irVersion->base != nullptr)
+                    type->base = irVersion->base->index;
                 type->version = version;
                 type->annotations = CreateAnnotations(irVersion->annotations);
 
@@ -378,7 +381,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         type->name = NewStringFmt(arena_, "{}?", target->name);
         type->owner = irType->owner->index;
         type->location = irType->location;
-        type->type = target;
+        type->target = irType->target->index;
 
         irType->index = static_cast<TypeIndex>(types_.Size());
         types_.PushBack(arena_, type);
@@ -394,7 +397,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         type->name = NewStringFmt(arena_, "{}*", target->name);
         type->owner = irType->owner->index;
         type->location = irType->location;
-        type->type = target;
+        type->target = irType->target->index;
 
         irType->index = static_cast<TypeIndex>(types_.Size());
         types_.PushBack(arena_, type);
@@ -418,7 +421,7 @@ ReadOnlySpan<Annotation*> SchemaGenerator::CreateAnnotations(Array<IRAnnotation*
         for (IRAnnotationArgument* irArgument : irAnnotation->arguments)
         {
             Argument& arg = arguments.EmplaceBack(arena_);
-            arg.field = FindField(annotation->attribute, irArgument->field->name);
+            arg.field = FindField(schema_, annotation->attribute, irArgument->field->name);
             arg.value = Resolve(irArgument->value);
             arg.location = irArgument->location;
         }
@@ -492,7 +495,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
         ValueEnum* const result = arena_.New<ValueEnum>();
         result->location = value->location;
         const TypeEnum* const type = CastTo<TypeEnum>(Resolve(item->type));
-        result->item = FindItem(type, item->item->name);
+        result->item = FindItem(schema_, type, item->item->name);
         return result;
     }
 

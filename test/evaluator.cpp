@@ -125,7 +125,7 @@ namespace potato::schematic::test
 
             if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
             {
-                for (const TypeStruct* comp = struct_->base; comp != nullptr; comp = comp->base)
+                for (const TypeStruct* comp = CastTo<TypeStruct>(GetType(&schema, struct_->base)); comp != nullptr; comp = CastTo<TypeStruct>(GetType(&schema, comp->base)))
                 {
                     if (comp->name == reference)
                         return true;
@@ -340,7 +340,7 @@ namespace potato::schematic::test
         else if (const TypeEnum* enum_ = CastTo<TypeEnum>(type); enum_ != nullptr)
         {
             if (Match("@base"))
-                return Evaluate(enum_->base);
+                return Evaluate(TypeIndexWrapper{ enum_->base });
             if (Match("@count"))
                 return Evaluate(enum_->items.size());
 
@@ -380,13 +380,13 @@ namespace potato::schematic::test
         else if (const TypePointer* pointer = CastTo<TypePointer>(type); pointer != nullptr)
         {
             if (Match("@type"))
-                return Evaluate(pointer->type);
+                return Evaluate(TypeIndexWrapper{ pointer->target });
         }
 
         else if (const TypeStruct* struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
         {
             if (Match("@base"))
-                return Evaluate(static_cast<const Type*>(struct_->base));
+                return Evaluate(TypeIndexWrapper{ struct_->base });
             if (Match("@fields"))
                 return Evaluate(struct_->fields.size());
             if (Match("@version"))

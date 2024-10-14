@@ -188,7 +188,7 @@ namespace potato::schematic
     {
         SCHEMATIC_TYPE(TypeEnum, TypeKind::Enum);
 
-        const TypeInt* base = nullptr;
+        TypeIndex base = InvalidIndex;
         ReadOnlySpan<EnumItem> items;
     };
 
@@ -218,14 +218,14 @@ namespace potato::schematic
     {
         SCHEMATIC_TYPE(TypeNullable, TypeKind::Nullable);
 
-        const Type* type = nullptr;
+        TypeIndex target = InvalidIndex;
     };
 
     struct TypePointer : Type
     {
         SCHEMATIC_TYPE(TypePointer, TypeKind::Pointer);
 
-        const Type* type = nullptr;
+        TypeIndex target = InvalidIndex;
     };
 
     struct TypeString : Type
@@ -238,7 +238,7 @@ namespace potato::schematic
         SCHEMATIC_TYPE(TypeStruct, TypeKind::Struct);
 
         ReadOnlySpan<Field> fields;
-        const TypeStruct* base = nullptr;
+        TypeIndex base = InvalidIndex;
         std::uint32_t version = 1;
     };
 
