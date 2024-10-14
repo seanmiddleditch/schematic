@@ -17,6 +17,11 @@
 
 namespace potato::schematic::test
 {
+    struct TypeIndexWrapper
+    {
+        TypeIndex index = InvalidIndex;
+    };
+
     CheckEvaluator::CheckEvaluator(std::string_view test, std::string_view filename, std::size_t line)
         : filename_(filename)
         , line_(line)
@@ -43,9 +48,11 @@ namespace potato::schematic::test
     {
         REQUIRE(schema != nullptr);
 
+        schema_ = schema;
         nextPos_ = 0;
+
         Advance();
-        Evaluate(schema);
+        Evaluate(schema_);
     }
 
     template <typename T>
@@ -72,21 +79,43 @@ namespace potato::schematic::test
     struct OpIs
     {
         template <typename T>
-        static bool Check(const T& value, std::string_view reference)
+        static bool Check(const Schema&, const T& value, std::string_view reference)
         {
             return Catch::Detail::stringify(value) == reference;
+        }
+
+        static bool Check(const Schema& schema, TypeIndexWrapper typeIndex, std::string_view reference)
+        {
+            if (typeIndex.index == InvalidIndex)
+                return false;
+
+            if (typeIndex.index >= schema.types.size())
+                return false;
+
+            return Catch::Detail::stringify(schema.types[typeIndex.index]) == reference;
         }
     };
 
     struct OpIsA
     {
         template <typename T>
-        static bool Check(T, std::string_view)
+        static bool Check(const Schema&, T, std::string_view)
         {
             return false;
         }
 
-        static bool Check(const Type* type, std::string_view reference)
+        static bool Check(const Schema& schema, TypeIndexWrapper typeIndex, std::string_view reference)
+        {
+            if (typeIndex.index == InvalidIndex)
+                return false;
+
+            if (typeIndex.index >= schema.types.size())
+                return false;
+
+            return Check(schema, schema.types[typeIndex.index], reference);
+        }
+
+        static bool Check(const Schema& schema, const Type* type, std::string_view reference)
         {
             if (type == nullptr)
                 return false;
@@ -104,7 +133,7 @@ namespace potato::schematic::test
             }
             else if (const TypeEnum* enum_ = CastTo<TypeEnum>(type); enum_ != nullptr)
             {
-                return Check(enum_->base, reference);
+                return Check(schema, enum_->base, reference);
             }
 
             return false;
@@ -160,12 +189,12 @@ namespace potato::schematic::test
         }
         else if (op == "==")
         {
-            const bool result = OpIs::Check(value, reference);
+            const bool result = OpIs::Check(*schema_, value, reference);
             handler.handleExpr(CatchFailedExpression(result, value, op, reference));
         }
         else if (op == "~=")
         {
-            const bool result = OpIsA::Check(value, reference);
+            const bool result = OpIsA::Check(*schema_, value, reference);
             handler.handleExpr(CatchFailedExpression(result, value, op, reference));
         }
         else
@@ -280,7 +309,7 @@ namespace potato::schematic::test
         if (const TypeAlias* alias = CastTo<TypeAlias>(type); alias != nullptr)
         {
             if (!Match("@self"))
-                return Evaluate(alias->type);
+                return Evaluate(TypeIndexWrapper{ alias->type });
         }
 
         if (Match("@kind"))
@@ -371,6 +400,17 @@ namespace potato::schematic::test
         }
 
         Finish(type);
+    }
+
+    void CheckEvaluator::Evaluate(TypeIndexWrapper typeIndex)
+    {
+        if (typeIndex.index == InvalidIndex)
+            return Finish(nullptr);
+
+        if (typeIndex.index >= schema_->types.size())
+            return Finish(nullptr);
+
+        return Evaluate(schema_->types[typeIndex.index]);
     }
 
     void CheckEvaluator::Evaluate(const Value* value)

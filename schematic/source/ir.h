@@ -89,7 +89,7 @@ namespace potato::schematic::compiler
         const AstNode* ast = nullptr;
         Type* type = nullptr;
         const char* name = nullptr;
-        std::uint32_t index = 0;
+        TypeIndex index = InvalidIndex;
         Array<IRAnnotation*> annotations;
         IRModule* owner = nullptr;
         Location location;
@@ -339,7 +339,7 @@ namespace potato::schematic::compiler
         const char* filename = nullptr;
         const AstNodeModule* ast = nullptr;
         const Module* module = nullptr;
-        ModuleIndex index = 0;
+        ModuleIndex index = InvalidIndex;
         Array<IRImport*> imports;
         Array<IRType*> types;
     };

@@ -266,7 +266,7 @@ void Serializer::Serialize(proto::Type::Alias& out, const TypeAlias& in)
 {
     SerializeTypeCommon(out, in);
 
-    out.set_type(IndexOfType(in.type));
+    out.set_type(in.type);
 }
 
 void Serializer::Serialize(proto::Type::Array& out, const TypeArray& in)
@@ -663,8 +663,8 @@ void Deserializer::Deserialize(TypeAlias& out, const proto::Type::Alias& in)
 {
     DeserializeTypeCommon(out, in);
 
-    if (VERIFY_INDEX(types_, in.type(), "Invalid alias type index ", in.type()))
-        out.type = types_[in.type()];
+    if (VERIFY_INDEX(types_, in.type(), "Invalid alias type index {}", in.type()))
+        out.type = in.type();
 }
 
 void Deserializer::Deserialize(TypeStruct& out, const proto::Type::Struct& in)

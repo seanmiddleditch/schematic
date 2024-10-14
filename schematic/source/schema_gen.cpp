@@ -52,7 +52,7 @@ ModuleIndex SchemaGenerator::CreateModule(IRModule* irModule)
     Array<ModuleIndex> imports = arena_.NewArray<ModuleIndex>(irModule->imports.Size());
     for (IRImport* const irImport : irModule->imports)
     {
-        if (irImport->resolved->index == 0)
+        if (irImport->resolved->index == InvalidIndex)
             CreateModule(irImport->resolved);
 
         imports.PushBack(arena_, irImport->resolved->index);
@@ -86,9 +86,10 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         type->name = arena_.NewString(irType->name);
         type->owner = irType->owner->index;
         type->location = irType->location;
-        type->type = target;
+        type->type = irType->target->index;
         type->annotations = CreateAnnotations(irType->annotations);
 
+        irType->index = static_cast<TypeIndex>(types_.Size());
         types_.PushBack(arena_, type);
         inIrType->type = type;
         return;
@@ -114,6 +115,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         }
         type->fields = fields;
 
+        irType->index = static_cast<TypeIndex>(types_.Size());
         types_.PushBack(arena_, type);
         inIrType->type = type;
         return;
@@ -147,6 +149,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         }
         type->items = items;
 
+        irType->index = static_cast<TypeIndex>(types_.Size());
         types_.PushBack(arena_, type);
         inIrType->type = type;
         return;
@@ -173,6 +176,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         }
         type->fields = fields;
 
+        irType->index = static_cast<TypeIndex>(types_.Size());
         types_.PushBack(arena_, type);
         inIrType->type = type;
         return;
@@ -202,6 +206,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         }
         type->fields = fields;
 
+        irType->index = static_cast<TypeIndex>(types_.Size());
         types_.PushBack(arena_, type);
         inIrType->type = type;
         return;
@@ -209,7 +214,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
 
     if (IRTypeStructVersioned* irType = CastTo<IRTypeStructVersioned>(inIrType); irType != nullptr)
     {
-        std::uint32_t maxVersion = 0;
+        IRTypeStruct* maxVersion = 0;
 
         for (IRTypeStruct* irVersion : irType->versions)
         {
@@ -253,22 +258,25 @@ void SchemaGenerator::CreateType(IRType* inIrType)
                 }
                 type->fields = fields;
 
+                irVersion->index = static_cast<TypeIndex>(types_.Size());
                 types_.PushBack(arena_, type);
+
                 irVersion->type = type;
 
-                if (type->version > maxVersion)
-                {
-                    maxVersion = type->version;
-                    irType->type = type;
-                }
+                if (maxVersion == nullptr || type->version > maxVersion->version.max)
+                    maxVersion = irVersion;
             }
         }
+
+        irType->type = maxVersion->type;
 
         TypeAlias* type = arena_.New<TypeAlias>();
         type->name = arena_.NewString(irType->name);
         type->owner = irType->type->owner;
         type->location = irType->location;
-        type->type = irType->type;
+        type->type = maxVersion->index;
+
+        irType->index = static_cast<TypeIndex>(types_.Size());
         types_.PushBack(arena_, type);
         return;
     }
@@ -281,6 +289,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             type->name = arena_.NewString(irType->name);
             type->owner = irType->owner->index;
             type->location = irType->location;
+            irType->index = static_cast<TypeIndex>(types_.Size());
             types_.PushBack(arena_, type);
             inIrType->type = type;
             return;
@@ -293,6 +302,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             type->owner = irType->owner->index;
             type->location = irType->location;
             type->width = irType->width;
+            irType->index = static_cast<TypeIndex>(types_.Size());
             types_.PushBack(arena_, type);
             inIrType->type = type;
             return;
@@ -306,6 +316,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             type->location = irType->location;
             type->width = irType->width;
             type->isSigned = irType->isSigned;
+            irType->index = static_cast<TypeIndex>(types_.Size());
             types_.PushBack(arena_, type);
             inIrType->type = type;
             return;
@@ -317,6 +328,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             type->name = arena_.NewString(irType->name);
             type->owner = irType->owner->index;
             type->location = irType->location;
+            irType->index = static_cast<TypeIndex>(types_.Size());
             types_.PushBack(arena_, type);
             inIrType->type = type;
             return;
@@ -328,6 +340,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             type->name = arena_.NewString(irType->name);
             type->owner = irType->owner->index;
             type->location = irType->location;
+            irType->index = static_cast<TypeIndex>(types_.Size());
             types_.PushBack(arena_, type);
             inIrType->type = type;
             return;
@@ -351,6 +364,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         type->type = target;
         type->size = irType->size;
 
+        irType->index = static_cast<TypeIndex>(types_.Size());
         types_.PushBack(arena_, type);
         inIrType->type = type;
         return;
@@ -366,6 +380,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         type->location = irType->location;
         type->type = target;
 
+        irType->index = static_cast<TypeIndex>(types_.Size());
         types_.PushBack(arena_, type);
         inIrType->type = type;
         return;
@@ -381,6 +396,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         type->location = irType->location;
         type->type = target;
 
+        irType->index = static_cast<TypeIndex>(types_.Size());
         types_.PushBack(arena_, type);
         inIrType->type = type;
         return;

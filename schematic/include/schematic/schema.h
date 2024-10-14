@@ -47,6 +47,9 @@ namespace potato::schematic
     struct ValueType;
 
     using ModuleIndex = std::uint32_t;
+    using TypeIndex = std::uint32_t;
+
+    static constexpr std::uint32_t InvalidIndex = std::uint32_t(-1);
 
     template <typename T, typename I = std::uint32_t>
     using ReadOnlySpan = std::span<const T>;
@@ -130,7 +133,7 @@ namespace potato::schematic
     struct Schema
     {
         ReadOnlySpan<const Module, ModuleIndex> modules;
-        ReadOnlySpan<const Type*> types;
+        ReadOnlySpan<const Type*, TypeIndex> types;
         ModuleIndex root = 0;
     };
 
@@ -158,7 +161,7 @@ namespace potato::schematic
     {
         SCHEMATIC_TYPE(TypeAlias, TypeKind::Alias);
 
-        const Type* type = nullptr;
+        TypeIndex type = InvalidIndex;
     };
 
     struct TypeArray : Type
