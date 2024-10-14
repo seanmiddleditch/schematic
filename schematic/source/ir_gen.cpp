@@ -512,6 +512,8 @@ IRModule* IRGenerator::CreateBuiltins()
     if (builtins_ != nullptr)
         return builtins_;
 
+    constexpr std::size_t byteWidthInBits = 8; // we assume target uses expect 8-bit bytes
+
     builtins_ = arena_.New<IRModule>();
     builtins_->filename = "$builtins";
 
@@ -519,15 +521,15 @@ IRModule* IRGenerator::CreateBuiltins()
     {
         IRTypeBuiltin* const type = CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::Int, name);
         type->isSigned = std::is_signed_v<T>;
-        type->width = CHAR_BIT * sizeof(T);
+        type->width = byteWidthInBits * sizeof(T);
     };
     auto AddFloat = [this]<typename T>(const char* name, T)
     {
         IRTypeBuiltin* const type = CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::Float, name);
-        type->width = CHAR_BIT * sizeof(T);
+        type->width = byteWidthInBits * sizeof(T);
     };
 
-    CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::Type, "$type");
+    CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::Type, "type");
     CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::Bool, "bool");
     CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::String, "string");
 
