@@ -12,6 +12,7 @@ message Schema
     repeated Module modules = 1;
     repeated Type types = 2;
     repeated Field fields = 3;
+    repeated Value values = 4;
 
     uint32 root = 10;
 }
@@ -27,7 +28,7 @@ message Field
     string name = 1;
     uint32 type = 2;
     repeated Annotation annotations = 3;
-    Value default = 4;
+    uint32 value = 4;
     optional uint32 proto = 5;
     Location location = 6;
     uint32 parent = 7;
@@ -36,7 +37,7 @@ message Field
 message Argument
 {
     uint32 field = 1;
-    Value value = 2;
+    uint32 value = 2;
     Location location = 3;
 }
 
@@ -44,7 +45,7 @@ message EnumItem
 {
     string name = 1;
     repeated Annotation annotations = 2;
-    int64 value = 3;
+    uint32 value = 3;
     Location location = 4;
 }
 
@@ -211,7 +212,7 @@ message Value
     message Array
     {
         uint32 type = 1;
-        repeated Value elements = 2;
+        repeated uint32 elements = 2;
         Location location = 3;
     }
 

@@ -51,6 +51,9 @@ namespace potato::schematic
     using FieldIndex = std::uint32_t;
     using ModuleIndex = std::uint32_t;
     using TypeIndex = std::uint32_t;
+    using ValueIndex = std::uint32_t;
+
+    using Annotations = ReadOnlySpan<const Annotation*>;
 
     enum class TypeKind : std::uint8_t
     {
@@ -91,7 +94,7 @@ namespace potato::schematic
     struct Argument
     {
         FieldIndex field = InvalidIndex;
-        const Value* value = nullptr;
+        ValueIndex value = InvalidIndex;
         Location location;
     };
 
@@ -104,10 +107,10 @@ namespace potato::schematic
 
     struct EnumItem
     {
-        ReadOnlySpan<const Annotation*> annotations;
         const char* name = nullptr;
         TypeIndex parent = InvalidIndex;
-        const ValueInt* value = nullptr;
+        ValueIndex value = InvalidIndex;
+        Annotations annotations;
         Location location;
     };
 
@@ -117,9 +120,9 @@ namespace potato::schematic
         FieldIndex index = InvalidIndex;
         TypeIndex parent = InvalidIndex;
         TypeIndex type = InvalidIndex;
-        const Value* value = nullptr;
+        ValueIndex value = InvalidIndex;
         std::uint32_t proto = 0;
-        ReadOnlySpan<const Annotation*> annotations;
+        Annotations annotations;
         Location location;
     };
 
@@ -134,7 +137,8 @@ namespace potato::schematic
     {
         ReadOnlySpan<const Module, ModuleIndex> modules;
         ReadOnlySpan<const Type*, TypeIndex> types;
-        ReadOnlySpan<Field, FieldIndex> fields;
+        ReadOnlySpan<const Field, FieldIndex> fields;
+        ReadOnlySpan<const Value*, ValueIndex> values;
         ModuleIndex root = 0;
     };
 
@@ -144,14 +148,13 @@ namespace potato::schematic
         TypeIndex index = InvalidIndex;
         ModuleIndex parent = InvalidIndex;
         TypeKind kind = TypeKind::Bool;
-        ReadOnlySpan<const Annotation*> annotations;
+        Annotations annotations;
         Location location;
     };
 
     struct Value
     {
         ValueKind kind = ValueKind::Null;
-        ModuleIndex parent = InvalidIndex;
         Location location;
     };
 
@@ -259,7 +262,7 @@ namespace potato::schematic
     {
         SCHEMATIC_VALUE(ValueArray, ValueKind::Array);
 
-        ReadOnlySpan<const Value*> elements;
+        ReadOnlySpan<const ValueIndex> elements;
         TypeIndex type = InvalidIndex;
     };
 

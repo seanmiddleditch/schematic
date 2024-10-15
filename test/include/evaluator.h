@@ -11,6 +11,7 @@
 namespace potato::schematic::test
 {
     struct TypeIndexWrapper;
+    struct ValueIndexWrapper;
 
     class CheckEvaluator
     {
@@ -55,6 +56,7 @@ namespace potato::schematic::test
         void Evaluate(const Argument* arg);
         void Evaluate(const Type* type);
         void Evaluate(TypeIndexWrapper typeIndex);
+        void Evaluate(ValueIndexWrapper valueIndex);
         void Evaluate(const Value* value);
         void Evaluate(const Module* mod);
         void Evaluate(const Schema* schema);

@@ -27,10 +27,12 @@ namespace potato::schematic::compiler
 
         Type* Resolve(IRType* type);
         TypeIndex ResolveIndex(IRType* type);
+
         void CreateType(IRType* type);
         ReadOnlySpan<Annotation*> CreateAnnotations(Array<IRAnnotation*> irAnnotations);
 
         Value* Resolve(IRValue* value);
+        ValueIndex ResolveIndex(IRValue* value);
 
         ArenaAllocator& arena_;
         Logger& logger_;
@@ -39,5 +41,6 @@ namespace potato::schematic::compiler
         Array<Module> modules_;
         Array<Type*> types_;
         Array<Field> fields_;
+        Array<Value*> values_;
     };
 } // namespace potato::schematic::compiler

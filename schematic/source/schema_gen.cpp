@@ -41,6 +41,7 @@ const Schema* SchemaGenerator::Compile(IRSchema* irSchema)
     schema_->types = types_;
     schema_->modules = modules_;
     schema_->fields = fields_;
+    schema_->values = values_;
     return schema_;
 }
 
@@ -129,7 +130,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             field.name = arena_.NewString(irField->name);
             field.index = irField->index;
             field.type = ResolveIndex(irField->type);
-            field.value = Resolve(irField->value);
+            field.value = ResolveIndex(irField->value);
             field.parent = inIrType->index;
             field.location = irField->location;
         }
@@ -161,8 +162,8 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             ValueInt* const value = arena_.New<ValueInt>();
             value->value = irItem->value;
             value->location = irItem->location;
-            value->parent = schema_->root;
-            item.value = value;
+            item.value = static_cast<ValueIndex>(values_.Size());
+            values_.PushBack(arena_, value);
             item.location = irItem->location;
             item.annotations = CreateAnnotations(irItem->annotations);
         }
@@ -203,7 +204,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             field.name = arena_.NewString(irField->name);
             field.index = irField->index;
             field.type = ResolveIndex(irField->type);
-            field.value = Resolve(irField->value);
+            field.value = ResolveIndex(irField->value);
             field.proto = irField->proto;
             field.parent = irType->index;
             field.location = irField->location;
@@ -249,7 +250,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             field.name = arena_.NewString(irField->name);
             field.index = irField->index;
             field.type = ResolveIndex(irField->type);
-            field.value = Resolve(irField->value);
+            field.value = ResolveIndex(irField->value);
             field.parent = irType->index;
             field.location = irField->location;
         }
@@ -310,7 +311,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
                     field.name = arena_.NewString(irField->name);
                     field.index = irField->index;
                     field.type = ResolveIndex(irField->type);
-                    field.value = Resolve(irField->value);
+                    field.value = ResolveIndex(irField->value);
                     field.parent = irType->index;
                     field.location = irField->location;
                 }
@@ -478,7 +479,7 @@ ReadOnlySpan<Annotation*> SchemaGenerator::CreateAnnotations(Array<IRAnnotation*
         {
             Argument& arg = arguments.EmplaceBack(arena_);
             arg.field = irArgument->field->index;
-            arg.value = Resolve(irArgument->value);
+            arg.value = ResolveIndex(irArgument->value);
             arg.location = irArgument->location;
         }
         annotation->arguments = arguments;
@@ -504,6 +505,8 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             result->location = value->location;
             result->value = node->value;
             value->value = result;
+            value->index = static_cast<std::uint32_t>(values_.Size());
+            values_.PushBack(arena_, result);
             return result;
         }
 
@@ -513,6 +516,8 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             result->location = value->location;
             result->value = node->value;
             value->value = result;
+            value->index = static_cast<std::uint32_t>(values_.Size());
+            values_.PushBack(arena_, result);
             return result;
         }
 
@@ -522,6 +527,8 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             result->location = value->location;
             result->value = node->value;
             value->value = result;
+            value->index = static_cast<std::uint32_t>(values_.Size());
+            values_.PushBack(arena_, result);
             return result;
         }
 
@@ -530,6 +537,8 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             ValueNull* const result = arena_.New<ValueNull>();
             result->location = value->location;
             value->value = result;
+            value->index = static_cast<std::uint32_t>(values_.Size());
+            values_.PushBack(arena_, result);
             return result;
         }
 
@@ -539,6 +548,8 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             result->location = value->location;
             result->value = arena_.NewString(node->value);
             value->value = result;
+            value->index = static_cast<std::uint32_t>(values_.Size());
+            values_.PushBack(arena_, result);
             return result;
         }
 
@@ -552,6 +563,8 @@ Value* SchemaGenerator::Resolve(IRValue* value)
         result->location = value->location;
         result->type = ResolveIndex(type->target);
         value->value = result;
+        value->index = static_cast<std::uint32_t>(values_.Size());
+        values_.PushBack(arena_, result);
         return result;
     }
 
@@ -562,6 +575,8 @@ Value* SchemaGenerator::Resolve(IRValue* value)
         const TypeEnum* const type = CastTo<TypeEnum>(Resolve(item->type));
         result->item = FindItem(schema_, type, item->item->name);
         value->value = result;
+        value->index = static_cast<std::uint32_t>(values_.Size());
+        values_.PushBack(arena_, result);
         return result;
     }
 
@@ -573,12 +588,14 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             result->type = ResolveIndex(initializerList->type);
             result->location = value->location;
 
-            Array<Value*> elements = arena_.NewArray<Value*>(initializerList->positional.Size());
+            Array<ValueIndex> elements = arena_.NewArray<ValueIndex>(initializerList->positional.Size());
             for (IRValue* const element : initializerList->positional)
-                elements.PushBack(arena_, Resolve(element));
+                elements.PushBack(arena_, ResolveIndex(element));
 
             result->elements = elements;
             value->value = result;
+            value->index = static_cast<std::uint32_t>(values_.Size());
+            values_.PushBack(arena_, result);
             return result;
         }
 
@@ -595,7 +612,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             {
                 Argument& field = fields.EmplaceBack(arena_);
                 field.field = typeStruct->fields[fieldIndex]->index;
-                field.value = Resolve(element);
+                field.value = ResolveIndex(element);
                 ++fieldIndex;
             }
 
@@ -603,16 +620,26 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             {
                 Argument& field = fields.EmplaceBack(arena_);
                 field.field = named->field->index;
-                field.value = Resolve(named->value);
+                field.value = ResolveIndex(named->value);
                 ++fieldIndex;
             }
 
             result->fields = fields;
             value->value = result;
+            value->index = static_cast<std::uint32_t>(values_.Size());
+            values_.PushBack(arena_, result);
             return result;
         }
     }
 
     assert(false);
     return nullptr;
+}
+
+ValueIndex SchemaGenerator::ResolveIndex(IRValue* value)
+{
+    if (Resolve(value) == nullptr)
+        return InvalidIndex;
+
+    return value->index;
 }

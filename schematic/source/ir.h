@@ -109,6 +109,7 @@ namespace potato::schematic::compiler
     {
         IRValueKind kind = IRValueKind::Literal;
         const AstNode* ast = nullptr;
+        ValueIndex index = InvalidIndex;
         Value* value = nullptr;
         Location location;
 

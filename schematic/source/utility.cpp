@@ -40,6 +40,20 @@ ReadOnlySpan<Field> potato::schematic::GetFields(const Schema* schema, IndexRang
     return schema->fields.subspan(fields.start, fields.count);
 }
 
+const Value* potato::schematic::GetValue(const Schema* schema, ValueIndex valueIndex) noexcept
+{
+    if (schema == nullptr)
+        return nullptr;
+
+    if (valueIndex == InvalidIndex)
+        return nullptr;
+
+    if (valueIndex >= schema->values.size())
+        return nullptr;
+
+    return schema->values[valueIndex];
+}
+
 const Field* potato::schematic::FindField(const Schema* schema, const TypeAttribute* type, std::string_view name) noexcept
 {
     if (type == nullptr)
@@ -289,7 +303,7 @@ const Type* potato::schematic::FindType(const Schema* schema, ModuleIndex module
     return nullptr;
 }
 
-static const Value* FindArgument(const std::span<const Argument>& arguments, const Field* field) noexcept
+static const Value* FindArgument(const Schema* schema, const std::span<const Argument>& arguments, const Field* field) noexcept
 {
     if (field == nullptr)
         return nullptr;
@@ -297,10 +311,10 @@ static const Value* FindArgument(const std::span<const Argument>& arguments, con
     for (const Argument& argument : arguments)
     {
         if (argument.field == field->index)
-            return argument.value;
+            return GetValue(schema, argument.value);
     }
 
-    return field->value;
+    return GetValue(schema, field->value);
 }
 
 const Value* potato::schematic::FindArgument(const Schema* schema, const ValueObject* object, const Field* field) noexcept
@@ -308,7 +322,7 @@ const Value* potato::schematic::FindArgument(const Schema* schema, const ValueOb
     if (object == nullptr)
         return nullptr;
 
-    return ::FindArgument(object->fields, field);
+    return ::FindArgument(schema, object->fields, field);
 }
 
 const Value* potato::schematic::FindArgument(const Schema* schema, const ValueObject* object, std::string_view name) noexcept
@@ -324,7 +338,7 @@ const Value* potato::schematic::FindArgument(const Schema* schema, const Annotat
     if (annotation == nullptr)
         return nullptr;
 
-    return ::FindArgument(annotation->arguments, field);
+    return ::FindArgument(schema, annotation->arguments, field);
 }
 
 const Value* potato::schematic::FindArgument(const Schema* schema, const Annotation* annotation, std::string_view name) noexcept
@@ -348,17 +362,17 @@ bool potato::schematic::IsA(const Schema* schema, const Type* type, const Type* 
         if (type == parent)
             return true;
 
-        if (const TypeStruct* const agg = CastTo<TypeStruct>(type))
+        if (const TypeStruct* const struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
         {
-            if (agg->base == InvalidIndex)
+            if (struct_->base == InvalidIndex)
                 break;
-            type = schema->types[agg->base];
+            type = GetType(schema, struct_->base);
         }
         else if (const TypeEnum* const enum_ = CastTo<TypeEnum>(type))
         {
             if (enum_->base == InvalidIndex)
                 break;
-            type = schema->types[enum_->base];
+            type = GetType(schema, enum_->base);
         }
         else
         {

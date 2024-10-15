@@ -88,7 +88,18 @@ namespace potato::schematic::test
             if (typeIndex.index >= schema.types.size())
                 return false;
 
-            return Catch::Detail::stringify(NameOf<const Type*>{ .schema = &schema, .what = schema.types[typeIndex.index] }) == reference;
+            return Catch::Detail::stringify(NameOf<const Type*>{ .schema = &schema, .what = GetType(&schema, typeIndex.index) }) == reference;
+        }
+
+        static bool Check(const Schema& schema, ValueIndexWrapper valueIndex, std::string_view reference)
+        {
+            if (valueIndex.index == InvalidIndex)
+                return false;
+
+            if (valueIndex.index >= schema.types.size())
+                return false;
+
+            return Catch::Detail::stringify(NameOf<const Value*>{ .schema = &schema, .what = GetValue(&schema, valueIndex.index) }) == reference;
         }
     };
 
@@ -108,7 +119,7 @@ namespace potato::schematic::test
             if (typeIndex.index >= schema.types.size())
                 return false;
 
-            return Check(schema, schema.types[typeIndex.index], reference);
+            return Check(schema, GetType(&schema, typeIndex.index), reference);
         }
 
         static bool Check(const Schema& schema, const Type* type, std::string_view reference)
@@ -272,7 +283,7 @@ namespace potato::schematic::test
         if (Match("@type"))
             return Evaluate(TypeIndexWrapper{ field->type });
         if (Match("@default"))
-            return Evaluate(field->value);
+            return Evaluate(ValueIndexWrapper{ field->value });
         if (Match("@proto"))
             return Evaluate(field->proto);
         if (Match("@annotations"))
@@ -287,7 +298,7 @@ namespace potato::schematic::test
             return Finish(item);
 
         if (Match("@value"))
-            return Evaluate(item->value);
+            return Evaluate(ValueIndexWrapper{ item->value });
         if (Match("@annotations"))
             return Evaluate(item->annotations);
 
@@ -302,7 +313,7 @@ namespace potato::schematic::test
         if (Match("@field"))
             return Evaluate(arg->field);
 
-        Evaluate(arg->value);
+        Evaluate(ValueIndexWrapper{ arg->value });
     }
 
     void CheckEvaluator::Evaluate(const Type* type)
@@ -396,7 +407,7 @@ namespace potato::schematic::test
             if (Match("@version"))
                 return Evaluate(struct_->version);
 
-            for (const Field& field : schema_->fields.subspan(struct_->fields.start, struct_->fields.count))
+            for (const Field& field : GetFields(schema_, struct_->fields))
             {
                 if (Match(field.name))
                     return Evaluate(&field);
@@ -408,13 +419,12 @@ namespace potato::schematic::test
 
     void CheckEvaluator::Evaluate(TypeIndexWrapper typeIndex)
     {
-        if (typeIndex.index == InvalidIndex)
-            return Finish(nullptr);
+        Evaluate(GetType(schema_, typeIndex.index));
+    }
 
-        if (typeIndex.index >= schema_->types.size())
-            return Finish(nullptr);
-
-        return Evaluate(schema_->types[typeIndex.index]);
+    void CheckEvaluator::Evaluate(ValueIndexWrapper valueIndex)
+    {
+        Evaluate(GetValue(schema_, valueIndex.index));
     }
 
     void CheckEvaluator::Evaluate(const Value* value)

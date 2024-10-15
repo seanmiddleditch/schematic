@@ -23,6 +23,11 @@ namespace potato::schematic::test
         TypeIndex index = InvalidIndex;
     };
 
+    struct ValueIndexWrapper
+    {
+        ValueIndex index = InvalidIndex;
+    };
+
     struct Buffer : std::span<const uint8_t>
     {
     };
@@ -38,6 +43,7 @@ namespace potato::schematic::test
     {
         inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::Type* type);
         inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::test::TypeIndexWrapper typeIndex);
+        inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::test::ValueIndexWrapper valueIndex);
         inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::EnumItem* item);
 
         template <typename T>
@@ -214,6 +220,12 @@ std::string potato::schematic::test::ToStringHelper::ToString(const potato::sche
 {
     using namespace potato::schematic;
     return ToString(schema, GetType(schema, typeIndex.index));
+}
+
+std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema* schema, const potato::schematic::test::ValueIndexWrapper valueIndex)
+{
+    using namespace potato::schematic;
+    return ToString(schema, GetValue(schema, valueIndex.index));
 }
 
 std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema* schema, const potato::schematic::EnumItem* item)

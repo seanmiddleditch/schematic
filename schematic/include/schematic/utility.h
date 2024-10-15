@@ -33,11 +33,14 @@ namespace potato::schematic
     using FieldIndex = std::uint32_t;
     using ModuleIndex = std::uint32_t;
     using TypeIndex = std::uint32_t;
+    using ValueIndex = std::uint32_t;
 
     class Visitor;
 
     const Type* GetType(const Schema* schema, TypeIndex typeIndex) noexcept;
     ReadOnlySpan<Field> GetFields(const Schema* schema, IndexRange<FieldIndex> fields) noexcept;
+
+    const Value* GetValue(const Schema* schema, ValueIndex valueIndex) noexcept;
 
     const Field* FindField(const Schema* schema, const TypeAttribute* type, std::string_view name) noexcept;
     const Field* FindField(const Schema* schema, const TypeMessage* type, std::string_view name) noexcept;
