@@ -234,7 +234,7 @@ namespace potato::schematic::test
 
         for (const Argument& arg : annotation->arguments)
         {
-            if (Match(arg.field->name))
+            if (Match(schema_->fields[arg.field].name))
                 return Evaluate(&arg);
         }
 
@@ -246,7 +246,7 @@ namespace potato::schematic::test
             const TypeAttribute* const attribute = GetTypeAs<TypeAttribute>(schema_, annotation->attribute);
             if (attribute != nullptr)
             {
-                for (const Field& field : attribute->fields)
+                for (const Field& field : GetFields(schema_, attribute->fields))
                 {
                     if (Match(field.name))
                     {
@@ -256,8 +256,8 @@ namespace potato::schematic::test
                     }
                 }
 
-                if (auto [success, index] = MatchIndex(attribute->fields.size()); success)
-                    return Evaluate(attribute->fields[index]);
+                if (auto [success, index] = MatchIndex(attribute->fields.count); success)
+                    return Evaluate(schema_->fields[attribute->fields.start + index]);
             }
         }
 
@@ -332,9 +332,9 @@ namespace potato::schematic::test
         else if (const TypeAttribute* attr = CastTo<TypeAttribute>(type); attr != nullptr)
         {
             if (Match("@fields"))
-                return Evaluate(attr->fields.size());
+                return Evaluate(attr->fields.count);
 
-            for (const Field& field : attr->fields)
+            for (const Field& field : GetFields(schema_, attr->fields))
             {
                 if (Match(field.name))
                     return Evaluate(&field);
@@ -372,9 +372,9 @@ namespace potato::schematic::test
         else if (const TypeMessage* message = CastTo<TypeMessage>(type); message != nullptr)
         {
             if (Match("@fields"))
-                return Evaluate(message->fields.size());
+                return Evaluate(message->fields.count);
 
-            for (const Field& field : message->fields)
+            for (const Field& field : GetFields(schema_, message->fields))
             {
                 if (Match(field.name))
                     return Evaluate(&field);
@@ -392,11 +392,11 @@ namespace potato::schematic::test
             if (Match("@base"))
                 return Evaluate(TypeIndexWrapper{ struct_->base });
             if (Match("@fields"))
-                return Evaluate(struct_->fields.size());
+                return Evaluate(struct_->fields.count);
             if (Match("@version"))
                 return Evaluate(struct_->version);
 
-            for (const Field& field : struct_->fields)
+            for (const Field& field : schema_->fields.subspan(struct_->fields.start, struct_->fields.count))
             {
                 if (Match(field.name))
                     return Evaluate(&field);
@@ -447,7 +447,7 @@ namespace potato::schematic::test
 
             for (const Argument& arg : object->fields)
             {
-                if (Match(arg.field->name))
+                if (Match(schema_->fields[arg.field].name))
                     return Evaluate(&arg);
             }
 

@@ -38,5 +38,6 @@ namespace potato::schematic::compiler
 
         Array<Module> modules_;
         Array<Type*> types_;
+        Array<Field> fields_;
     };
 } // namespace potato::schematic::compiler

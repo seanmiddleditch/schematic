@@ -4,6 +4,8 @@
 #define SCHEMATIC_SCHEMA_H 1
 #pragma once
 
+#include "common.h"
+
 #include <cstdint>
 #include <span>
 
@@ -46,13 +48,9 @@ namespace potato::schematic
     struct ValueFloat;
     struct ValueType;
 
+    using FieldIndex = std::uint32_t;
     using ModuleIndex = std::uint32_t;
     using TypeIndex = std::uint32_t;
-
-    static constexpr std::uint32_t InvalidIndex = std::uint32_t(-1);
-
-    template <typename T, typename I = std::uint32_t>
-    using ReadOnlySpan = std::span<const T>;
 
     enum class TypeKind : std::uint8_t
     {
@@ -92,7 +90,7 @@ namespace potato::schematic
 
     struct Argument
     {
-        const Field* field = nullptr;
+        FieldIndex field = InvalidIndex;
         const Value* value = nullptr;
         Location location;
     };
@@ -115,12 +113,13 @@ namespace potato::schematic
 
     struct Field
     {
-        ReadOnlySpan<const Annotation*> annotations;
         const char* name = nullptr;
+        FieldIndex index = InvalidIndex;
         TypeIndex parent = InvalidIndex;
         TypeIndex type = InvalidIndex;
         const Value* value = nullptr;
         std::uint32_t proto = 0;
+        ReadOnlySpan<const Annotation*> annotations;
         Location location;
     };
 
@@ -135,6 +134,7 @@ namespace potato::schematic
     {
         ReadOnlySpan<const Module, ModuleIndex> modules;
         ReadOnlySpan<const Type*, TypeIndex> types;
+        ReadOnlySpan<Field, FieldIndex> fields;
         ModuleIndex root = 0;
     };
 
@@ -178,7 +178,7 @@ namespace potato::schematic
     {
         SCHEMATIC_TYPE(TypeAttribute, TypeKind::Attribute);
 
-        ReadOnlySpan<Field> fields;
+        IndexRange<FieldIndex> fields;
     };
 
     struct TypeBool : Type
@@ -213,7 +213,7 @@ namespace potato::schematic
     {
         SCHEMATIC_TYPE(TypeMessage, TypeKind::Message);
 
-        ReadOnlySpan<Field> fields;
+        IndexRange<FieldIndex> fields;
     };
 
     struct TypeNullable : Type
@@ -239,7 +239,7 @@ namespace potato::schematic
     {
         SCHEMATIC_TYPE(TypeStruct, TypeKind::Struct);
 
-        ReadOnlySpan<Field> fields;
+        IndexRange<FieldIndex> fields;
         TypeIndex base = InvalidIndex;
         std::uint32_t version = 1;
     };

@@ -20,12 +20,32 @@ const Type* potato::schematic::GetType(const Schema* schema, TypeIndex typeIndex
     return schema->types[typeIndex];
 }
 
-const Field* potato::schematic::FindField(const Schema*, const TypeAttribute* type, std::string_view name) noexcept
+ReadOnlySpan<Field> potato::schematic::GetFields(const Schema* schema, IndexRange<FieldIndex> fields) noexcept
+{
+    if (schema == nullptr)
+        return {};
+
+    if (fields.start == InvalidIndex)
+        return {};
+    if (fields.count == 0)
+        return {};
+
+    if (fields.start >= schema->fields.size())
+        return {};
+    if (fields.count > schema->fields.size())
+        return {};
+    if (fields.start > schema->fields.size() - fields.count)
+        return {};
+
+    return schema->fields.subspan(fields.start, fields.count);
+}
+
+const Field* potato::schematic::FindField(const Schema* schema, const TypeAttribute* type, std::string_view name) noexcept
 {
     if (type == nullptr)
         return nullptr;
 
-    for (auto& field : type->fields)
+    for (auto& field : GetFields(schema, type->fields))
     {
         if (field.name == name)
             return &field;
@@ -34,12 +54,12 @@ const Field* potato::schematic::FindField(const Schema*, const TypeAttribute* ty
     return nullptr;
 }
 
-const Field* potato::schematic::FindField(const Schema*, const TypeMessage* type, std::string_view name) noexcept
+const Field* potato::schematic::FindField(const Schema* schema, const TypeMessage* type, std::string_view name) noexcept
 {
     if (type == nullptr)
         return nullptr;
 
-    for (auto& field : type->fields)
+    for (auto& field : GetFields(schema, type->fields))
     {
         if (field.name == name)
             return &field;
@@ -53,8 +73,9 @@ const Field* potato::schematic::FindField(const Schema* schema, const TypeStruct
     if (type == nullptr)
         return nullptr;
 
-    for (auto& field : type->fields)
+    for (FieldIndex index = type->fields.start; index != type->fields.start + type->fields.count; ++index)
     {
+        const Field& field = schema->fields[index];
         if (field.name == name)
             return &field;
     }
@@ -275,7 +296,7 @@ static const Value* FindArgument(const std::span<const Argument>& arguments, con
 
     for (const Argument& argument : arguments)
     {
-        if (argument.field == field)
+        if (argument.field == field->index)
             return argument.value;
     }
 

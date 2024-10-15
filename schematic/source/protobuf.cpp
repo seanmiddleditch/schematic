@@ -81,24 +81,24 @@ namespace
         const Schema* Deserialize();
 
     private:
-        void Deserialize(Type& out, TypeIndex typeIndex, const proto::Type& in);
+        void Deserialize(Type& out, const proto::Type& in);
         void Deserialize(TypeAlias& out, const proto::Type::Alias& in);
-        void Deserialize(TypeAttribute& out, TypeIndex typeIndex, const proto::Type::Attribute& in);
+        void Deserialize(TypeAttribute& out, const proto::Type::Attribute& in);
         void Deserialize(TypeArray& out, const proto::Type::Array& in);
         void Deserialize(TypeBool& out, const proto::Type::Bool& in);
         void Deserialize(TypeInt& out, const proto::Type::Int& in);
         void Deserialize(TypeEnum& out, const proto::Type::Enum& in);
         void Deserialize(TypeFloat& out, const proto::Type::Float& in);
-        void Deserialize(TypeMessage& out, TypeIndex typeIndex, const proto::Type::Message& in);
+        void Deserialize(TypeMessage& out, const proto::Type::Message& in);
         void Deserialize(TypeNullable& out, const proto::Type::Nullable& in);
         void Deserialize(TypePointer& out, const proto::Type::Pointer& in);
         void Deserialize(TypeString& out, const proto::Type::String& in);
-        void Deserialize(TypeStruct& out, TypeIndex typeIndex, const proto::Type::Struct& in);
+        void Deserialize(TypeStruct& out, const proto::Type::Struct& in);
         void Deserialize(TypeType& out, const proto::Type::TypeRef& in);
 
         void DeserializeLocation(Location& out, const proto::Location& in);
 
-        void DeserializeField(Field& out, TypeIndex parent, const proto::Field& in);
+        void DeserializeField(Field& out, const proto::Field& in);
 
         template <typename T>
         Array<Annotation*> DeserializeAnnotations(const T& in);
@@ -130,6 +130,7 @@ namespace
         Schema* schema_ = nullptr;
         Array<Module> modules_;
         Array<Type*> types_;
+        Array<Field> fields_;
         bool failed_ = false;
     };
 } // namespace
@@ -169,6 +170,9 @@ void Serializer::Serialize(proto::Schema& out)
 
     for (const Type* const type : schema_.types)
         Serialize(*out.add_types(), *type);
+
+    for (const Field& field : schema_.fields)
+        SerializeField(*out.add_fields(), field);
 }
 
 std::uint32_t Serializer::IndexOfType(const Type* type) const noexcept
@@ -236,9 +240,6 @@ void Serializer::Serialize(proto::Type::Struct& out, const TypeStruct& in)
 
     if (in.base != InvalidIndex)
         out.set_base(in.base);
-
-    for (const Field& field : in.fields)
-        SerializeField(*out.add_fields(), field);
 }
 
 void Serializer::Serialize(proto::Type::Bool& out, const TypeBool& in)
@@ -328,16 +329,16 @@ void Serializer::Serialize(proto::Type::Message& out, const TypeMessage& in)
 {
     SerializeTypeCommon(out, in);
 
-    for (const Field& field : in.fields)
-        SerializeField(*out.add_fields(), field);
+    out.set_field_start(in.fields.start);
+    out.set_field_count(in.fields.count);
 }
 
 void Serializer::Serialize(proto::Type::Attribute& out, const TypeAttribute& in)
 {
     SerializeTypeCommon(out, in);
 
-    for (const Field& field : in.fields)
-        SerializeField(*out.add_fields(), field);
+    out.set_field_start(in.fields.start);
+    out.set_field_count(in.fields.count);
 }
 
 void Serializer::SerializeLocation(proto::Location* out, const Location& in)
@@ -424,7 +425,7 @@ void Serializer::Serialize(proto::Value::Object& out, const ValueObject& in)
     for (const Argument& arg : in.fields)
     {
         proto::Argument& out_arg = *out.add_arguments();
-        out_arg.set_field(arg.field->name);
+        out_arg.set_field(arg.field);
 
         SerializeLocation(out_arg.mutable_location(), arg.location);
 
@@ -509,7 +510,7 @@ void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
     for (const Argument& arg : in.arguments)
     {
         proto::Argument& out_arg = *out.add_arguments();
-        out_arg.set_field(arg.field->name);
+        out_arg.set_field(arg.field);
         SerializeLocation(out_arg.mutable_location(), arg.location);
 
         if (arg.value != nullptr)
@@ -529,8 +530,11 @@ const Schema* Deserializer::Deserialize()
 {
     schema_ = arena_.New<Schema>();
 
-    // Deserialize modules, excluding their child types (we haven't deserialized those yet)
     modules_ = arena_.NewArray<Module>(proto_.modules_size());
+    types_ = arena_.NewArray<Type*>(proto_.types_size());
+    fields_ = arena_.NewArray<Field>(proto_.fields_size());
+
+    // Instantiate modules
     for (std::size_t index = 0; index != modules_.Capacity(); ++index)
         modules_.EmplaceBack(arena_);
 
@@ -538,6 +542,7 @@ const Schema* Deserializer::Deserialize()
     if (VERIFY_INDEX(modules_, rootIndex, "Invalid root module index {}", rootIndex))
         schema_->root = rootIndex;
 
+    // Deserialize modules
     std::size_t moduleIndex = 0;
     for (const proto::Module& mod : proto_.modules())
     {
@@ -555,8 +560,6 @@ const Schema* Deserializer::Deserialize()
     schema_->modules = modules_;
 
     // Instantiate types
-    types_ = arena_.NewArray<Type*>(proto_.types_size());
-
     for (const proto::Type& type : proto_.types())
     {
         switch (type.Types_case())
@@ -606,15 +609,29 @@ const Schema* Deserializer::Deserialize()
     }
     schema_->types = types_;
 
+    // Instantiate fields
+    for (const proto::Field& _ : proto_.fields())
+        fields_.EmplaceBack(arena_);
+
     // Deserialize types
-    std::size_t typeIndex = 0;
+    TypeIndex typeIndex = 0;
     for (const proto::Type& type : proto_.types())
     {
         potato::schematic::Type* const outType = types_[typeIndex];
         assert(outType != nullptr); // previous unknown tag check should return, cannot reach this statement
-        outType->index = typeIndex;
-        Deserialize(*outType, typeIndex++, type);
+        outType->index = typeIndex++;
+        Deserialize(*outType, type);
     }
+
+    // Deserialize fields
+    FieldIndex fieldIndex = 0;
+    for (const proto::Field& field : proto_.fields())
+    {
+        potato::schematic::Field& outField = fields_[fieldIndex];
+        outField.index = fieldIndex++;
+        DeserializeField(outField, field);
+    }
+    schema_->fields = fields_;
 
     if (failed_)
         return nullptr;
@@ -622,7 +639,7 @@ const Schema* Deserializer::Deserialize()
     return schema_;
 }
 
-void Deserializer::Deserialize(Type& out, TypeIndex typeIndex, const proto::Type& in)
+void Deserializer::Deserialize(Type& out, const proto::Type& in)
 {
     switch (out.kind)
     {
@@ -630,13 +647,13 @@ void Deserializer::Deserialize(Type& out, TypeIndex typeIndex, const proto::Type
             Deserialize(static_cast<TypeAlias&>(out), in.alias());
             return;
         case TypeKind::Struct:
-            Deserialize(static_cast<TypeStruct&>(out), typeIndex, in.struct_());
+            Deserialize(static_cast<TypeStruct&>(out), in.struct_());
             return;
         case TypeKind::Array:
             Deserialize(static_cast<TypeArray&>(out), in.array());
             return;
         case TypeKind::Attribute:
-            Deserialize(static_cast<TypeAttribute&>(out), typeIndex, in.attribute());
+            Deserialize(static_cast<TypeAttribute&>(out), in.attribute());
             return;
         case TypeKind::Bool:
             Deserialize(static_cast<TypeBool&>(out), in.bool_());
@@ -651,7 +668,7 @@ void Deserializer::Deserialize(Type& out, TypeIndex typeIndex, const proto::Type
             Deserialize(static_cast<TypeInt&>(out), in.int_());
             return;
         case TypeKind::Message:
-            Deserialize(static_cast<TypeMessage&>(out), typeIndex, in.message());
+            Deserialize(static_cast<TypeMessage&>(out), in.message());
             return;
         case TypeKind::Nullable:
             Deserialize(static_cast<TypeNullable&>(out), in.nullable());
@@ -677,7 +694,7 @@ void Deserializer::Deserialize(TypeAlias& out, const proto::Type::Alias& in)
         out.type = in.type();
 }
 
-void Deserializer::Deserialize(TypeStruct& out, TypeIndex typeIndex, const proto::Type::Struct& in)
+void Deserializer::Deserialize(TypeStruct& out, const proto::Type::Struct& in)
 {
     DeserializeTypeCommon(out, in);
 
@@ -691,10 +708,14 @@ void Deserializer::Deserialize(TypeStruct& out, TypeIndex typeIndex, const proto
         }
     }
 
-    Array<Field> fields = arena_.NewArray<Field>(in.fields_size());
-    for (const proto::Field& field : in.fields())
-        DeserializeField(fields.EmplaceBack(arena_), typeIndex, field);
-    out.fields = fields;
+    if (in.field_start() != InvalidIndex)
+    {
+        if (VERIFY_INDEX(fields_, in.field_start(), "Invalid field start index {}", in.field_start()))
+            out.fields.start = in.field_start();
+
+        if (VERIFY(out.fields.start + in.field_count() <= fields_.Size(), "Overflow field range {},{}", out.fields.start, in.field_count()))
+            out.fields.count = in.field_count();
+    }
 }
 
 void Deserializer::Deserialize(TypeBool& out, const proto::Type::Bool& in)
@@ -767,14 +788,18 @@ void Deserializer::Deserialize(TypeType& out, const proto::Type::TypeRef& in)
     DeserializeTypeCommon(out, in);
 }
 
-void Deserializer::Deserialize(TypeMessage& out, TypeIndex typeIndex, const proto::Type::Message& in)
+void Deserializer::Deserialize(TypeMessage& out, const proto::Type::Message& in)
 {
     DeserializeTypeCommon(out, in);
 
-    Array<Field> fields = arena_.NewArray<Field>(in.fields_size());
-    for (const proto::Field& field : in.fields())
-        DeserializeField(fields.EmplaceBack(arena_), typeIndex, field);
-    out.fields = fields;
+    if (in.field_start() != InvalidIndex)
+    {
+        if (VERIFY_INDEX(fields_, in.field_start(), "Invalid field start index {}", in.field_start()))
+            out.fields.start = in.field_start();
+
+        if (VERIFY(out.fields.start + in.field_count() <= fields_.Size(), "Overflow field range {},{}", out.fields.start, in.field_count()))
+            out.fields.count = in.field_count();
+    }
 }
 
 void Deserializer::Deserialize(TypeNullable& out, const proto::Type::Nullable& in)
@@ -793,14 +818,18 @@ void Deserializer::Deserialize(TypePointer& out, const proto::Type::Pointer& in)
         out.target = in.target();
 }
 
-void Deserializer::Deserialize(TypeAttribute& out, TypeIndex typeIndex, const proto::Type::Attribute& in)
+void Deserializer::Deserialize(TypeAttribute& out, const proto::Type::Attribute& in)
 {
     DeserializeTypeCommon(out, in);
 
-    Array<Field> fields = arena_.NewArray<Field>(in.fields_size());
-    for (const proto::Field& field : in.fields())
-        DeserializeField(fields.EmplaceBack(arena_), typeIndex, field);
-    out.fields = fields;
+    if (in.field_start() != InvalidIndex)
+    {
+        if (VERIFY_INDEX(fields_, in.field_start(), "Invalid field start index {}", in.field_start()))
+            out.fields.start = in.field_start();
+
+        if (VERIFY(out.fields.start + in.field_count() <= fields_.Size(), "Overflow field range {},{}", out.fields.start, in.field_count()))
+            out.fields.count = in.field_count();
+    }
 }
 
 void Deserializer::DeserializeLocation(Location& out, const proto::Location& in)
@@ -809,10 +838,12 @@ void Deserializer::DeserializeLocation(Location& out, const proto::Location& in)
     out.column = in.column();
 }
 
-void Deserializer::DeserializeField(Field& out, TypeIndex parent, const proto::Field& in)
+void Deserializer::DeserializeField(Field& out, const proto::Field& in)
 {
     out.name = arena_.NewString(in.name());
-    out.parent = parent;
+
+    if (VERIFY_INDEX(types_, in.parent(), "Invalid field parent index {}", in.parent()))
+        out.parent = in.parent();
 
     DeserializeLocation(out.location, in.location());
 
@@ -896,9 +927,10 @@ ValueObject* Deserializer::Deserialize(const proto::Value::Object& in)
     {
         Argument& out_arg = args.EmplaceBack(arena_);
         DeserializeLocation(out_arg.location, arg.location());
-        out_arg.field = FindField(schema_, value->type, arg.field());
-        if (out_arg.field == nullptr)
-            return nullptr;
+
+        if (VERIFY_INDEX(fields_, arg.field(), "Invalid object field index {}", arg.field()))
+            out_arg.field = arg.field();
+
         if (arg.has_value())
             out_arg.value = Deserialize(arg.value());
     }
@@ -1006,7 +1038,8 @@ void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
     {
         Argument& out_arg = args.EmplaceBack(arena_);
         DeserializeLocation(out_arg.location, arg.location());
-        out_arg.field = FindField(schema_, out.attribute, arg.field());
+        if (VERIFY_INDEX(fields_, arg.field(), "Invalid annotation field index: {}", arg.field()))
+            out_arg.field = arg.field();
         if (arg.has_value())
             out_arg.value = Deserialize(arg.value());
     }

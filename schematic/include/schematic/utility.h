@@ -4,15 +4,16 @@
 #define SCHEMATIC_UTILITY_H 1
 #pragma once
 
+#include "common.h"
+
 #include <cstdint>
+#include <span>
 #include <string_view>
 
 namespace potato::schematic
 {
     enum class TypeKind : std::uint8_t;
     enum class ValueKind : std::uint8_t;
-
-    using TypeIndex = std::uint32_t;
 
     struct Annotation;
     struct EnumItem;
@@ -29,11 +30,14 @@ namespace potato::schematic
 
     struct ValueObject;
 
+    using FieldIndex = std::uint32_t;
     using ModuleIndex = std::uint32_t;
+    using TypeIndex = std::uint32_t;
 
     class Visitor;
 
     const Type* GetType(const Schema* schema, TypeIndex typeIndex) noexcept;
+    ReadOnlySpan<Field> GetFields(const Schema* schema, IndexRange<FieldIndex> fields) noexcept;
 
     const Field* FindField(const Schema* schema, const TypeAttribute* type, std::string_view name) noexcept;
     const Field* FindField(const Schema* schema, const TypeMessage* type, std::string_view name) noexcept;

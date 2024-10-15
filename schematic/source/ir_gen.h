@@ -43,7 +43,7 @@ namespace potato::schematic::compiler
 
         void ValidateTypeName(IRType* type);
         void ValidateTypeUnique(IRType* type);
-        void ValidateStructField(IRTypeStruct* type, IRStructField* field);
+        void ValidateStructField(IRTypeStruct* type, IRField* field);
 
         IRModule* CreateBuiltins();
 

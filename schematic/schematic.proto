@@ -11,7 +11,9 @@ message Schema
 {
     repeated Module modules = 1;
     repeated Type types = 2;
-    uint32 root = 3;
+    repeated Field fields = 3;
+
+    uint32 root = 10;
 }
 
 message Module
@@ -28,11 +30,12 @@ message Field
     Value default = 4;
     optional uint32 proto = 5;
     Location location = 6;
+    uint32 parent = 7;
 }
 
 message Argument
 {
-    string field = 1;
+    uint32 field = 1;
     Value value = 2;
     Location location = 3;
 }
@@ -82,7 +85,8 @@ message Type
         repeated Annotation annotations = 3;
         Location location = 4;
 
-        repeated Field fields = 10;
+        uint32 field_start = 10;
+        uint32 field_count = 11;
     }
 
     message Bool
@@ -132,7 +136,8 @@ message Type
         repeated Annotation annotations = 3;
         Location location = 4;
 
-        repeated Field fields = 10;
+        uint32 field_start = 10;
+        uint32 field_count = 11;
     }
     
     message Nullable
@@ -171,7 +176,8 @@ message Type
         Location location = 4;
 
         optional uint32 base = 10;
-        repeated Field fields = 11;
+        uint32 field_start = 11;
+        uint32 field_count = 12;
     }
 
     message TypeRef
