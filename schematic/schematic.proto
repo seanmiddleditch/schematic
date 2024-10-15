@@ -71,7 +71,7 @@ message Type
         repeated Annotation annotations = 3;
         Location location = 4;
 
-        uint32 element = 10;
+        uint32 elements = 10;
         optional uint32 size = 11;
     }
 
@@ -142,7 +142,7 @@ message Type
         repeated Annotation annotations = 3;
         Location location = 4;
 
-        uint32 type = 10;
+        uint32 target = 10;
     }
 
     message Pointer
@@ -152,7 +152,7 @@ message Type
         repeated Annotation annotations = 3;
         Location location = 4;
 
-        uint32 type = 10;
+        uint32 target = 10;
     }
 
     message String

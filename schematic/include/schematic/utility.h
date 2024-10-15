@@ -81,6 +81,8 @@ namespace potato::schematic
     const T* CastTo(const Type* type) noexcept
         requires std::is_base_of_v<Type, T>
     {
+        if (type == nullptr)
+            return nullptr;
         if (IsKind(type, T::Kind))
             return static_cast<const T*>(type);
         return nullptr;
@@ -90,9 +92,18 @@ namespace potato::schematic
     const T* CastTo(const Value* value) noexcept
         requires std::is_base_of_v<Value, T>
     {
+        if (value == nullptr)
+            return nullptr;
         if (IsKind(value, T::Kind))
             return static_cast<const T*>(value);
         return nullptr;
+    }
+
+    template <typename T>
+    const T* GetTypeAs(const Schema* schema, TypeIndex typeIndex) noexcept
+        requires std::is_base_of_v<Type, T>
+    {
+        return CastTo<T>(GetType(schema, typeIndex));
     }
 
 } // namespace potato::schematic

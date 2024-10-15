@@ -91,7 +91,7 @@ namespace potato::schematic::compiler
         const char* name = nullptr;
         TypeIndex index = InvalidIndex;
         Array<IRAnnotation*> annotations;
-        IRModule* owner = nullptr;
+        IRModule* parent = nullptr;
         Location location;
 
         Array<IRTypeIndirectArray*> arrayTypes;

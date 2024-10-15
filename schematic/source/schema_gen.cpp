@@ -76,6 +76,14 @@ Type* SchemaGenerator::Resolve(IRType* inIrType)
     return inIrType->type;
 }
 
+TypeIndex SchemaGenerator::ResolveIndex(IRType* inIrType)
+{
+    if (Resolve(inIrType) == nullptr)
+        return InvalidIndex;
+
+    return inIrType->index;
+}
+
 void SchemaGenerator::CreateType(IRType* inIrType)
 {
     if (IRTypeAlias* irType = CastTo<IRTypeAlias>(inIrType); irType != nullptr)
@@ -84,7 +92,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
 
         TypeAlias* const type = arena_.New<TypeAlias>();
         type->name = arena_.NewString(irType->name);
-        type->owner = irType->owner->index;
+        type->parent = irType->parent->index;
         type->location = irType->location;
         type->type = irType->target->index;
         type->annotations = CreateAnnotations(irType->annotations);
@@ -99,7 +107,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
     {
         TypeAttribute* const type = arena_.New<TypeAttribute>();
         type->name = arena_.NewString(irType->name);
-        type->owner = irType->owner->index;
+        type->parent = irType->parent->index;
         type->location = irType->location;
         type->annotations = CreateAnnotations(irType->annotations);
 
@@ -108,14 +116,18 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         {
             Field& field = fields.EmplaceBack(arena_);
             field.name = arena_.NewString(irField->name);
-            field.type = Resolve(irField->type);
+            field.type = ResolveIndex(irField->type);
             field.value = Resolve(irField->value);
-            field.owner = type;
+            field.parent = inIrType->index;
             field.location = irField->location;
         }
         type->fields = fields;
 
         irType->index = static_cast<TypeIndex>(types_.Size());
+
+        for (Field& field : fields)
+            field.parent = irType->index;
+
         types_.PushBack(arena_, type);
         inIrType->type = type;
         return;
@@ -127,7 +139,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
 
         TypeEnum* const type = arena_.New<TypeEnum>();
         type->name = arena_.NewString(irType->name);
-        type->owner = irType->owner->index;
+        type->parent = irType->parent->index;
         type->location = irType->location;
         if (irType->base != nullptr)
             type->base = irType->base->index;
@@ -142,15 +154,18 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             ValueInt* const value = arena_.New<ValueInt>();
             value->value = irItem->value;
             value->location = irItem->location;
-            value->owner = schema_->root;
+            value->parent = schema_->root;
             item.value = value;
-            item.owner = type;
             item.location = irItem->location;
             item.annotations = CreateAnnotations(irItem->annotations);
         }
         type->items = items;
 
         irType->index = static_cast<TypeIndex>(types_.Size());
+
+        for (EnumItem& item : items)
+            item.parent = irType->index;
+
         types_.PushBack(arena_, type);
         inIrType->type = type;
         return;
@@ -160,7 +175,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
     {
         TypeMessage* const type = arena_.New<TypeMessage>();
         type->name = arena_.NewString(irType->name);
-        type->owner = irType->owner->index;
+        type->parent = irType->parent->index;
         type->location = irType->location;
         type->annotations = CreateAnnotations(irType->annotations);
 
@@ -169,15 +184,18 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         {
             Field& field = fields.EmplaceBack(arena_);
             field.name = arena_.NewString(irField->name);
-            field.type = Resolve(irField->type);
+            field.type = ResolveIndex(irField->type);
             field.value = Resolve(irField->value);
             field.proto = irField->proto;
-            field.owner = type;
             field.location = irField->location;
         }
         type->fields = fields;
 
         irType->index = static_cast<TypeIndex>(types_.Size());
+
+        for (Field& field : fields)
+            field.parent = irType->index;
+
         types_.PushBack(arena_, type);
         inIrType->type = type;
         return;
@@ -189,7 +207,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
 
         TypeStruct* const type = arena_.New<TypeStruct>();
         type->name = arena_.NewString(irType->name);
-        type->owner = irType->owner->index;
+        type->parent = irType->parent->index;
         type->location = irType->location;
         if (irType->base != nullptr)
             type->base = irType->base->index;
@@ -201,14 +219,17 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             Field& field = fields.EmplaceBack(arena_);
             irField->field = &field;
             field.name = arena_.NewString(irField->name);
-            field.type = Resolve(irField->type);
+            field.type = ResolveIndex(irField->type);
             field.value = Resolve(irField->value);
-            field.owner = type;
             field.location = irField->location;
         }
         type->fields = fields;
 
         irType->index = static_cast<TypeIndex>(types_.Size());
+
+        for (Field& field : fields)
+            field.parent = irType->index;
+
         types_.PushBack(arena_, type);
         inIrType->type = type;
         return;
@@ -226,7 +247,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             {
                 TypeStruct* const type = arena_.New<TypeStruct>();
                 type->name = NewStringFmt(arena_, "{}#{}", irVersion->name, version);
-                type->owner = irType->owner->index;
+                type->parent = irType->parent->index;
                 type->location = irType->location;
                 if (irVersion->base != nullptr)
                     type->base = irVersion->base->index;
@@ -255,13 +276,16 @@ void SchemaGenerator::CreateType(IRType* inIrType)
                     Field& field = fields.EmplaceBack(arena_);
                     irField->field = &field;
                     field.name = arena_.NewString(irField->name);
-                    field.type = Resolve(irField->type);
-                    field.owner = type;
+                    field.type = ResolveIndex(irField->type);
                     field.location = irField->location;
                 }
                 type->fields = fields;
 
                 irVersion->index = static_cast<TypeIndex>(types_.Size());
+
+                for (Field& field : fields)
+                    field.parent = irType->index;
+
                 types_.PushBack(arena_, type);
 
                 irVersion->type = type;
@@ -275,7 +299,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
 
         TypeAlias* type = arena_.New<TypeAlias>();
         type->name = arena_.NewString(irType->name);
-        type->owner = irType->type->owner;
+        type->parent = irType->type->parent;
         type->location = irType->location;
         type->type = maxVersion->index;
 
@@ -290,7 +314,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         {
             TypeBool* const type = arena_.New<TypeBool>();
             type->name = arena_.NewString(irType->name);
-            type->owner = irType->owner->index;
+            type->parent = irType->parent->index;
             type->location = irType->location;
             irType->index = static_cast<TypeIndex>(types_.Size());
             types_.PushBack(arena_, type);
@@ -302,7 +326,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         {
             TypeFloat* const type = arena_.New<TypeFloat>();
             type->name = arena_.NewString(irType->name);
-            type->owner = irType->owner->index;
+            type->parent = irType->parent->index;
             type->location = irType->location;
             type->width = irType->width;
             irType->index = static_cast<TypeIndex>(types_.Size());
@@ -315,7 +339,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         {
             TypeInt* const type = arena_.New<TypeInt>();
             type->name = arena_.NewString(irType->name);
-            type->owner = irType->owner->index;
+            type->parent = irType->parent->index;
             type->location = irType->location;
             type->width = irType->width;
             type->isSigned = irType->isSigned;
@@ -329,7 +353,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         {
             TypeString* const type = arena_.New<TypeString>();
             type->name = arena_.NewString(irType->name);
-            type->owner = irType->owner->index;
+            type->parent = irType->parent->index;
             type->location = irType->location;
             irType->index = static_cast<TypeIndex>(types_.Size());
             types_.PushBack(arena_, type);
@@ -341,7 +365,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
         {
             TypeType* const type = arena_.New<TypeType>();
             type->name = arena_.NewString(irType->name);
-            type->owner = irType->owner->index;
+            type->parent = irType->parent->index;
             type->location = irType->location;
             irType->index = static_cast<TypeIndex>(types_.Size());
             types_.PushBack(arena_, type);
@@ -356,15 +380,17 @@ void SchemaGenerator::CreateType(IRType* inIrType)
     if (IRTypeIndirectArray* irType = CastTo<IRTypeIndirectArray>(inIrType); irType != nullptr)
     {
         const Type* const target = Resolve(irType->target);
+        if (target == nullptr)
+            return;
 
         TypeArray* const type = arena_.New<TypeArray>();
         if (irType->size != 0)
             type->name = NewStringFmt(arena_, "{}[{}]", target->name, irType->size);
         else
             type->name = NewStringFmt(arena_, "{}[]", target->name);
-        type->owner = irType->owner->index;
+        type->parent = irType->parent->index;
         type->location = irType->location;
-        type->type = target;
+        type->elements = irType->target->index;
         type->size = irType->size;
 
         irType->index = static_cast<TypeIndex>(types_.Size());
@@ -379,7 +405,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
 
         TypeNullable* const type = arena_.New<TypeNullable>();
         type->name = NewStringFmt(arena_, "{}?", target->name);
-        type->owner = irType->owner->index;
+        type->parent = irType->parent->index;
         type->location = irType->location;
         type->target = irType->target->index;
 
@@ -395,7 +421,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
 
         TypeNullable* const type = arena_.New<TypeNullable>();
         type->name = NewStringFmt(arena_, "{}*", target->name);
-        type->owner = irType->owner->index;
+        type->parent = irType->parent->index;
         type->location = irType->location;
         type->target = irType->target->index;
 
@@ -414,14 +440,14 @@ ReadOnlySpan<Annotation*> SchemaGenerator::CreateAnnotations(Array<IRAnnotation*
     for (IRAnnotation* irAnnotation : irAnnotations)
     {
         Annotation* const annotation = arena_.New<Annotation>();
-        annotation->attribute = CastTo<TypeAttribute>(Resolve(irAnnotation->attribute));
+        annotation->attribute = ResolveIndex(irAnnotation->attribute);
         annotation->location = irAnnotation->location;
 
         Array<Argument> arguments = arena_.NewArray<Argument>(irAnnotation->arguments.Size());
         for (IRAnnotationArgument* irArgument : irAnnotation->arguments)
         {
             Argument& arg = arguments.EmplaceBack(arena_);
-            arg.field = FindField(schema_, annotation->attribute, irArgument->field->name);
+            arg.field = FindField(schema_, irAnnotation->attribute->type, irArgument->field->name);
             arg.value = Resolve(irArgument->value);
             arg.location = irArgument->location;
         }
@@ -486,7 +512,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
     {
         ValueType* const result = arena_.New<ValueType>();
         result->location = value->location;
-        result->type = Resolve(type->target);
+        result->type = ResolveIndex(type->target);
         return result;
     }
 
@@ -504,7 +530,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
         if (initializerList->type->kind == IRTypeKind::IndirectArray)
         {
             ValueArray* const result = arena_.New<ValueArray>();
-            result->type = Resolve(initializerList->type);
+            result->type = ResolveIndex(initializerList->type);
             result->location = value->location;
 
             Array<Value*> elements = arena_.NewArray<Value*>(initializerList->positional.Size());
@@ -518,7 +544,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
         if (IRTypeStruct* typeStruct = CastTo<IRTypeStruct>(initializerList->type); typeStruct != nullptr)
         {
             ValueObject* const result = arena_.New<ValueObject>();
-            result->type = Resolve(initializerList->type);
+            result->type = ResolveIndex(initializerList->type);
             result->location = value->location;
 
             Array<Argument> fields = arena_.NewArray<Argument>(initializerList->positional.Size() + initializerList->named.Size());

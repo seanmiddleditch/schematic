@@ -26,6 +26,7 @@ namespace potato::schematic::compiler
         ModuleIndex CreateModule(IRModule* irModule);
 
         Type* Resolve(IRType* type);
+        TypeIndex ResolveIndex(IRType* type);
         void CreateType(IRType* type);
         ReadOnlySpan<Annotation*> CreateAnnotations(Array<IRAnnotation*> irAnnotations);
 

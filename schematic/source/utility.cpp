@@ -99,22 +99,25 @@ const EnumItem* potato::schematic::FindItem(const Schema*, const TypeEnum* type,
     return nullptr;
 }
 
-static const Annotation* FindAnnotation(std::span<const Annotation* const> annotations, const TypeAttribute* attribute) noexcept
+static const Annotation* FindAnnotation(std::span<const Annotation* const> annotations, TypeIndex attributeTypeIndex) noexcept
 {
     for (const Annotation* const annotation : annotations)
     {
-        if (annotation->attribute == attribute)
+        if (annotation->attribute == attributeTypeIndex)
             return annotation;
     }
 
     return nullptr;
 }
 
-static const Annotation* FindAnnotation(std::span<const Annotation* const> annotations, std::string_view name) noexcept
+static const Annotation* FindAnnotation(const Schema* schema, std::span<const Annotation* const> annotations, std::string_view name) noexcept
 {
     for (const Annotation* const annotation : annotations)
     {
-        if (annotation->attribute->name == name)
+        const TypeAttribute* const attribute = CastTo<TypeAttribute>(GetType(schema, annotation->attribute));
+        if (attribute == nullptr)
+            continue;
+        if (attribute->name == name)
             return annotation;
     }
 
@@ -128,7 +131,7 @@ const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const 
     if (attribute == nullptr)
         return nullptr;
 
-    if (const Annotation* const annotation = ::FindAnnotation(type->annotations, attribute); annotation != nullptr)
+    if (const Annotation* const annotation = ::FindAnnotation(type->annotations, attribute->index); annotation != nullptr)
         return annotation;
 
     if (const TypeStruct* const struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
@@ -141,10 +144,12 @@ const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const 
 {
     if (type == nullptr)
         return nullptr;
+    if (schema == nullptr)
+        return nullptr;
     if (name.empty())
         return nullptr;
 
-    if (const Annotation* const annotation = ::FindAnnotation(type->annotations, name); annotation != nullptr)
+    if (const Annotation* const annotation = ::FindAnnotation(schema, type->annotations, name); annotation != nullptr)
         return annotation;
 
     if (const TypeStruct* const struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
@@ -170,17 +175,19 @@ const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const 
     if (attribute == nullptr)
         return nullptr;
 
-    return ::FindAnnotation(field->annotations, attribute);
+    return ::FindAnnotation(field->annotations, attribute->index);
 }
 
 const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const Field* field, std::string_view name) noexcept
 {
     if (field == nullptr)
         return nullptr;
+    if (schema == nullptr)
+        return nullptr;
     if (name.empty())
         return nullptr;
 
-    return ::FindAnnotation(field->annotations, name);
+    return ::FindAnnotation(schema, field->annotations, name);
 }
 
 const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const EnumItem* item, const TypeAttribute* attribute) noexcept
@@ -190,17 +197,19 @@ const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const 
     if (attribute == nullptr)
         return nullptr;
 
-    return ::FindAnnotation(item->annotations, attribute);
+    return ::FindAnnotation(item->annotations, attribute->index);
 }
 
 const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const EnumItem* item, std::string_view name) noexcept
 {
     if (item == nullptr)
         return nullptr;
+    if (schema == nullptr)
+        return nullptr;
     if (name.empty())
         return nullptr;
 
-    return ::FindAnnotation(item->annotations, name);
+    return ::FindAnnotation(schema, item->annotations, name);
 }
 
 bool potato::schematic::HasAttribute(const Schema* schema, const Type* type, const TypeAttribute* attribute) noexcept
@@ -253,7 +262,7 @@ const Type* potato::schematic::FindType(const Schema* schema, ModuleIndex module
 
     for (const Type* type : schema->types)
     {
-        if (type->owner == moduleIndex && type->name == name)
+        if (type->parent == moduleIndex && type->name == name)
             return type;
     }
     return nullptr;
@@ -286,7 +295,7 @@ const Value* potato::schematic::FindArgument(const Schema* schema, const ValueOb
     if (object == nullptr)
         return nullptr;
 
-    return FindArgument(schema, object, FindField(schema, CastTo<TypeStruct>(object->type), name));
+    return FindArgument(schema, object, FindField(schema, object->type, name));
 }
 
 const Value* potato::schematic::FindArgument(const Schema* schema, const Annotation* annotation, const Field* field) noexcept

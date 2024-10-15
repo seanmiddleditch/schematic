@@ -17,10 +17,6 @@
 
 namespace potato::schematic::test
 {
-    struct TypeIndexWrapper
-    {
-        TypeIndex index = InvalidIndex;
-    };
 
     CheckEvaluator::CheckEvaluator(std::string_view test, std::string_view filename, std::size_t line)
         : filename_(filename)
@@ -79,9 +75,9 @@ namespace potato::schematic::test
     struct OpIs
     {
         template <typename T>
-        static bool Check(const Schema&, const T& value, std::string_view reference)
+        static bool Check(const Schema& schema, const T& value, std::string_view reference)
         {
-            return Catch::Detail::stringify(value) == reference;
+            return Catch::Detail::stringify(NameOf<T>{ .schema = &schema, .what = value }) == reference;
         }
 
         static bool Check(const Schema& schema, TypeIndexWrapper typeIndex, std::string_view reference)
@@ -92,7 +88,7 @@ namespace potato::schematic::test
             if (typeIndex.index >= schema.types.size())
                 return false;
 
-            return Catch::Detail::stringify(schema.types[typeIndex.index]) == reference;
+            return Catch::Detail::stringify(NameOf<const Type*>{ .schema = &schema, .what = schema.types[typeIndex.index] }) == reference;
         }
     };
 
@@ -190,12 +186,12 @@ namespace potato::schematic::test
         else if (op == "==")
         {
             const bool result = OpIs::Check(*schema_, value, reference);
-            handler.handleExpr(CatchFailedExpression(result, value, op, reference));
+            handler.handleExpr(CatchFailedExpression(result, NameOf<T>{ .schema = schema_, .what = value }, op, reference));
         }
         else if (op == "~=")
         {
             const bool result = OpIsA::Check(*schema_, value, reference);
-            handler.handleExpr(CatchFailedExpression(result, value, op, reference));
+            handler.handleExpr(CatchFailedExpression(result, NameOf<T>{ .schema = schema_, .what = value }, op, reference));
         }
         else
         {
@@ -212,8 +208,12 @@ namespace potato::schematic::test
 
         for (const Annotation* anno : annotations)
         {
-            if (anno->attribute != nullptr && Match(anno->attribute->name))
-                return Evaluate(anno);
+            if (anno->attribute != InvalidIndex)
+            {
+                const TypeAttribute* const attribute = GetTypeAs<TypeAttribute>(schema_, anno->attribute);
+                if (attribute != nullptr && Match(attribute->name))
+                    return Evaluate(anno);
+            }
         }
 
         if (const auto [success, index] = MatchIndex(annotations.size()); success)
@@ -238,24 +238,28 @@ namespace potato::schematic::test
                 return Evaluate(&arg);
         }
 
-        if (annotation->attribute != nullptr)
-        {
-            for (const Field& field : annotation->attribute->fields)
-            {
-                if (Match(field.name))
-                {
-                    if (Match("@field"))
-                        return Evaluate(&field);
-                    return Evaluate(field.value);
-                }
-            }
-        }
-
         if (auto [success, index] = MatchIndex(annotation->arguments.size()); success)
             return Evaluate(annotation->arguments[index]);
 
-        if (auto [success, index] = MatchIndex(annotation->attribute->fields.size()); success)
-            return Evaluate(annotation->attribute->fields[index]);
+        if (annotation->attribute != InvalidIndex)
+        {
+            const TypeAttribute* const attribute = GetTypeAs<TypeAttribute>(schema_, annotation->attribute);
+            if (attribute != nullptr)
+            {
+                for (const Field& field : attribute->fields)
+                {
+                    if (Match(field.name))
+                    {
+                        if (Match("@field"))
+                            return Evaluate(&field);
+                        return Evaluate(field.value);
+                    }
+                }
+
+                if (auto [success, index] = MatchIndex(attribute->fields.size()); success)
+                    return Evaluate(attribute->fields[index]);
+            }
+        }
 
         Finish(annotation);
     }
@@ -266,7 +270,7 @@ namespace potato::schematic::test
             return Finish(field);
 
         if (Match("@type"))
-            return Evaluate(field->type);
+            return Evaluate(TypeIndexWrapper{ field->type });
         if (Match("@default"))
             return Evaluate(field->value);
         if (Match("@proto"))
@@ -274,7 +278,7 @@ namespace potato::schematic::test
         if (Match("@annotations"))
             return Evaluate(field->annotations);
 
-        Evaluate(field->type);
+        Evaluate(TypeIndexWrapper{ field->type });
     }
 
     void CheckEvaluator::Evaluate(const EnumItem* item)
@@ -319,8 +323,8 @@ namespace potato::schematic::test
 
         if (const TypeArray* array = CastTo<TypeArray>(type); array != nullptr)
         {
-            if (Match("@element"))
-                return Evaluate(array->type);
+            if (Match("@elements"))
+                return Evaluate(TypeIndexWrapper{ array->elements });
             if (Match("@size"))
                 return Evaluate(array->size);
         }
@@ -424,7 +428,7 @@ namespace potato::schematic::test
         if (const ValueArray* const array = CastTo<ValueArray>(value); array != nullptr)
         {
             if (Match("@type"))
-                return Evaluate(array->type);
+                return Evaluate(TypeIndexWrapper{ array->type });
             if (Match("@length"))
                 return Evaluate(array->elements.size());
 
@@ -437,7 +441,7 @@ namespace potato::schematic::test
         if (const ValueObject* const object = CastTo<ValueObject>(value); object != nullptr)
         {
             if (Match("@type"))
-                return Evaluate(object->type);
+                return Evaluate(TypeIndexWrapper{ object->type });
             if (Match("@fields"))
                 return Evaluate(object->fields.size());
 
@@ -460,7 +464,7 @@ namespace potato::schematic::test
             case ValueKind::Null: return Finish(nullptr);
             case ValueKind::Object: break; // unreachable
             case ValueKind::String: return Evaluate(static_cast<const ValueString*>(value)->value);
-            case ValueKind::Type: return Evaluate(static_cast<const ValueType*>(value)->type);
+            case ValueKind::Type: return Evaluate(TypeIndexWrapper{ static_cast<const ValueType*>(value)->type });
         }
 
         Finish(value);

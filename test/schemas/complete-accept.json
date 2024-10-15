@@ -125,7 +125,7 @@
      "line": 9,
      "column": 5
     },
-    "type": 4
+    "target": 4
    }
   },
   {
@@ -249,7 +249,7 @@
      "line": 18,
      "column": 5
     },
-    "element": 4,
+    "elements": 4,
     "size": 0
    }
   },
