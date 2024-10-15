@@ -29,7 +29,7 @@ namespace potato::schematic::compiler
         TypeIndex ResolveIndex(IRType* type);
 
         void CreateType(IRType* type);
-        ReadOnlySpan<Annotation*> CreateAnnotations(Array<IRAnnotation*> irAnnotations);
+        ReadOnlySpan<const Annotation*> CreateAnnotations(Array<IRAnnotation*> irAnnotations);
 
         Value* Resolve(IRValue* value);
         ValueIndex ResolveIndex(IRValue* value);
@@ -38,9 +38,9 @@ namespace potato::schematic::compiler
         Logger& logger_;
         Schema* schema_ = nullptr;
 
-        Array<Module> modules_;
-        Array<Type*> types_;
-        Array<Field> fields_;
-        Array<Value*> values_;
+        Array<Module, ModuleIndex> modules_;
+        Array<Type*, TypeIndex> types_;
+        Array<Field, FieldIndex> fields_;
+        Array<Value*, ValueIndex> values_;
     };
 } // namespace potato::schematic::compiler

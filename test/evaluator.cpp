@@ -85,7 +85,7 @@ namespace potato::schematic::test
             if (typeIndex.index == InvalidIndex)
                 return false;
 
-            if (typeIndex.index >= schema.types.size())
+            if (typeIndex.index >= schema.types.Size())
                 return false;
 
             return Catch::Detail::stringify(NameOf<const Type*>{ .schema = &schema, .what = GetType(&schema, typeIndex.index) }) == reference;
@@ -96,7 +96,7 @@ namespace potato::schematic::test
             if (valueIndex.index == InvalidIndex)
                 return false;
 
-            if (valueIndex.index >= schema.types.size())
+            if (valueIndex.index >= schema.types.Size())
                 return false;
 
             return Catch::Detail::stringify(NameOf<const Value*>{ .schema = &schema, .what = GetValue(&schema, valueIndex.index) }) == reference;
@@ -116,7 +116,7 @@ namespace potato::schematic::test
             if (typeIndex.index == InvalidIndex)
                 return false;
 
-            if (typeIndex.index >= schema.types.size())
+            if (typeIndex.index >= schema.types.Size())
                 return false;
 
             return Check(schema, GetType(&schema, typeIndex.index), reference);
@@ -215,7 +215,7 @@ namespace potato::schematic::test
     void CheckEvaluator::Evaluate(ReadOnlySpan<const Annotation*> annotations)
     {
         if (Match("@length"))
-            return Evaluate(annotations.size());
+            return Evaluate(annotations.Size());
 
         for (const Annotation* anno : annotations)
         {
@@ -227,7 +227,7 @@ namespace potato::schematic::test
             }
         }
 
-        if (const auto [success, index] = MatchIndex(annotations.size()); success)
+        if (const auto [success, index] = MatchIndex(annotations.Size()); success)
             return Evaluate(annotations[index]);
 
         Finish(annotations);
@@ -241,7 +241,7 @@ namespace potato::schematic::test
         if (Match("@attribute"))
             return Evaluate(annotation->attribute);
         else if (Match("@fields"))
-            return Evaluate(annotation->arguments.size());
+            return Evaluate(annotation->arguments.Size());
 
         for (const Argument& arg : annotation->arguments)
         {
@@ -249,7 +249,7 @@ namespace potato::schematic::test
                 return Evaluate(&arg);
         }
 
-        if (auto [success, index] = MatchIndex(annotation->arguments.size()); success)
+        if (auto [success, index] = MatchIndex(annotation->arguments.Size()); success)
             return Evaluate(annotation->arguments[index]);
 
         if (annotation->attribute != InvalidIndex)
@@ -357,7 +357,7 @@ namespace potato::schematic::test
             if (Match("@base"))
                 return Evaluate(TypeIndexWrapper{ enum_->base });
             if (Match("@count"))
-                return Evaluate(enum_->items.size());
+                return Evaluate(enum_->items.Size());
 
             for (const EnumItem& item : enum_->items)
             {
@@ -440,9 +440,9 @@ namespace potato::schematic::test
             if (Match("@type"))
                 return Evaluate(TypeIndexWrapper{ array->type });
             if (Match("@length"))
-                return Evaluate(array->elements.size());
+                return Evaluate(array->elements.Size());
 
-            if (const auto [success, index] = MatchIndex(array->elements.size()); success)
+            if (const auto [success, index] = MatchIndex(array->elements.Size()); success)
                 return Evaluate(array->elements[index]);
 
             return Finish(value);
@@ -453,7 +453,7 @@ namespace potato::schematic::test
             if (Match("@type"))
                 return Evaluate(TypeIndexWrapper{ object->type });
             if (Match("@fields"))
-                return Evaluate(object->fields.size());
+                return Evaluate(object->fields.Size());
 
             for (const Argument& arg : object->fields)
             {
@@ -483,7 +483,7 @@ namespace potato::schematic::test
     void CheckEvaluator::Evaluate(const Module* mod)
     {
         if (Match("@imports"))
-            return Evaluate(mod->imports.size());
+            return Evaluate(mod->imports.Size());
 
         Finish(mod);
     }
@@ -491,9 +491,9 @@ namespace potato::schematic::test
     void CheckEvaluator::Evaluate(const Schema* schema)
     {
         if (Match("@types"))
-            return Evaluate(schema->types.size());
+            return Evaluate(schema->types.Size());
         if (Match("@modules"))
-            return Evaluate(schema->modules.size());
+            return Evaluate(schema->modules.Size());
         if (Match("@root"))
             return Evaluate(schema->root);
 

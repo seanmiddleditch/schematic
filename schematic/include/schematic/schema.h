@@ -48,11 +48,6 @@ namespace potato::schematic
     struct ValueFloat;
     struct ValueType;
 
-    using FieldIndex = std::uint32_t;
-    using ModuleIndex = std::uint32_t;
-    using TypeIndex = std::uint32_t;
-    using ValueIndex = std::uint32_t;
-
     using Annotations = ReadOnlySpan<const Annotation*>;
 
     enum class TypeKind : std::uint8_t
@@ -130,16 +125,16 @@ namespace potato::schematic
     {
         const char* filename = nullptr;
         TypeIndex index = InvalidIndex;
-        ReadOnlySpan<const ModuleIndex> imports;
+        ReadOnlySpan<ModuleIndex> imports;
     };
 
     struct Schema
     {
-        ReadOnlySpan<const Module, ModuleIndex> modules;
+        ReadOnlySpan<Module, ModuleIndex> modules;
+        ReadOnlySpan<Field, FieldIndex> fields;
         ReadOnlySpan<const Type*, TypeIndex> types;
-        ReadOnlySpan<const Field, FieldIndex> fields;
         ReadOnlySpan<const Value*, ValueIndex> values;
-        ModuleIndex root = 0;
+        ModuleIndex root = InvalidIndex;
     };
 
     struct Type
@@ -262,7 +257,7 @@ namespace potato::schematic
     {
         SCHEMATIC_VALUE(ValueArray, ValueKind::Array);
 
-        ReadOnlySpan<const ValueIndex> elements;
+        ReadOnlySpan<ValueIndex> elements;
         TypeIndex type = InvalidIndex;
     };
 

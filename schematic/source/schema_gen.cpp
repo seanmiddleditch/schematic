@@ -24,8 +24,8 @@ static const char* NewStringFmt(ArenaAllocator& arena_, fmt::format_string<Args.
 const Schema* SchemaGenerator::Compile(IRSchema* irSchema)
 {
     schema_ = arena_.New<Schema>();
-    types_ = arena_.NewArray<Type*>(irSchema->types.Size());
-    modules_ = arena_.NewArray<Module>(irSchema->modules.Size());
+    types_ = arena_.NewArray<Type*, TypeIndex>(irSchema->types.Size());
+    modules_ = arena_.NewArray<Module, ModuleIndex>(irSchema->modules.Size());
 
     schema_->root = CreateModule(irSchema->root);
 
@@ -121,10 +121,10 @@ void SchemaGenerator::CreateType(IRType* inIrType)
 
         irType->index = static_cast<TypeIndex>(types_.Size());
 
-        type->fields.start = static_cast<FieldIndex>(fields_.Size());
+        type->fields.start = FieldIndex(static_cast<std::uint32_t>(fields_.Size()));
         for (IRField* const irField : irType->fields)
         {
-            irField->index = static_cast<std::uint32_t>(fields_.Size());
+            irField->index = FieldIndex(static_cast<std::uint32_t>(fields_.Size()));
 
             Field& field = fields_.EmplaceBack(arena_);
             field.name = arena_.NewString(irField->name);
@@ -134,7 +134,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             field.parent = inIrType->index;
             field.location = irField->location;
         }
-        type->fields.count = static_cast<std::uint32_t>(fields_.Size() - type->fields.start);
+        type->fields.count = FieldIndex(static_cast<std::uint32_t>(fields_.Size())) - type->fields.start;
 
         types_.PushBack(arena_, type);
         inIrType->type = type;
@@ -195,10 +195,10 @@ void SchemaGenerator::CreateType(IRType* inIrType)
 
         irType->index = static_cast<TypeIndex>(types_.Size());
 
-        type->fields.start = static_cast<FieldIndex>(fields_.Size());
+        type->fields.start = FieldIndex(static_cast<std::uint32_t>(fields_.Size()));
         for (IRField* const irField : irType->fields)
         {
-            irField->index = static_cast<std::uint32_t>(fields_.Size());
+            irField->index = FieldIndex(static_cast<std::uint32_t>(fields_.Size()));
 
             Field& field = fields_.EmplaceBack(arena_);
             field.name = arena_.NewString(irField->name);
@@ -209,7 +209,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             field.parent = irType->index;
             field.location = irField->location;
         }
-        type->fields.count = static_cast<std::uint32_t>(fields_.Size() - type->fields.start);
+        type->fields.count = FieldIndex(static_cast<std::uint32_t>(fields_.Size())) - type->fields.start;
 
         irType->index = static_cast<TypeIndex>(types_.Size());
 
@@ -241,10 +241,10 @@ void SchemaGenerator::CreateType(IRType* inIrType)
 
         irType->index = static_cast<TypeIndex>(types_.Size());
 
-        type->fields.start = static_cast<FieldIndex>(fields_.Size());
+        type->fields.start = FieldIndex(static_cast<std::uint32_t>(fields_.Size()));
         for (IRField* const irField : irType->fields)
         {
-            irField->index = static_cast<std::uint32_t>(fields_.Size());
+            irField->index = FieldIndex(static_cast<std::uint32_t>(fields_.Size()));
 
             Field& field = fields_.EmplaceBack(arena_);
             field.name = arena_.NewString(irField->name);
@@ -254,7 +254,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             field.parent = irType->index;
             field.location = irField->location;
         }
-        type->fields.count = static_cast<std::uint32_t>(fields_.Size() - type->fields.start);
+        type->fields.count = FieldIndex(static_cast<std::uint32_t>(fields_.Size())) - type->fields.start;
 
         types_.PushBack(arena_, type);
         inIrType->type = type;
@@ -295,7 +295,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
 
                 irVersion->index = static_cast<TypeIndex>(types_.Size());
 
-                type->fields.start = static_cast<std::uint32_t>(fields_.Size());
+                type->fields.start = FieldIndex(static_cast<std::uint32_t>(fields_.Size()));
                 for (IRField* const irField : irVersion->fields)
                 {
                     if (irField->version.min != 0 &&
@@ -305,7 +305,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
                         continue;
                     }
 
-                    irField->index = static_cast<std::uint32_t>(fields_.Size());
+                    irField->index = FieldIndex(static_cast<std::uint32_t>(fields_.Size()));
 
                     Field& field = fields_.EmplaceBack(arena_);
                     field.name = arena_.NewString(irField->name);
@@ -315,7 +315,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
                     field.parent = irType->index;
                     field.location = irField->location;
                 }
-                type->fields.count = static_cast<std::uint32_t>(fields_.Size() - type->fields.start);
+                type->fields.count = FieldIndex(static_cast<std::uint32_t>(fields_.Size())) - type->fields.start;
 
                 irVersion->type = type;
 
@@ -465,7 +465,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
     assert(false);
 }
 
-ReadOnlySpan<Annotation*> SchemaGenerator::CreateAnnotations(Array<IRAnnotation*> irAnnotations)
+ReadOnlySpan<const Annotation*> SchemaGenerator::CreateAnnotations(Array<IRAnnotation*> irAnnotations)
 {
     Array<Annotation*> annotations = arena_.NewArray<Annotation*>(irAnnotations.Size());
     for (IRAnnotation* irAnnotation : irAnnotations)
@@ -505,7 +505,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             result->location = value->location;
             result->value = node->value;
             value->value = result;
-            value->index = static_cast<std::uint32_t>(values_.Size());
+            value->index = ValueIndex(static_cast<std::uint32_t>(values_.Size()));
             values_.PushBack(arena_, result);
             return result;
         }
@@ -516,7 +516,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             result->location = value->location;
             result->value = node->value;
             value->value = result;
-            value->index = static_cast<std::uint32_t>(values_.Size());
+            value->index = ValueIndex(static_cast<std::uint32_t>(values_.Size()));
             values_.PushBack(arena_, result);
             return result;
         }
@@ -527,7 +527,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             result->location = value->location;
             result->value = node->value;
             value->value = result;
-            value->index = static_cast<std::uint32_t>(values_.Size());
+            value->index = ValueIndex(static_cast<std::uint32_t>(values_.Size()));
             values_.PushBack(arena_, result);
             return result;
         }
@@ -537,7 +537,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             ValueNull* const result = arena_.New<ValueNull>();
             result->location = value->location;
             value->value = result;
-            value->index = static_cast<std::uint32_t>(values_.Size());
+            value->index = ValueIndex(static_cast<std::uint32_t>(values_.Size()));
             values_.PushBack(arena_, result);
             return result;
         }
@@ -548,7 +548,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
             result->location = value->location;
             result->value = arena_.NewString(node->value);
             value->value = result;
-            value->index = static_cast<std::uint32_t>(values_.Size());
+            value->index = ValueIndex(static_cast<std::uint32_t>(values_.Size()));
             values_.PushBack(arena_, result);
             return result;
         }
@@ -563,7 +563,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
         result->location = value->location;
         result->type = ResolveIndex(type->target);
         value->value = result;
-        value->index = static_cast<std::uint32_t>(values_.Size());
+        value->index = ValueIndex(static_cast<std::uint32_t>(values_.Size()));
         values_.PushBack(arena_, result);
         return result;
     }
@@ -575,7 +575,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
         const TypeEnum* const type = CastTo<TypeEnum>(Resolve(item->type));
         result->item = FindItem(schema_, type, item->item->name);
         value->value = result;
-        value->index = static_cast<std::uint32_t>(values_.Size());
+        value->index = ValueIndex(static_cast<std::uint32_t>(values_.Size()));
         values_.PushBack(arena_, result);
         return result;
     }
@@ -594,7 +594,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
 
             result->elements = elements;
             value->value = result;
-            value->index = static_cast<std::uint32_t>(values_.Size());
+            value->index = ValueIndex(static_cast<std::uint32_t>(values_.Size()));
             values_.PushBack(arena_, result);
             return result;
         }
@@ -626,7 +626,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
 
             result->fields = fields;
             value->value = result;
-            value->index = static_cast<std::uint32_t>(values_.Size());
+            value->index = ValueIndex(static_cast<std::uint32_t>(values_.Size()));
             values_.PushBack(arena_, result);
             return result;
         }

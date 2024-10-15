@@ -128,10 +128,10 @@ namespace
         Logger& logger_;
         const proto::Schema& proto_;
         Schema* schema_ = nullptr;
-        Array<Module> modules_;
-        Array<Type*> types_;
-        Array<Field> fields_;
-        Array<Value*> values_;
+        Array<Module, ModuleIndex> modules_;
+        Array<Type*, TypeIndex> types_;
+        Array<Field, FieldIndex> fields_;
+        Array<Value*, ValueIndex> values_;
         bool failed_ = false;
     };
 } // namespace
@@ -164,10 +164,10 @@ void Serializer::Serialize(proto::Schema& out)
         proto::Module* const pmod = out.add_modules();
         pmod->set_filename(mod.filename);
         for (const ModuleIndex index : mod.imports)
-            pmod->add_imports(index);
+            pmod->add_imports(index.index);
     }
 
-    out.set_root(schema_.root);
+    out.set_root(schema_.root.index);
 
     for (const Type* const type : schema_.types)
         Serialize(*out.add_types(), *type);
@@ -243,7 +243,7 @@ void Serializer::Serialize(proto::Type::Struct& out, const TypeStruct& in)
     SerializeTypeCommon(out, in);
 
     if (in.base != InvalidIndex)
-        out.set_base(in.base);
+        out.set_base(in.base.index);
 }
 
 void Serializer::Serialize(proto::Type::Bool& out, const TypeBool& in)
@@ -270,14 +270,14 @@ void Serializer::Serialize(proto::Type::Alias& out, const TypeAlias& in)
 {
     SerializeTypeCommon(out, in);
 
-    out.set_type(in.type);
+    out.set_type(in.type.index);
 }
 
 void Serializer::Serialize(proto::Type::Array& out, const TypeArray& in)
 {
     SerializeTypeCommon(out, in);
 
-    out.set_elements(in.elements);
+    out.set_elements(in.elements.index);
     out.set_size(in.size);
 }
 
@@ -291,7 +291,7 @@ void Serializer::Serialize(proto::Type::Enum& out, const TypeEnum& in)
     SerializeTypeCommon(out, in);
 
     if (in.base != InvalidIndex)
-        out.set_base(in.base);
+        out.set_base(in.base.index);
 
     for (const EnumItem& item : in.items)
     {
@@ -300,7 +300,7 @@ void Serializer::Serialize(proto::Type::Enum& out, const TypeEnum& in)
 
         SerializeLocation(out_item.mutable_location(), item.location);
 
-        out_item.set_value(item.value);
+        out_item.set_value(item.value.index);
 
         for (const Annotation* const annotation : item.annotations)
             Serialize(*out_item.add_annotations(), *annotation);
@@ -316,23 +316,21 @@ void Serializer::Serialize(proto::Type::Nullable& out, const TypeNullable& in)
 {
     SerializeTypeCommon(out, in);
 
-    if (in.target != InvalidIndex)
-        out.set_target(in.target);
+    out.set_target(in.target.index);
 }
 
 void Serializer::Serialize(proto::Type::Pointer& out, const TypePointer& in)
 {
     SerializeTypeCommon(out, in);
 
-    if (in.target != InvalidIndex)
-        out.set_target(in.target);
+    out.set_target(in.target.index);
 }
 
 void Serializer::Serialize(proto::Type::Message& out, const TypeMessage& in)
 {
     SerializeTypeCommon(out, in);
 
-    out.set_field_start(in.fields.start);
+    out.set_field_start(in.fields.start.index);
     out.set_field_count(in.fields.count);
 }
 
@@ -340,7 +338,7 @@ void Serializer::Serialize(proto::Type::Attribute& out, const TypeAttribute& in)
 {
     SerializeTypeCommon(out, in);
 
-    out.set_field_start(in.fields.start);
+    out.set_field_start(in.fields.start.index);
     out.set_field_count(in.fields.count);
 }
 
@@ -353,14 +351,14 @@ void Serializer::SerializeLocation(proto::Location* out, const Location& in)
 void Serializer::SerializeField(proto::Field& out, const Field& in)
 {
     out.set_name(in.name);
-    out.set_type(in.type);
+    out.set_type(in.type.index);
 
     SerializeLocation(out.mutable_location(), in.location);
 
     if (in.proto != 0)
         out.set_proto(in.proto);
 
-    out.set_value(in.value);
+    out.set_value(in.value.index);
 
     for (const Annotation* const annotation : in.annotations)
         Serialize(*out.add_annotations(), *annotation);
@@ -370,7 +368,7 @@ template <typename T>
 void Serializer::SerializeTypeCommon(T& out, const Type& in)
 {
     out.set_name(in.name);
-    out.set_module(in.parent);
+    out.set_module(in.parent.index);
 
     for (const Annotation* const annotation : in.annotations)
         Serialize(*out.add_annotations(), *annotation);
@@ -422,17 +420,16 @@ void Serializer::Serialize(proto::Value& out, const Value& in)
 void Serializer::Serialize(proto::Value::Object& out, const ValueObject& in)
 {
     SerializeValueCommon(out, in);
-    out.set_type(in.type);
+    out.set_type(in.type.index);
 
     for (const Argument& arg : in.fields)
     {
         proto::Argument& out_arg = *out.add_arguments();
-        out_arg.set_field(arg.field);
+        out_arg.set_field(arg.field.index);
 
         SerializeLocation(out_arg.mutable_location(), arg.location);
 
-        if (arg.value != InvalidIndex)
-            out_arg.set_value(arg.value);
+        out_arg.set_value(arg.value.index);
     }
 }
 
@@ -463,10 +460,10 @@ void Serializer::Serialize(proto::Value::String& out, const ValueString& in)
 void Serializer::Serialize(proto::Value::Array& out, const ValueArray& in)
 {
     SerializeValueCommon(out, in);
-    out.set_type(in.type);
+    out.set_type(in.type.index);
 
     for (const ValueIndex valueIndex : in.elements)
-        out.add_elements(valueIndex);
+        out.add_elements(valueIndex.index);
 }
 
 void Serializer::Serialize(proto::Value::Enum& out, const ValueEnum& in)
@@ -474,7 +471,7 @@ void Serializer::Serialize(proto::Value::Enum& out, const ValueEnum& in)
     SerializeValueCommon(out, in);
     if (in.item != nullptr)
     {
-        out.set_type(in.item->parent);
+        out.set_type(in.item->parent.index);
 
         const TypeEnum* enum_ = CastTo<TypeEnum>(GetType(&schema_, in.item->parent));
         if (enum_ == nullptr)
@@ -496,7 +493,7 @@ void Serializer::Serialize(proto::Value::Enum& out, const ValueEnum& in)
 void Serializer::Serialize(proto::Value::Type& out, const ValueType& in)
 {
     SerializeValueCommon(out, in);
-    out.set_type(in.type);
+    out.set_type(in.type.index);
 }
 
 void Serializer::Serialize(proto::Value::Null& out, const ValueNull& in)
@@ -506,17 +503,17 @@ void Serializer::Serialize(proto::Value::Null& out, const ValueNull& in)
 
 void Serializer::Serialize(proto::Annotation& out, const Annotation& in)
 {
-    out.set_attribute(in.attribute);
+    out.set_attribute(in.attribute.index);
     SerializeLocation(out.mutable_location(), in.location);
 
     for (const Argument& arg : in.arguments)
     {
         proto::Argument& out_arg = *out.add_arguments();
-        out_arg.set_field(arg.field);
+        out_arg.set_field(arg.field.index);
         SerializeLocation(out_arg.mutable_location(), arg.location);
 
         if (arg.value != InvalidIndex)
-            out_arg.set_value(arg.value);
+            out_arg.set_value(arg.value.index);
     }
 }
 
@@ -532,21 +529,21 @@ const Schema* Deserializer::Deserialize()
 {
     schema_ = arena_.New<Schema>();
 
-    modules_ = arena_.NewArray<Module>(proto_.modules_size());
-    types_ = arena_.NewArray<Type*>(proto_.types_size());
-    fields_ = arena_.NewArray<Field>(proto_.fields_size());
-    values_ = arena_.NewArray<Value*>(proto_.values_size());
+    modules_ = arena_.NewArray<Module, ModuleIndex>(proto_.modules_size());
+    types_ = arena_.NewArray<Type*, TypeIndex>(proto_.types_size());
+    fields_ = arena_.NewArray<Field, FieldIndex>(proto_.fields_size());
+    values_ = arena_.NewArray<Value*, ValueIndex>(proto_.values_size());
 
     // Instantiate modules
     for (std::size_t index = 0; index != modules_.Capacity(); ++index)
         modules_.EmplaceBack(arena_);
 
-    const std::uint32_t rootIndex = proto_.root();
-    if (VERIFY_INDEX(modules_, rootIndex, "Invalid root module index {}", rootIndex))
+    const ModuleIndex rootIndex = ModuleIndex(proto_.root());
+    if (VERIFY_INDEX(modules_, rootIndex, "Invalid root module index {}", rootIndex.index))
         schema_->root = rootIndex;
 
     // Deserialize modules
-    std::size_t moduleIndex = 0;
+    ModuleIndex moduleIndex{ 0 };
     for (const proto::Module& mod : proto_.modules())
     {
         Module& out_mod = modules_[moduleIndex++];
@@ -556,7 +553,7 @@ const Schema* Deserializer::Deserialize()
         for (std::uint32_t targetIndex : mod.imports())
         {
             if (VERIFY_INDEX(modules_, targetIndex, "Invalid import index {}", targetIndex))
-                imports.PushBack(arena_, targetIndex);
+                imports.PushBack(arena_, ModuleIndex(targetIndex));
         }
         out_mod.imports = imports;
     }
@@ -655,7 +652,7 @@ const Schema* Deserializer::Deserialize()
         fields_.EmplaceBack(arena_);
 
     // Deserialize types
-    TypeIndex typeIndex = 0;
+    TypeIndex typeIndex{ 0 };
     for (const proto::Type& type : proto_.types())
     {
         potato::schematic::Type* const outType = types_[typeIndex];
@@ -665,7 +662,7 @@ const Schema* Deserializer::Deserialize()
     }
 
     // Deserialize fields
-    FieldIndex fieldIndex = 0;
+    FieldIndex fieldIndex{ 0 };
     for (const proto::Field& field : proto_.fields())
     {
         potato::schematic::Field& outField = fields_[fieldIndex];
@@ -675,7 +672,7 @@ const Schema* Deserializer::Deserialize()
     schema_->fields = fields_;
 
     // Deserialize values
-    ValueIndex valueIndex = 0;
+    ValueIndex valueIndex{ 0 };
     for (const proto::Value& value : proto_.values())
     {
         potato::schematic::Value* const outValue = values_[valueIndex++];
@@ -741,7 +738,7 @@ void Deserializer::Deserialize(TypeAlias& out, const proto::Type::Alias& in)
     DeserializeTypeCommon(out, in);
 
     if (VERIFY_INDEX(types_, in.type(), "Invalid alias type index {}", in.type()))
-        out.type = in.type();
+        out.type = TypeIndex(in.type());
 }
 
 void Deserializer::Deserialize(TypeStruct& out, const proto::Type::Struct& in)
@@ -752,18 +749,18 @@ void Deserializer::Deserialize(TypeStruct& out, const proto::Type::Struct& in)
     {
         if (VERIFY_INDEX(types_, in.base(), "Invalid base type index {}", in.base()))
         {
-            const Type* const base = types_[in.base()];
+            const Type* const base = types_[TypeIndex(in.base())];
             if (VERIFY(base->kind == TypeKind::Struct, "Invalid base type kind"))
-                out.base = in.base();
+                out.base = TypeIndex(in.base());
         }
     }
 
-    if (in.field_start() != InvalidIndex)
+    if (FieldIndex(in.field_start()) != InvalidIndex)
     {
         if (VERIFY_INDEX(fields_, in.field_start(), "Invalid field start index {}", in.field_start()))
-            out.fields.start = in.field_start();
+            out.fields.start = FieldIndex(in.field_start());
 
-        if (VERIFY(out.fields.start + in.field_count() <= fields_.Size(), "Overflow field range {},{}", out.fields.start, in.field_count()))
+        if (VERIFY(out.fields.start + in.field_count() <= fields_.Size(), "Overflow field range {},{}", out.fields.start.index, in.field_count()))
             out.fields.count = in.field_count();
     }
 }
@@ -793,7 +790,7 @@ void Deserializer::Deserialize(TypeArray& out, const proto::Type::Array& in)
         out.size = in.size();
 
     if (VERIFY_INDEX(types_, in.elements(), "Invalid element type index {}", in.elements()))
-        out.elements = in.elements();
+        out.elements = TypeIndex(in.elements());
 }
 
 void Deserializer::Deserialize(TypeString& out, const proto::Type::String& in)
@@ -809,9 +806,9 @@ void Deserializer::Deserialize(TypeEnum& out, const proto::Type::Enum& in)
     {
         if (VERIFY_INDEX(types_, in.base(), "Invalid enum base type index {}", in.base()))
         {
-            const Type* const base = types_[in.base()];
+            const Type* const base = types_[TypeIndex(in.base())];
             if (VERIFY(base->kind == TypeKind::Int, "Invalid enum base type kind {}", std::to_underlying(base->kind)))
-                out.base = in.base();
+                out.base = TypeIndex(in.base());
         }
     }
 
@@ -826,8 +823,8 @@ void Deserializer::Deserialize(TypeEnum& out, const proto::Type::Enum& in)
 
         if (VERIFY_INDEX(values_, item.value(), "Invalid enum item value index {}", item.value()))
         {
-            if (VERIFY(values_[item.value()]->kind == ValueKind::Int, "Invalid enum item value kind"))
-                out_item.value = item.value();
+            if (VERIFY(values_[ValueIndex(item.value())]->kind == ValueKind::Int, "Invalid enum item value kind"))
+                out_item.value = ValueIndex(item.value());
         }
 
         out_item.annotations = DeserializeAnnotations(item);
@@ -844,12 +841,12 @@ void Deserializer::Deserialize(TypeMessage& out, const proto::Type::Message& in)
 {
     DeserializeTypeCommon(out, in);
 
-    if (in.field_start() != InvalidIndex)
+    if (FieldIndex(in.field_start()) != InvalidIndex)
     {
         if (VERIFY_INDEX(fields_, in.field_start(), "Invalid field start index {}", in.field_start()))
-            out.fields.start = in.field_start();
+            out.fields.start = FieldIndex(in.field_start());
 
-        if (VERIFY(out.fields.start + in.field_count() <= fields_.Size(), "Overflow field range {},{}", out.fields.start, in.field_count()))
+        if (VERIFY(out.fields.start + in.field_count() <= fields_.Size(), "Overflow field range {},{}", out.fields.start.index, in.field_count()))
             out.fields.count = in.field_count();
     }
 }
@@ -859,7 +856,7 @@ void Deserializer::Deserialize(TypeNullable& out, const proto::Type::Nullable& i
     DeserializeTypeCommon(out, in);
 
     if (VERIFY_INDEX(types_, in.target(), "Invalid nullable type index {}", in.target()))
-        out.target = in.target();
+        out.target = TypeIndex(in.target());
 }
 
 void Deserializer::Deserialize(TypePointer& out, const proto::Type::Pointer& in)
@@ -867,19 +864,19 @@ void Deserializer::Deserialize(TypePointer& out, const proto::Type::Pointer& in)
     DeserializeTypeCommon(out, in);
 
     if (VERIFY_INDEX(types_, in.target(), "Invalid pointer type index {}", in.target()))
-        out.target = in.target();
+        out.target = TypeIndex(in.target());
 }
 
 void Deserializer::Deserialize(TypeAttribute& out, const proto::Type::Attribute& in)
 {
     DeserializeTypeCommon(out, in);
 
-    if (in.field_start() != InvalidIndex)
+    if (FieldIndex(in.field_start()) != InvalidIndex)
     {
         if (VERIFY_INDEX(fields_, in.field_start(), "Invalid field start index {}", in.field_start()))
-            out.fields.start = in.field_start();
+            out.fields.start = FieldIndex(in.field_start());
 
-        if (VERIFY(out.fields.start + in.field_count() <= fields_.Size(), "Overflow field range {},{}", out.fields.start, in.field_count()))
+        if (VERIFY(out.fields.start + in.field_count() <= fields_.Size(), "Overflow field range {},{}", out.fields.start.index, in.field_count()))
             out.fields.count = in.field_count();
     }
 }
@@ -895,7 +892,7 @@ void Deserializer::DeserializeField(Field& out, const proto::Field& in)
     out.name = arena_.NewString(in.name());
 
     if (VERIFY_INDEX(types_, in.parent(), "Invalid field parent index {}", in.parent()))
-        out.parent = in.parent();
+        out.parent = TypeIndex(in.parent());
 
     DeserializeLocation(out.location, in.location());
 
@@ -903,10 +900,10 @@ void Deserializer::DeserializeField(Field& out, const proto::Field& in)
         out.proto = in.proto();
 
     if (VERIFY_INDEX(types_, in.type(), "Invalid field type index {}", in.type()))
-        out.type = in.type();
+        out.type = TypeIndex(in.type());
 
-    if (in.value() != InvalidIndex && VERIFY_INDEX(values_, in.value(), "Invalid field value index {}", in.value()))
-        out.value = in.value();
+    if (ValueIndex(in.value()) != InvalidIndex && VERIFY_INDEX(values_, in.value(), "Invalid field value index {}", in.value()))
+        out.value = ValueIndex(in.value());
 
     out.annotations = DeserializeAnnotations(in);
 }
@@ -929,7 +926,7 @@ void Deserializer::DeserializeTypeCommon(Type& out, const T& in)
 {
     out.name = arena_.NewString(in.name());
     if (VERIFY_INDEX(modules_, in.module(), "Invalid module index {}", in.module()))
-        out.parent = in.module();
+        out.parent = ModuleIndex(in.module());
 
     out.annotations = DeserializeAnnotations(in);
 
@@ -967,10 +964,10 @@ void Deserializer::Deserialize(ValueObject& out, const proto::Value::Object& in)
     if (!VERIFY_INDEX(types_, in.type(), "Invalid object type index {}", in.type()))
         return;
 
-    if (!VERIFY(types_[in.type()]->kind == TypeKind::Struct, "Invalid object type kind"))
+    if (!VERIFY(types_[TypeIndex(in.type())]->kind == TypeKind::Struct, "Invalid object type kind"))
         return;
 
-    out.type = in.type();
+    out.type = TypeIndex(in.type());
 
     Array<Argument> args = arena_.NewArray<Argument>(in.arguments_size());
     for (const proto::Argument& arg : in.arguments())
@@ -979,9 +976,9 @@ void Deserializer::Deserialize(ValueObject& out, const proto::Value::Object& in)
         DeserializeLocation(out_arg.location, arg.location());
 
         if (VERIFY_INDEX(fields_, arg.field(), "Invalid object field index {}", arg.field()))
-            out_arg.field = arg.field();
+            out_arg.field = FieldIndex(arg.field());
         if (VERIFY_INDEX(values_, arg.value(), "Invalid object value index: {}", arg.value()))
-            out_arg.value = arg.value();
+            out_arg.value = ValueIndex(arg.value());
     }
     out.fields = args;
 }
@@ -1015,14 +1012,14 @@ void Deserializer::Deserialize(ValueArray& out, const proto::Value::Array& in)
     DeserializeValueCommon(out, in);
     if (VERIFY_INDEX(types_, in.type(), "Invalid array type index {}", in.type()))
     {
-        if (VERIFY(types_[in.type()]->kind == TypeKind::Array, "Invalid array type kind"))
-            out.type = in.type();
+        if (VERIFY(types_[TypeIndex(in.type())]->kind == TypeKind::Array, "Invalid array type kind"))
+            out.type = TypeIndex(in.type());
     }
     Array<ValueIndex> elements = arena_.NewArray<ValueIndex>(in.elements_size());
     for (const std::uint32_t valueIndex : in.elements())
     {
         if (VERIFY_INDEX(values_, valueIndex, "Invalid array element value index {}", valueIndex))
-            elements.PushBack(arena_, valueIndex);
+            elements.PushBack(arena_, ValueIndex(valueIndex));
     }
     out.elements = elements;
 }
@@ -1033,12 +1030,12 @@ void Deserializer::Deserialize(ValueEnum& out, const proto::Value::Enum& in)
     if (!VERIFY_INDEX(types_, in.type(), "Invalid enum value type index {}", in.type()))
         return;
 
-    if (!VERIFY(types_[in.type()]->kind == TypeKind::Enum, "Invalid enum value type kind"))
+    if (!VERIFY(types_[TypeIndex(in.type())]->kind == TypeKind::Enum, "Invalid enum value type kind"))
         return;
 
-    const TypeEnum* const enum_ = static_cast<const TypeEnum*>(types_[in.type()]);
+    const TypeEnum* const enum_ = static_cast<const TypeEnum*>(types_[TypeIndex(in.type())]);
 
-    if (!VERIFY(in.item() < enum_->items.size(), "Invalid enum value item index {}", in.item()))
+    if (!VERIFY(in.item() < enum_->items.Size(), "Invalid enum value item index {}", in.item()))
         return;
 
     out.item = &enum_->items[in.item()];
@@ -1049,7 +1046,7 @@ void Deserializer::Deserialize(ValueType& out, const proto::Value::Type& in)
     DeserializeValueCommon(out, in);
     if (!VERIFY(in.type() < types_.Size(), "Invalid type value type index {}", in.type()))
         return;
-    out.type = in.type();
+    out.type = TypeIndex(in.type());
 }
 
 void Deserializer::Deserialize(ValueNull& out, const proto::Value::Null& in)
@@ -1062,10 +1059,10 @@ void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
     if (!VERIFY_INDEX(types_, in.attribute(), "Invalid attribute index {}", in.attribute()))
         return;
 
-    if (!VERIFY(types_[in.attribute()]->kind == TypeKind::Attribute, "Invalid attribute kind"))
+    if (!VERIFY(types_[TypeIndex(in.attribute())]->kind == TypeKind::Attribute, "Invalid attribute kind"))
         return;
 
-    out.attribute = in.attribute();
+    out.attribute = TypeIndex(in.attribute());
 
     Array<Argument> args = arena_.NewArray<Argument>(in.arguments_size());
     for (const proto::Argument& arg : in.arguments())
@@ -1073,9 +1070,9 @@ void Deserializer::Deserialize(Annotation& out, const proto::Annotation& in)
         Argument& out_arg = args.EmplaceBack(arena_);
         DeserializeLocation(out_arg.location, arg.location());
         if (VERIFY_INDEX(fields_, arg.field(), "Invalid annotation field index: {}", arg.field()))
-            out_arg.field = arg.field();
+            out_arg.field = FieldIndex(arg.field());
         if (VERIFY_INDEX(values_, arg.value(), "Invalid annotation value index: {}", arg.value()))
-            out_arg.value = arg.value();
+            out_arg.value = ValueIndex(arg.value());
     }
     out.arguments = args;
 

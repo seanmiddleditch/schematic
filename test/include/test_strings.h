@@ -114,7 +114,7 @@ std::string Catch::StringMaker<const potato::schematic::EnumItem*>::convert(cons
     if (item == nullptr)
         return "{null}";
 
-    return fmt::format("{}.{}", item->parent, item->name);
+    return fmt::format("{}.{}", item->parent.index, item->name);
 }
 
 std::string Catch::StringMaker<const potato::schematic::Field*>::convert(const potato::schematic::Field* field)
@@ -122,7 +122,7 @@ std::string Catch::StringMaker<const potato::schematic::Field*>::convert(const p
     if (field == nullptr)
         return "{null}";
 
-    return fmt::format("{} {}.{}", field->type, field->parent, field->name);
+    return fmt::format("{} {}.{}", field->type.index, field->parent.index, field->name);
 }
 
 std::string Catch::StringMaker<const potato::schematic::Value*>::convert(const potato::schematic::Value* value)
@@ -140,7 +140,7 @@ std::string Catch::StringMaker<const potato::schematic::Value*>::convert(const p
         case ValueKind::Float: return Catch::Detail::stringify(static_cast<const ValueFloat*>(value)->value);
         case ValueKind::Int: return Catch::Detail::stringify(static_cast<const ValueInt*>(value)->value);
         case ValueKind::Null: return Catch::Detail::stringify(nullptr);
-        case ValueKind::Object: return fmt::format("Object(type={})", static_cast<const ValueObject*>(value)->type);
+        case ValueKind::Object: return fmt::format("Object(type={})", static_cast<const ValueObject*>(value)->type.index);
         case ValueKind::String: return Catch::Detail::stringify(static_cast<const ValueString*>(value)->value);
         case ValueKind::Type: return Catch::Detail::stringify(static_cast<const ValueType*>(value)->type);
     }

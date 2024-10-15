@@ -14,7 +14,7 @@ const Type* potato::schematic::GetType(const Schema* schema, TypeIndex typeIndex
     if (typeIndex == InvalidIndex)
         return nullptr;
 
-    if (typeIndex >= schema->types.size())
+    if (typeIndex >= schema->types.Size())
         return nullptr;
 
     return schema->types[typeIndex];
@@ -30,14 +30,14 @@ ReadOnlySpan<Field> potato::schematic::GetFields(const Schema* schema, IndexRang
     if (fields.count == 0)
         return {};
 
-    if (fields.start >= schema->fields.size())
+    if (fields.start >= schema->fields.Size())
         return {};
-    if (fields.count > schema->fields.size())
+    if (fields.count > schema->fields.Size())
         return {};
-    if (fields.start > schema->fields.size() - fields.count)
+    if (fields.start > schema->fields.Size() - fields.count)
         return {};
 
-    return schema->fields.subspan(fields.start, fields.count);
+    return schema->fields.SubSpan(fields.start, fields.count);
 }
 
 const Value* potato::schematic::GetValue(const Schema* schema, ValueIndex valueIndex) noexcept
@@ -48,7 +48,7 @@ const Value* potato::schematic::GetValue(const Schema* schema, ValueIndex valueI
     if (valueIndex == InvalidIndex)
         return nullptr;
 
-    if (valueIndex >= schema->values.size())
+    if (valueIndex >= schema->values.Size())
         return nullptr;
 
     return schema->values[valueIndex];
@@ -87,7 +87,7 @@ const Field* potato::schematic::FindField(const Schema* schema, const TypeStruct
     if (type == nullptr)
         return nullptr;
 
-    for (FieldIndex index = type->fields.start; index != type->fields.start + type->fields.count; ++index)
+    for (FieldIndex index : type->fields)
     {
         const Field& field = schema->fields[index];
         if (field.name == name)
