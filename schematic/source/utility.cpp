@@ -20,6 +20,34 @@ const Type* potato::schematic::GetType(const Schema* schema, TypeIndex typeIndex
     return schema->types[typeIndex];
 }
 
+const Value* potato::schematic::GetValue(const Schema* schema, ValueIndex valueIndex) noexcept
+{
+    if (schema == nullptr)
+        return nullptr;
+
+    if (valueIndex == InvalidIndex)
+        return nullptr;
+
+    if (valueIndex >= schema->values.Size())
+        return nullptr;
+
+    return schema->values[valueIndex];
+}
+
+const EnumItem* potato::schematic::GetEnumItem(const Schema* schema, EnumItemIndex enumItemIndex) noexcept
+{
+    if (schema == nullptr)
+        return nullptr;
+
+    if (enumItemIndex == InvalidIndex)
+        return nullptr;
+
+    if (enumItemIndex >= schema->enumItems.Size())
+        return nullptr;
+
+    return &schema->enumItems[enumItemIndex];
+}
+
 ReadOnlySpan<Field> potato::schematic::GetFields(const Schema* schema, IndexRange<FieldIndex> fields) noexcept
 {
     if (schema == nullptr)
@@ -40,18 +68,24 @@ ReadOnlySpan<Field> potato::schematic::GetFields(const Schema* schema, IndexRang
     return schema->fields.SubSpan(fields.start, fields.count);
 }
 
-const Value* potato::schematic::GetValue(const Schema* schema, ValueIndex valueIndex) noexcept
+ReadOnlySpan<EnumItem> potato::schematic::GetEnumItems(const Schema* schema, IndexRange<EnumItemIndex> items) noexcept
 {
     if (schema == nullptr)
-        return nullptr;
+        return {};
 
-    if (valueIndex == InvalidIndex)
-        return nullptr;
+    if (items.start == InvalidIndex)
+        return {};
+    if (items.count == 0)
+        return {};
 
-    if (valueIndex >= schema->values.Size())
-        return nullptr;
+    if (items.start >= schema->enumItems.Size())
+        return {};
+    if (items.count > schema->enumItems.Size())
+        return {};
+    if (items.start > schema->enumItems.Size() - items.count)
+        return {};
 
-    return schema->values[valueIndex];
+    return schema->enumItems.SubSpan(items.start, items.count);
 }
 
 const Field* potato::schematic::FindField(const Schema* schema, const TypeAttribute* type, std::string_view name) noexcept
@@ -120,12 +154,12 @@ const Field* potato::schematic::FindField(const Schema* schema, TypeIndex typeIn
     return FindField(schema, GetType(schema, typeIndex), name);
 }
 
-const EnumItem* potato::schematic::FindItem(const Schema*, const TypeEnum* type, std::string_view name) noexcept
+const EnumItem* potato::schematic::FindItem(const Schema* schema, const TypeEnum* type, std::string_view name) noexcept
 {
     if (type == nullptr)
         return nullptr;
 
-    for (auto& item : type->items)
+    for (const EnumItem& item : GetEnumItems(schema, type->items))
     {
         if (item.name == name)
             return &item;

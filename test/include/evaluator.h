@@ -10,9 +10,6 @@
 
 namespace potato::schematic::test
 {
-    struct TypeIndexWrapper;
-    struct ValueIndexWrapper;
-
     class CheckEvaluator
     {
     public:
@@ -43,7 +40,7 @@ namespace potato::schematic::test
 
         template <typename T>
         void Evaluate(T value)
-            requires(!std::is_convertible_v<T, const Type*> && !std::is_convertible_v<T, const Value*> && !std::is_same_v<T, TypeIndexWrapper>)
+            requires(!std::is_convertible_v<T, const Type*> && !std::is_convertible_v<T, const Value*>)
         {
             Finish(value);
         }
@@ -55,8 +52,9 @@ namespace potato::schematic::test
         void Evaluate(const EnumItem* item);
         void Evaluate(const Argument* arg);
         void Evaluate(const Type* type);
-        void Evaluate(TypeIndexWrapper typeIndex);
-        void Evaluate(ValueIndexWrapper valueIndex);
+        void Evaluate(TypeIndex typeIndex);
+        void Evaluate(ValueIndex valueIndex);
+        void Evaluate(EnumItemIndex itemIndex);
         void Evaluate(const Value* value);
         void Evaluate(const Module* mod);
         void Evaluate(const Schema* schema);

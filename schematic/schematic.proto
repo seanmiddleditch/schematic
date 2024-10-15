@@ -13,6 +13,7 @@ message Schema
     repeated Type types = 2;
     repeated Field fields = 3;
     repeated Value values = 4;
+    repeated EnumItem enum_items = 5;
 
     uint32 root = 10;
 }
@@ -44,9 +45,10 @@ message Argument
 message EnumItem
 {
     string name = 1;
-    repeated Annotation annotations = 2;
-    uint32 value = 3;
-    Location location = 4;
+    uint32 value = 2;
+    uint32 parent = 3;
+    repeated Annotation annotations = 4;
+    Location location = 5;
 }
 
 message Annotation
@@ -106,7 +108,8 @@ message Type
         Location location = 4;
 
         optional uint32 base = 10;
-        repeated EnumItem items = 11;
+        uint32 items_start = 11;
+        uint32 items_count = 12;
     }
 
     message Float
@@ -224,9 +227,8 @@ message Value
 
     message Enum
     {
-        uint32 type = 1;
-        uint32 item = 2;
-        Location location = 3;
+        uint32 item = 1;
+        Location location = 2;
     }
 
     message Float

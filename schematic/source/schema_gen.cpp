@@ -42,6 +42,7 @@ const Schema* SchemaGenerator::Compile(IRSchema* irSchema)
     schema_->modules = modules_;
     schema_->fields = fields_;
     schema_->values = values_;
+    schema_->enumItems = enumItems_;
     return schema_;
 }
 
@@ -153,10 +154,13 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             type->base = irType->base->index;
         type->annotations = CreateAnnotations(irType->annotations);
 
-        Array<EnumItem> items = arena_.NewArray<EnumItem>(irType->items.Size());
+        irType->index = static_cast<TypeIndex>(types_.Size());
+
+        type->items.start = EnumItemIndex(static_cast<std::uint32_t>(enumItems_.Size()));
         for (IREnumItem* const irItem : irType->items)
         {
-            EnumItem& item = items.EmplaceBack(arena_);
+            irItem->index = EnumItemIndex(static_cast<std::uint32_t>(enumItems_.Size()));
+            EnumItem& item = enumItems_.EmplaceBack(arena_);
             irItem->item = &item;
             item.name = arena_.NewString(irItem->name);
             ValueInt* const value = arena_.New<ValueInt>();
@@ -165,14 +169,10 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             item.value = static_cast<ValueIndex>(values_.Size());
             values_.PushBack(arena_, value);
             item.location = irItem->location;
+            item.parent = irType->index;
             item.annotations = CreateAnnotations(irItem->annotations);
         }
-        type->items = items;
-
-        irType->index = static_cast<TypeIndex>(types_.Size());
-
-        for (EnumItem& item : items)
-            item.parent = irType->index;
+        type->items.count = EnumItemIndex(static_cast<std::uint32_t>(enumItems_.Size())) - type->items.start;
 
         types_.PushBack(arena_, type);
         inIrType->type = type;
@@ -573,7 +573,7 @@ Value* SchemaGenerator::Resolve(IRValue* value)
         ValueEnum* const result = arena_.New<ValueEnum>();
         result->location = value->location;
         const TypeEnum* const type = CastTo<TypeEnum>(Resolve(item->type));
-        result->item = FindItem(schema_, type, item->item->name);
+        result->item = item->item->index;
         value->value = result;
         value->index = ValueIndex(static_cast<std::uint32_t>(values_.Size()));
         values_.PushBack(arena_, result);

@@ -132,6 +132,7 @@ namespace potato::schematic
     {
         ReadOnlySpan<Module, ModuleIndex> modules;
         ReadOnlySpan<Field, FieldIndex> fields;
+        ReadOnlySpan<EnumItem, EnumItemIndex> enumItems;
         ReadOnlySpan<const Type*, TypeIndex> types;
         ReadOnlySpan<const Value*, ValueIndex> values;
         ModuleIndex root = InvalidIndex;
@@ -189,7 +190,7 @@ namespace potato::schematic
         SCHEMATIC_TYPE(TypeEnum, TypeKind::Enum);
 
         TypeIndex base = InvalidIndex;
-        ReadOnlySpan<EnumItem> items;
+        IndexRange<EnumItemIndex> items;
     };
 
     struct TypeFloat : Type
@@ -272,7 +273,7 @@ namespace potato::schematic
     {
         SCHEMATIC_VALUE(ValueEnum, ValueKind::Enum);
 
-        const EnumItem* item = nullptr;
+        EnumItemIndex item;
     };
 
     struct ValueFloat : Value

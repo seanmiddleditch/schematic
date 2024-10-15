@@ -18,16 +18,6 @@
 
 namespace potato::schematic::test
 {
-    struct TypeIndexWrapper
-    {
-        TypeIndex index = InvalidIndex;
-    };
-
-    struct ValueIndexWrapper
-    {
-        ValueIndex index = InvalidIndex;
-    };
-
     struct Buffer : std::span<const uint8_t>
     {
     };
@@ -42,9 +32,12 @@ namespace potato::schematic::test
     struct ToStringHelper
     {
         inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::Type* type);
-        inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::test::TypeIndexWrapper typeIndex);
-        inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::test::ValueIndexWrapper valueIndex);
-        inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::EnumItem* item);
+        inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::EnumItem* enumItem);
+        inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::Value* value);
+
+        inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::TypeIndex typeIndex);
+        inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::ValueIndex valueIndex);
+        inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::EnumItemIndex valueIndex);
 
         template <typename T>
         static std::string ToString(const potato::schematic::Schema* schema, const T& what);
@@ -67,18 +60,6 @@ template <>
 struct Catch::StringMaker<const potato::schematic::Field*>
 {
     inline static std::string convert(const potato::schematic::Field* field);
-};
-
-template <>
-struct Catch::StringMaker<const potato::schematic::Value*>
-{
-    inline static std::string convert(const potato::schematic::Value* value);
-};
-
-template <>
-struct Catch::StringMaker<const potato::schematic::Type*>
-{
-    inline static std::string convert(const potato::schematic::Type* type);
 };
 
 template <>
@@ -123,39 +104,6 @@ std::string Catch::StringMaker<const potato::schematic::Field*>::convert(const p
         return "{null}";
 
     return fmt::format("{} {}.{}", field->type.index, field->parent.index, field->name);
-}
-
-std::string Catch::StringMaker<const potato::schematic::Value*>::convert(const potato::schematic::Value* value)
-{
-    using namespace potato::schematic;
-
-    if (value == nullptr)
-        return "{null}";
-
-    switch (value->kind)
-    {
-        case ValueKind::Array: return Catch::Detail::stringify(static_cast<const ValueArray*>(value)->elements);
-        case ValueKind::Bool: return Catch::Detail::stringify(static_cast<const ValueBool*>(value)->value);
-        case ValueKind::Enum: return Catch::Detail::stringify(static_cast<const ValueEnum*>(value)->item);
-        case ValueKind::Float: return Catch::Detail::stringify(static_cast<const ValueFloat*>(value)->value);
-        case ValueKind::Int: return Catch::Detail::stringify(static_cast<const ValueInt*>(value)->value);
-        case ValueKind::Null: return Catch::Detail::stringify(nullptr);
-        case ValueKind::Object: return fmt::format("Object(type={})", static_cast<const ValueObject*>(value)->type.index);
-        case ValueKind::String: return Catch::Detail::stringify(static_cast<const ValueString*>(value)->value);
-        case ValueKind::Type: return Catch::Detail::stringify(static_cast<const ValueType*>(value)->type);
-    }
-
-    return fmt::format("unknown(kind={})", std::to_underlying(value->kind));
-}
-
-std::string Catch::StringMaker<const potato::schematic::Type*>::convert(const potato::schematic::Type* type)
-{
-    using namespace potato::schematic;
-
-    if (type == nullptr)
-        return "{null}";
-
-    return type->name;
 }
 
 std::string Catch::StringMaker<potato::schematic::TypeKind>::convert(potato::schematic::TypeKind kind)
@@ -216,29 +164,58 @@ std::string potato::schematic::test::ToStringHelper::ToString(const potato::sche
     return "<unknown type>";
 }
 
-std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema* schema, const potato::schematic::test::TypeIndexWrapper typeIndex)
+std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema* schema, const potato::schematic::EnumItem* enumItem)
 {
     using namespace potato::schematic;
-    return ToString(schema, GetType(schema, typeIndex.index));
-}
-
-std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema* schema, const potato::schematic::test::ValueIndexWrapper valueIndex)
-{
-    using namespace potato::schematic;
-    return ToString(schema, GetValue(schema, valueIndex.index));
-}
-
-std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema* schema, const potato::schematic::EnumItem* item)
-{
-    using namespace potato::schematic;
-    if (item == nullptr)
+    if (enumItem == nullptr)
         return "<null item>";
 
-    const TypeEnum* const enum_ = GetTypeAs<TypeEnum>(schema, item->parent);
+    const TypeEnum* const enum_ = GetTypeAs<TypeEnum>(schema, enumItem->parent);
     if (enum_ == nullptr)
-        return fmt::format("<unknown type>.{}", item->name);
+        return fmt::format("<unknown type>.{}", enumItem->name);
 
-    return fmt::format("{}.{}", enum_->name, item->name);
+    return fmt::format("{}.{}", enum_->name, enumItem->name);
+}
+
+std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema* schema, const potato::schematic::Value* value)
+{
+    using namespace potato::schematic;
+
+    if (value == nullptr)
+        return "{null}";
+
+    switch (value->kind)
+    {
+        case ValueKind::Array: return ToString(schema, static_cast<const ValueArray*>(value)->elements);
+        case ValueKind::Bool: return ToString(schema, static_cast<const ValueBool*>(value)->value);
+        case ValueKind::Enum: return ToString(schema, static_cast<const ValueEnum*>(value)->item);
+        case ValueKind::Float: return ToString(schema, static_cast<const ValueFloat*>(value)->value);
+        case ValueKind::Int: return ToString(schema, static_cast<const ValueInt*>(value)->value);
+        case ValueKind::Null: return "null";
+        case ValueKind::Object: return fmt::format("Object(type={})", GetType(schema, static_cast<const ValueObject*>(value)->type)->name);
+        case ValueKind::String: return ToString(schema, static_cast<const ValueString*>(value)->value);
+        case ValueKind::Type: return ToString(schema, static_cast<const ValueType*>(value)->type);
+    }
+
+    return fmt::format("unknown(kind={})", std::to_underlying(value->kind));
+}
+
+std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema* schema, const potato::schematic::TypeIndex typeIndex)
+{
+    using namespace potato::schematic;
+    return ToString(schema, GetType(schema, typeIndex));
+}
+
+std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema* schema, const potato::schematic::ValueIndex valueIndex)
+{
+    using namespace potato::schematic;
+    return ToString(schema, GetValue(schema, valueIndex));
+}
+
+std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema* schema, const potato::schematic::EnumItemIndex enumItemIndex)
+{
+    using namespace potato::schematic;
+    return ToString(schema, GetEnumItem(schema, enumItemIndex));
 }
 
 template <typename T>

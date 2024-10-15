@@ -143,6 +143,7 @@ namespace potato::schematic::compiler
     struct IREnumItem
     {
         const char* name = nullptr;
+        EnumItemIndex index = InvalidIndex;
         const AstNodeEnumItem* ast = nullptr;
         EnumItem* item = nullptr;
         std::int64_t value = 0;

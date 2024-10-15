@@ -117,6 +117,7 @@ namespace potato::schematic
         constexpr Iterator end() const noexcept { return { start + count }; }
     };
 
+    using EnumItemIndex = Index<struct EnumItemIndex_>;
     using FieldIndex = Index<struct FieldIndex_>;
     using ModuleIndex = Index<struct ModuleIndex_>;
     using TypeIndex = Index<struct TypeIndex_>;

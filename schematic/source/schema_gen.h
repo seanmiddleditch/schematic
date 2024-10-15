@@ -39,8 +39,9 @@ namespace potato::schematic::compiler
         Schema* schema_ = nullptr;
 
         Array<Module, ModuleIndex> modules_;
-        Array<Type*, TypeIndex> types_;
         Array<Field, FieldIndex> fields_;
+        Array<EnumItem, EnumItemIndex> enumItems_;
+        Array<Type*, TypeIndex> types_;
         Array<Value*, ValueIndex> values_;
     };
 } // namespace potato::schematic::compiler
