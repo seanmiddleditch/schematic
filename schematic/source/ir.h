@@ -75,6 +75,7 @@ namespace potato::schematic::compiler
 
     struct IRAnnotation
     {
+        AnnotationIndex index = InvalidIndex;
         const AstNodeAnnotation* ast = nullptr;
         IRType* attribute;
         Array<IRAnnotationArgument*> arguments;

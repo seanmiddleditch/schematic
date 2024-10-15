@@ -48,7 +48,7 @@ namespace potato::schematic
     struct ValueFloat;
     struct ValueType;
 
-    using Annotations = ReadOnlySpan<const Annotation*>;
+    using Annotations = IndexRange<AnnotationIndex>;
 
     enum class TypeKind : std::uint8_t
     {
@@ -133,6 +133,7 @@ namespace potato::schematic
         ReadOnlySpan<Module, ModuleIndex> modules;
         ReadOnlySpan<Field, FieldIndex> fields;
         ReadOnlySpan<EnumItem, EnumItemIndex> enumItems;
+        ReadOnlySpan<Annotation, AnnotationIndex> annotations;
         ReadOnlySpan<const Type*, TypeIndex> types;
         ReadOnlySpan<const Value*, ValueIndex> values;
         ModuleIndex root = InvalidIndex;

@@ -212,23 +212,23 @@ namespace potato::schematic::test
         handler.complete();
     }
 
-    void CheckEvaluator::Evaluate(ReadOnlySpan<const Annotation*> annotations)
+    void CheckEvaluator::Evaluate(Annotations annotations)
     {
         if (Match("@length"))
-            return Evaluate(annotations.Size());
+            return Evaluate(annotations.count);
 
-        for (const Annotation* anno : annotations)
+        for (const Annotation& anno : schema_->annotations.SubSpan(annotations.start, annotations.count))
         {
-            if (anno->attribute != InvalidIndex)
+            if (anno.attribute != InvalidIndex)
             {
-                const TypeAttribute* const attribute = GetTypeAs<TypeAttribute>(schema_, anno->attribute);
+                const TypeAttribute* const attribute = GetTypeAs<TypeAttribute>(schema_, anno.attribute);
                 if (attribute != nullptr && Match(attribute->name))
-                    return Evaluate(anno);
+                    return Evaluate(&anno);
             }
         }
 
-        if (const auto [success, index] = MatchIndex(annotations.Size()); success)
-            return Evaluate(annotations[index]);
+        if (const auto [success, index] = MatchIndex(annotations.count); success)
+            return Evaluate(&schema_->annotations[annotations.start + index]);
 
         Finish(annotations);
     }

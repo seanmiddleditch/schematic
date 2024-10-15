@@ -43,6 +43,7 @@ const Schema* SchemaGenerator::Compile(IRSchema* irSchema)
     schema_->fields = fields_;
     schema_->values = values_;
     schema_->enumItems = enumItems_;
+    schema_->annotations = annotations_;
     return schema_;
 }
 
@@ -465,14 +466,26 @@ void SchemaGenerator::CreateType(IRType* inIrType)
     assert(false);
 }
 
-ReadOnlySpan<const Annotation*> SchemaGenerator::CreateAnnotations(Array<IRAnnotation*> irAnnotations)
+Annotations SchemaGenerator::CreateAnnotations(Array<IRAnnotation*> irAnnotations)
 {
-    Array<Annotation*> annotations = arena_.NewArray<Annotation*>(irAnnotations.Size());
+    // resolve the annotations and their values, to ensure any recursive types
+    // are instantiated and we have a contiguous list of annotations.
     for (IRAnnotation* irAnnotation : irAnnotations)
     {
-        Annotation* const annotation = arena_.New<Annotation>();
-        annotation->attribute = ResolveIndex(irAnnotation->attribute);
-        annotation->location = irAnnotation->location;
+        Resolve(irAnnotation->attribute);
+        for (IRAnnotationArgument* irArgument : irAnnotation->arguments)
+            Resolve(irArgument->value);
+    }
+
+    Annotations result;
+    result.start = AnnotationIndex(static_cast<std::uint32_t>(annotations_.Size()));
+    for (IRAnnotation* irAnnotation : irAnnotations)
+    {
+        irAnnotation->index = AnnotationIndex(static_cast<std::uint32_t>(annotations_.Size()));
+
+        Annotation& annotation = annotations_.EmplaceBack(arena_);
+        annotation.attribute = ResolveIndex(irAnnotation->attribute);
+        annotation.location = irAnnotation->location;
 
         Array<Argument> arguments = arena_.NewArray<Argument>(irAnnotation->arguments.Size());
         for (IRAnnotationArgument* irArgument : irAnnotation->arguments)
@@ -482,11 +495,11 @@ ReadOnlySpan<const Annotation*> SchemaGenerator::CreateAnnotations(Array<IRAnnot
             arg.value = ResolveIndex(irArgument->value);
             arg.location = irArgument->location;
         }
-        annotation->arguments = arguments;
-
-        annotations.PushBack(arena_, annotation);
+        annotation.arguments = arguments;
     }
-    return annotations;
+    result.count = AnnotationIndex(static_cast<std::uint32_t>(annotations_.Size())) - result.start;
+
+    return result;
 }
 
 Value* SchemaGenerator::Resolve(IRValue* value)

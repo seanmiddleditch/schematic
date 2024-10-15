@@ -88,6 +88,26 @@ ReadOnlySpan<EnumItem> potato::schematic::GetEnumItems(const Schema* schema, Ind
     return schema->enumItems.SubSpan(items.start, items.count);
 }
 
+static ReadOnlySpan<Annotation> GetAnnotations(const Schema* schema, IndexRange<AnnotationIndex> annotations) noexcept
+{
+    if (schema == nullptr)
+        return {};
+
+    if (annotations.start == InvalidIndex)
+        return {};
+    if (annotations.count == 0)
+        return {};
+
+    if (annotations.start >= schema->annotations.Size())
+        return {};
+    if (annotations.count > schema->annotations.Size())
+        return {};
+    if (annotations.start > schema->annotations.Size() - annotations.count)
+        return {};
+
+    return schema->annotations.SubSpan(annotations.start, annotations.count);
+}
+
 const Field* potato::schematic::FindField(const Schema* schema, const TypeAttribute* type, std::string_view name) noexcept
 {
     if (type == nullptr)
@@ -168,26 +188,26 @@ const EnumItem* potato::schematic::FindItem(const Schema* schema, const TypeEnum
     return nullptr;
 }
 
-static const Annotation* FindAnnotation(std::span<const Annotation* const> annotations, TypeIndex attributeTypeIndex) noexcept
+static const Annotation* FindAnnotation(const Schema* schema, IndexRange<AnnotationIndex> annotations, TypeIndex attributeTypeIndex) noexcept
 {
-    for (const Annotation* const annotation : annotations)
+    for (const Annotation& annotation : GetAnnotations(schema, annotations))
     {
-        if (annotation->attribute == attributeTypeIndex)
-            return annotation;
+        if (annotation.attribute == attributeTypeIndex)
+            return &annotation;
     }
 
     return nullptr;
 }
 
-static const Annotation* FindAnnotation(const Schema* schema, std::span<const Annotation* const> annotations, std::string_view name) noexcept
+static const Annotation* FindAnnotation(const Schema* schema, IndexRange<AnnotationIndex> annotations, std::string_view name) noexcept
 {
-    for (const Annotation* const annotation : annotations)
+    for (const Annotation& annotation : GetAnnotations(schema, annotations))
     {
-        const TypeAttribute* const attribute = CastTo<TypeAttribute>(GetType(schema, annotation->attribute));
+        const TypeAttribute* const attribute = CastTo<TypeAttribute>(GetType(schema, annotation.attribute));
         if (attribute == nullptr)
             continue;
         if (attribute->name == name)
-            return annotation;
+            return &annotation;
     }
 
     return nullptr;
@@ -200,7 +220,7 @@ const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const 
     if (attribute == nullptr)
         return nullptr;
 
-    if (const Annotation* const annotation = ::FindAnnotation(type->annotations, attribute->index); annotation != nullptr)
+    if (const Annotation* const annotation = ::FindAnnotation(schema, type->annotations, attribute->index); annotation != nullptr)
         return annotation;
 
     if (const TypeStruct* const struct_ = CastTo<TypeStruct>(type); struct_ != nullptr)
@@ -244,7 +264,7 @@ const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const 
     if (attribute == nullptr)
         return nullptr;
 
-    return ::FindAnnotation(field->annotations, attribute->index);
+    return ::FindAnnotation(schema, field->annotations, attribute->index);
 }
 
 const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const Field* field, std::string_view name) noexcept
@@ -266,7 +286,7 @@ const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const 
     if (attribute == nullptr)
         return nullptr;
 
-    return ::FindAnnotation(item->annotations, attribute->index);
+    return ::FindAnnotation(schema, item->annotations, attribute->index);
 }
 
 const Annotation* potato::schematic::FindAnnotation(const Schema* schema, const EnumItem* item, std::string_view name) noexcept

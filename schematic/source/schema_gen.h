@@ -29,7 +29,7 @@ namespace potato::schematic::compiler
         TypeIndex ResolveIndex(IRType* type);
 
         void CreateType(IRType* type);
-        ReadOnlySpan<const Annotation*> CreateAnnotations(Array<IRAnnotation*> irAnnotations);
+        Annotations CreateAnnotations(Array<IRAnnotation*> irAnnotations);
 
         Value* Resolve(IRValue* value);
         ValueIndex ResolveIndex(IRValue* value);
@@ -41,6 +41,7 @@ namespace potato::schematic::compiler
         Array<Module, ModuleIndex> modules_;
         Array<Field, FieldIndex> fields_;
         Array<EnumItem, EnumItemIndex> enumItems_;
+        Array<Annotation, AnnotationIndex> annotations_;
         Array<Type*, TypeIndex> types_;
         Array<Value*, ValueIndex> values_;
     };

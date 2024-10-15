@@ -103,7 +103,7 @@ namespace
         void DeserializeEnumItem(EnumItem& out, const proto::EnumItem& in);
 
         template <typename T>
-        Array<Annotation*> DeserializeAnnotations(const T& in);
+        Annotations DeserializeAnnotations(const T& in);
 
         template <typename T>
         void DeserializeTypeCommon(Type& out, const T& in);
@@ -135,6 +135,7 @@ namespace
         Array<Value*, ValueIndex> values_;
         Array<Field, FieldIndex> fields_;
         Array<EnumItem, EnumItemIndex> enumItems_;
+        Array<Annotation, AnnotationIndex> annotations_;
         bool failed_ = false;
     };
 } // namespace
@@ -183,6 +184,9 @@ void Serializer::Serialize(proto::Schema& out)
 
     for (const EnumItem& item : schema_.enumItems)
         SerializeEnumItem(*out.add_enum_items(), item);
+
+    for (const Annotation& annotation : schema_.annotations)
+        Serialize(*out.add_annotations(), annotation);
 }
 
 std::uint32_t Serializer::IndexOfType(const Type* type) const noexcept
@@ -354,8 +358,11 @@ void Serializer::SerializeField(proto::Field& out, const Field& in)
 
     out.set_value(in.value.index);
 
-    for (const Annotation* const annotation : in.annotations)
-        Serialize(*out.add_annotations(), *annotation);
+    if (in.annotations.count != 0)
+    {
+        out.set_annotations_start(in.annotations.start.index);
+        out.set_annotations_count(in.annotations.count);
+    }
 
     SerializeLocation(out.mutable_location(), in.location);
 }
@@ -366,8 +373,11 @@ void Serializer::SerializeEnumItem(proto::EnumItem& out, const EnumItem& in)
     out.set_parent(in.parent.index);
     out.set_value(in.value.index);
 
-    for (const Annotation* const annotation : in.annotations)
-        Serialize(*out.add_annotations(), *annotation);
+    if (in.annotations.count != 0)
+    {
+        out.set_annotations_start(in.annotations.start.index);
+        out.set_annotations_count(in.annotations.count);
+    }
 
     SerializeLocation(out.mutable_location(), in.location);
 }
@@ -378,8 +388,11 @@ void Serializer::SerializeTypeCommon(T& out, const Type& in)
     out.set_name(in.name);
     out.set_module(in.parent.index);
 
-    for (const Annotation* const annotation : in.annotations)
-        Serialize(*out.add_annotations(), *annotation);
+    if (in.annotations.count != 0)
+    {
+        out.set_annotations_start(in.annotations.start.index);
+        out.set_annotations_count(in.annotations.count);
+    }
 
     SerializeLocation(out.mutable_location(), in.location);
 }
@@ -524,6 +537,7 @@ const Schema* Deserializer::Deserialize()
     values_ = arena_.NewArray<Value*, ValueIndex>(proto_.values_size());
     fields_ = arena_.NewArray<Field, FieldIndex>(proto_.fields_size());
     enumItems_ = arena_.NewArray<EnumItem, EnumItemIndex>(proto_.enum_items_size());
+    annotations_ = arena_.NewArray<Annotation, AnnotationIndex>(proto_.annotations_size());
 
     // Instantiate modules
     for (std::size_t index = 0; index != modules_.Capacity(); ++index)
@@ -646,6 +660,10 @@ const Schema* Deserializer::Deserialize()
     for (const proto::EnumItem& _ : proto_.enum_items())
         enumItems_.EmplaceBack(arena_);
 
+    // Instantiate annotations
+    for (const proto::Annotation& _ : proto_.annotations())
+        annotations_.EmplaceBack(arena_);
+
     // Deserialize types
     TypeIndex typeIndex{ 0 };
     for (const proto::Type& type : proto_.types())
@@ -683,6 +701,15 @@ const Schema* Deserializer::Deserialize()
         Deserialize(*outValue, value);
     }
     schema_->fields = fields_;
+
+    // Deserialize annotations
+    AnnotationIndex annotationIndex{ 0 };
+    for (const proto::Annotation& annotation : proto_.annotations())
+    {
+        potato::schematic::Annotation& outAnnotation = annotations_[annotationIndex++];
+        Deserialize(outAnnotation, annotation);
+    }
+    schema_->annotations = annotations_;
 
     if (failed_)
         return nullptr;
@@ -918,16 +945,20 @@ void Deserializer::DeserializeEnumItem(EnumItem& out, const proto::EnumItem& in)
 }
 
 template <typename T>
-Array<Annotation*> Deserializer::DeserializeAnnotations(const T& in)
+Annotations Deserializer::DeserializeAnnotations(const T& in)
 {
-    Array<Annotation*> annotations = arena_.NewArray<Annotation*>(in.annotations_size());
-    for (const proto::Annotation& anno : in.annotations())
+    Annotations result;
+
+    if (in.annotations_count() != 0)
     {
-        Annotation* const out_anno = arena_.New<Annotation>();
-        Deserialize(*out_anno, anno);
-        annotations.PushBack(arena_, out_anno);
+        if (VERIFY_INDEX(annotations_, in.annotations_start(), "Invalid annotation start index {}", in.annotations_start()))
+            result.start = AnnotationIndex(in.annotations_start());
+
+        if (VERIFY(result.start + in.annotations_count() <= annotations_.Size(), "Overflow annotation range {},{}", result.start.index, in.annotations_count()))
+            result.count = in.annotations_count();
     }
-    return annotations;
+
+    return result;
 }
 
 template <typename T>
