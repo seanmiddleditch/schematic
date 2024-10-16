@@ -354,7 +354,7 @@ bool IsAlpha(char c) noexcept
 
 bool IsIdentHead(char c) noexcept
 {
-    return c == '_' || c == '$' || IsAlpha(c);
+    return c == '_' || IsAlpha(c);
 }
 
 bool IsIdentBody(char c) noexcept

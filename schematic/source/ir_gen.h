@@ -41,7 +41,6 @@ namespace potato::schematic::compiler
 
         IRVersionRange ReadVersion(const AstNodeLiteralInt* min, const AstNodeLiteralInt* max);
 
-        void ValidateTypeName(IRType* type);
         void ValidateTypeUnique(IRType* type);
         void ValidateStructField(IRTypeStruct* type, IRField* field);
 
@@ -63,8 +62,6 @@ namespace potato::schematic::compiler
 
         template <typename... Args>
         void Error(const AstNode* node, fmt::format_string<Args...> format, Args&&... args);
-
-        void ErrorReservedName(const AstNode* node, const char* name, const char* entityTypeName);
 
         ArenaAllocator& arena_;
         Logger& logger_;
