@@ -19,11 +19,6 @@ static auto MatchNamePred(const char* name) noexcept
     };
 }
 
-static bool IsReservedName(const char* name)
-{
-    return name[0] == '$';
-}
-
 IRSchema* IRGenerator::Compile()
 {
     if (state_.builtins == nullptr)
@@ -76,7 +71,6 @@ IRModule* IRGenerator::CompileModule()
             type->annotations = LowerAnnotations(declNode->annotations);
             type->location = GetLocation(declNode);
 
-            ValidateTypeName(type);
             ValidateTypeUnique(type);
 
             module_->types.PushBack(arena_, type);
@@ -92,7 +86,6 @@ IRModule* IRGenerator::CompileModule()
             type->annotations = LowerAnnotations(declNode->annotations);
             type->location = GetLocation(declNode);
 
-            ValidateTypeName(type);
             ValidateTypeUnique(type);
 
             for (const AstNodeField* const fieldNode : declNode->fields)
@@ -100,9 +93,6 @@ IRModule* IRGenerator::CompileModule()
                 IRField* const field = arena_.New<IRField>();
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
-
-                if (IsReservedName(field->name))
-                    ErrorReservedName(field->ast, field->name, "Field");
 
                 if (Find(type->fields, MatchNamePred(field->name)) != nullptr)
                     Error(field->ast, "Field already defined: {}.{}", type->name, field->name);
@@ -128,7 +118,6 @@ IRModule* IRGenerator::CompileModule()
             type->annotations = LowerAnnotations(declNode->annotations);
             type->location = GetLocation(declNode);
 
-            ValidateTypeName(type);
             ValidateTypeUnique(type);
 
             std::int64_t nextValue = 0;
@@ -138,9 +127,6 @@ IRModule* IRGenerator::CompileModule()
                 IREnumItem* const item = arena_.New<IREnumItem>();
                 item->ast = itemNode;
                 item->name = itemNode->name->name;
-
-                if (IsReservedName(item->name))
-                    ErrorReservedName(item->ast, item->name, "Enum item");
 
                 if (Find(type->items, MatchNamePred(item->name)) != nullptr)
                     Error(item->ast, "Enum item already defined: {}.{}", type->name, item->name);
@@ -173,7 +159,6 @@ IRModule* IRGenerator::CompileModule()
             type->annotations = LowerAnnotations(declNode->annotations);
             type->location = GetLocation(declNode);
 
-            ValidateTypeName(type);
             ValidateTypeUnique(type);
 
             for (const AstNodeField* const fieldNode : declNode->fields)
@@ -182,11 +167,8 @@ IRModule* IRGenerator::CompileModule()
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
 
-                if (IsReservedName(field->name))
-                    ErrorReservedName(field->ast, field->name, "Field");
-
                 if (Find(type->fields, MatchNamePred(field->name)) != nullptr)
-                    Error(field->ast, "Enum item already defined: {}.{}", type->name, field->name);
+                    Error(field->ast, "Message field already defined: {}.{}", type->name, field->name);
 
                 field->type = LowerType(fieldNode->type);
                 field->value = LowerValue(fieldNode->value);
@@ -249,8 +231,6 @@ IRModule* IRGenerator::CompileModule()
             type->annotations = LowerAnnotations(declNode->annotations);
             type->location = GetLocation(declNode);
 
-            ValidateTypeName(type);
-
             type->version = ReadVersion(declNode->minVersion, declNode->maxVersion);
 
             for (const AstNodeField* const fieldNode : declNode->fields)
@@ -258,8 +238,6 @@ IRModule* IRGenerator::CompileModule()
                 IRField* const field = arena_.New<IRField>();
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
-                if (IsReservedName(field->name))
-                    ErrorReservedName(field->ast, field->name, "Field");
                 field->type = LowerType(fieldNode->type);
                 field->value = LowerValue(fieldNode->value);
                 field->version = ReadVersion(fieldNode->minVersion, fieldNode->maxVersion);
@@ -440,12 +418,6 @@ IRVersionRange IRGenerator::ReadVersion(const AstNodeLiteralInt* min, const AstN
     }
 
     return version;
-}
-
-void IRGenerator::ValidateTypeName(IRType* type)
-{
-    if (IsReservedName(type->name))
-        ErrorReservedName(type->ast, type->name, "Type");
 }
 
 void IRGenerator::ValidateTypeUnique(IRType* type)
@@ -969,9 +941,4 @@ void IRGenerator::Error(const AstNode* node, fmt::format_string<Args...> format,
         logger_.Error(filename_, FindRange(source_, tokens_[node->tokenIndex]), std::string_view(buffer, rs.out));
     else
         logger_.Error(filename_, {}, std::string_view(buffer, rs.out));
-}
-
-void IRGenerator::ErrorReservedName(const AstNode* node, const char* name, const char* entityTypeName)
-{
-    Error(node, "{} declared with reserved name: {}", entityTypeName, name);
 }

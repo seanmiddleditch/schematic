@@ -44,7 +44,6 @@ schematic_embed_schemas(TARGET schematic_test SCHEMAS
     "schemas/fail/invalid_base_types.sat"
     "schemas/fail/invalid_messages.sat"
     "schemas/fail/missing_import.sat"
-    "schemas/fail/reserved.sat"
     "schemas/fail/version_dupes.sat"
     "schemas/initializers.sat"
     "schemas/message.sat"
