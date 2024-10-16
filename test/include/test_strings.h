@@ -219,7 +219,7 @@ std::string potato::schematic::test::ToStringHelper::ToString(const potato::sche
 }
 
 template <typename T>
-static std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema*, const T& what)
+std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema*, const T& what)
 {
     return ::Catch::Detail::stringify(what);
 }
