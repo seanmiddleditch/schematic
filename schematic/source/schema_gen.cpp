@@ -133,7 +133,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
             field.index = irField->index;
             field.type = ResolveIndex(irField->type);
             field.value = ResolveIndex(irField->value);
-            field.parent = inIrType->index;
+            field.parent = irType->index;
             field.location = irField->location;
         }
         type->fields.count = FieldIndex(static_cast<std::uint32_t>(fields_.Size())) - type->fields.start;
@@ -313,7 +313,7 @@ void SchemaGenerator::CreateType(IRType* inIrType)
                     field.index = irField->index;
                     field.type = ResolveIndex(irField->type);
                     field.value = ResolveIndex(irField->value);
-                    field.parent = irType->index;
+                    field.parent = irVersion->index;
                     field.location = irField->location;
                 }
                 type->fields.count = FieldIndex(static_cast<std::uint32_t>(fields_.Size())) - type->fields.start;

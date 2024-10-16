@@ -352,6 +352,7 @@ void Serializer::SerializeField(proto::Field& out, const Field& in)
 {
     out.set_name(in.name);
     out.set_type(in.type.index);
+    out.set_parent(in.parent.index);
 
     if (in.proto != 0)
         out.set_proto(in.proto);
