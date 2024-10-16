@@ -47,7 +47,7 @@ namespace potato::schematic
         std::is_trivially_copy_constructible_v<T> &&
         std::is_trivially_copy_assignable_v<T>;
 
-    template <Trivial T>
+    template <Trivial T, typename I = std::uint32_t>
     class Array;
 
     // ArenaAllocator provides efficient single-threaded allocation for
@@ -72,8 +72,8 @@ namespace potato::schematic
 
         [[nodiscard]] const char* NewString(std::string_view string);
 
-        template <Trivial T, template <typename> class A = Array>
-        [[nodiscard]] A<T> NewArray(size_t capacity)
+        template <Trivial T, typename I = std::uint32_t, template <typename, typename> class A = Array>
+        [[nodiscard]] A<T, I> NewArray(size_t capacity)
             requires std::is_trivially_destructible_v<T>;
 
         template <typename T, typename... Args>
@@ -94,12 +94,12 @@ namespace potato::schematic
         BlockHeader* first_ = nullptr;
     };
 
-    template <Trivial T, template <typename> class A>
-    A<T> ArenaAllocator::NewArray(size_t capacity)
+    template <Trivial T, typename I, template <typename, typename> class A>
+    A<T, I> ArenaAllocator::NewArray(size_t capacity)
         requires std::is_trivially_destructible_v<T>
     {
         void* const memory = Allocate(sizeof(T) * capacity, alignof(T));
-        return A(static_cast<T*>(memory), capacity);
+        return A<T, I>(static_cast<T*>(memory), capacity);
     }
 
     template <typename T, typename... Args>

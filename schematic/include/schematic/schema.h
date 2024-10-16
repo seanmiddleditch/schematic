@@ -4,6 +4,8 @@
 #define SCHEMATIC_SCHEMA_H 1
 #pragma once
 
+#include "common.h"
+
 #include <cstdint>
 #include <span>
 
@@ -46,10 +48,7 @@ namespace potato::schematic
     struct ValueFloat;
     struct ValueType;
 
-    using ModuleIndex = std::uint32_t;
-
-    template <typename T, typename I = std::uint32_t>
-    using ReadOnlySpan = std::span<const T>;
+    using Annotations = IndexRange<AnnotationIndex>;
 
     enum class TypeKind : std::uint8_t
     {
@@ -89,64 +88,70 @@ namespace potato::schematic
 
     struct Argument
     {
-        const Field* field = nullptr;
-        const Value* value = nullptr;
+        FieldIndex field = InvalidIndex;
+        ValueIndex value = InvalidIndex;
         Location location;
     };
 
     struct Annotation
     {
-        const TypeAttribute* attribute = nullptr;
+        TypeIndex attribute = InvalidIndex;
         ReadOnlySpan<Argument> arguments;
         Location location;
     };
 
     struct EnumItem
     {
-        ReadOnlySpan<const Annotation*> annotations;
         const char* name = nullptr;
-        const ValueInt* value = nullptr;
-        const TypeEnum* owner = nullptr;
+        TypeIndex parent = InvalidIndex;
+        ValueIndex value = InvalidIndex;
+        Annotations annotations;
         Location location;
     };
 
     struct Field
     {
-        ReadOnlySpan<const Annotation*> annotations;
         const char* name = nullptr;
-        const Type* owner = nullptr;
-        const Type* type = nullptr;
-        const Value* value = nullptr;
+        FieldIndex index = InvalidIndex;
+        TypeIndex parent = InvalidIndex;
+        TypeIndex type = InvalidIndex;
+        ValueIndex value = InvalidIndex;
         std::uint32_t proto = 0;
+        Annotations annotations;
         Location location;
     };
 
     struct Module
     {
-        ReadOnlySpan<const ModuleIndex> imports;
         const char* filename = nullptr;
+        TypeIndex index = InvalidIndex;
+        ReadOnlySpan<ModuleIndex> imports;
     };
 
     struct Schema
     {
-        ReadOnlySpan<const Module, ModuleIndex> modules;
-        ReadOnlySpan<const Type*> types;
-        ModuleIndex root = 0;
+        ReadOnlySpan<Module, ModuleIndex> modules;
+        ReadOnlySpan<Field, FieldIndex> fields;
+        ReadOnlySpan<EnumItem, EnumItemIndex> enumItems;
+        ReadOnlySpan<Annotation, AnnotationIndex> annotations;
+        ReadOnlySpan<const Type*, TypeIndex> types;
+        ReadOnlySpan<const Value*, ValueIndex> values;
+        ModuleIndex root = InvalidIndex;
     };
 
     struct Type
     {
-        ReadOnlySpan<const Annotation*> annotations;
         const char* name = nullptr;
-        ModuleIndex owner = 0;
+        TypeIndex index = InvalidIndex;
+        ModuleIndex parent = InvalidIndex;
         TypeKind kind = TypeKind::Bool;
+        Annotations annotations;
         Location location;
     };
 
     struct Value
     {
         ValueKind kind = ValueKind::Null;
-        ModuleIndex owner = 0;
         Location location;
     };
 
@@ -158,14 +163,14 @@ namespace potato::schematic
     {
         SCHEMATIC_TYPE(TypeAlias, TypeKind::Alias);
 
-        const Type* type = nullptr;
+        TypeIndex type = InvalidIndex;
     };
 
     struct TypeArray : Type
     {
         SCHEMATIC_TYPE(TypeArray, TypeKind::Array);
 
-        const Type* type = nullptr;
+        TypeIndex elements = InvalidIndex;
         std::uint32_t size = 0; // if non-zero, array if of a fixed size; otherwise dynamically-sized
     };
 
@@ -173,7 +178,7 @@ namespace potato::schematic
     {
         SCHEMATIC_TYPE(TypeAttribute, TypeKind::Attribute);
 
-        ReadOnlySpan<Field> fields;
+        IndexRange<FieldIndex> fields;
     };
 
     struct TypeBool : Type
@@ -185,8 +190,8 @@ namespace potato::schematic
     {
         SCHEMATIC_TYPE(TypeEnum, TypeKind::Enum);
 
-        const TypeInt* base = nullptr;
-        ReadOnlySpan<EnumItem> items;
+        TypeIndex base = InvalidIndex;
+        IndexRange<EnumItemIndex> items;
     };
 
     struct TypeFloat : Type
@@ -208,21 +213,21 @@ namespace potato::schematic
     {
         SCHEMATIC_TYPE(TypeMessage, TypeKind::Message);
 
-        ReadOnlySpan<Field> fields;
+        IndexRange<FieldIndex> fields;
     };
 
     struct TypeNullable : Type
     {
         SCHEMATIC_TYPE(TypeNullable, TypeKind::Nullable);
 
-        const Type* type = nullptr;
+        TypeIndex target = InvalidIndex;
     };
 
     struct TypePointer : Type
     {
         SCHEMATIC_TYPE(TypePointer, TypeKind::Pointer);
 
-        const Type* type = nullptr;
+        TypeIndex target = InvalidIndex;
     };
 
     struct TypeString : Type
@@ -234,8 +239,8 @@ namespace potato::schematic
     {
         SCHEMATIC_TYPE(TypeStruct, TypeKind::Struct);
 
-        ReadOnlySpan<Field> fields;
-        const TypeStruct* base = nullptr;
+        IndexRange<FieldIndex> fields;
+        TypeIndex base = InvalidIndex;
         std::uint32_t version = 1;
     };
 
@@ -254,8 +259,8 @@ namespace potato::schematic
     {
         SCHEMATIC_VALUE(ValueArray, ValueKind::Array);
 
-        ReadOnlySpan<const Value*> elements;
-        const Type* type = nullptr;
+        ReadOnlySpan<ValueIndex> elements;
+        TypeIndex type = InvalidIndex;
     };
 
     struct ValueBool : Value
@@ -269,7 +274,7 @@ namespace potato::schematic
     {
         SCHEMATIC_VALUE(ValueEnum, ValueKind::Enum);
 
-        const EnumItem* item = nullptr;
+        EnumItemIndex item;
     };
 
     struct ValueFloat : Value
@@ -296,7 +301,7 @@ namespace potato::schematic
         SCHEMATIC_VALUE(ValueObject, ValueKind::Object);
 
         ReadOnlySpan<Argument> fields;
-        const Type* type = nullptr;
+        TypeIndex type = InvalidIndex;
     };
 
     struct ValueString : Value
@@ -310,7 +315,7 @@ namespace potato::schematic
     {
         SCHEMATIC_VALUE(ValueType, ValueKind::Type);
 
-        const Type* type = nullptr;
+        TypeIndex type = InvalidIndex;
     };
 
 #undef SCHEMATIC_VALUE

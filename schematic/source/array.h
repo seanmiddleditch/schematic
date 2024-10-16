@@ -3,6 +3,7 @@
 #pragma once
 
 #include "schematic/allocator.h"
+#include "schematic/common.h"
 
 #include <cassert>
 #include <span>
@@ -15,7 +16,7 @@ namespace potato::schematic
     // Operations that mutate capacity require an ArenaAllocator
     // from which new capacity is allocated. Previous memory is
     // left untouched, as elements must be trivially copyable.
-    template <Trivial T>
+    template <Trivial T, typename I>
     class Array
     {
     public:
@@ -46,6 +47,13 @@ namespace potato::schematic
         [[nodiscard]] operator std::span<T>() const noexcept
         {
             return { first_, last_ };
+        }
+
+        template <typename U, typename J>
+            requires std::is_convertible_v<T, U>
+        [[nodiscard]] operator ReadOnlySpan<U, J>() const noexcept
+        {
+            return { first_, static_cast<std::uint32_t>(last_ - first_) };
         }
 
         inline void Reserve(ArenaAllocator& arena, size_t capacity);
@@ -88,16 +96,16 @@ namespace potato::schematic
             return *(last_ - 1);
         }
 
-        [[nodiscard]] const T& operator[](size_t index) const noexcept
+        [[nodiscard]] const T& operator[](I index) const noexcept
         {
-            assert(index < (last_ - first_));
-            return first_[index];
+            assert(static_cast<std::uint32_t>(index) < (last_ - first_));
+            return first_[static_cast<std::uint32_t>(index)];
         }
 
-        [[nodiscard]] T& operator[](size_t index) noexcept
+        [[nodiscard]] T& operator[](I index) noexcept
         {
-            assert(index < (last_ - first_));
-            return first_[index];
+            assert(static_cast<std::uint32_t>(index) < (last_ - first_));
+            return first_[static_cast<std::uint32_t>(index)];
         }
 
     private:
@@ -106,23 +114,23 @@ namespace potato::schematic
         const T* sentinel_ = nullptr;
     };
 
-    template <Trivial T>
-    void Array<T>::Reserve(ArenaAllocator& arena, size_t capacity)
+    template <Trivial T, typename I>
+    void Array<T, I>::Reserve(ArenaAllocator& arena, size_t capacity)
     {
         if ((sentinel_ - first_) >= capacity)
             return;
 
-        const Array<T> previous = *this;
+        const Array<T, I> previous = *this;
 
-        *this = arena.NewArray<T>(capacity);
+        *this = arena.NewArray<T, I>(capacity);
         for (const T* item = previous.first_; item != previous.last_; ++item)
             new (static_cast<void*>(last_++)) T(*item); // NOLINT(bugprone-multi-level-implicit-pointer-conversion)
     }
 
-    template <Trivial T>
+    template <Trivial T, typename I>
     template <typename U>
         requires std::is_trivially_constructible_v<T, U>
-    T& Array<T>::PushBack(ArenaAllocator& arena, const U& value)
+    T& Array<T, I>::PushBack(ArenaAllocator& arena, const U& value)
     {
         if (last_ == sentinel_)
             Reserve(arena, first_ == sentinel_ ? 32 : (sentinel_ - first_) * 2);
@@ -131,10 +139,10 @@ namespace potato::schematic
         return *last_++;
     }
 
-    template <Trivial T>
+    template <Trivial T, typename I>
     template <typename... Args>
         requires std::is_constructible_v<T, Args...>
-    T& Array<T>::EmplaceBack(ArenaAllocator& arena, Args&&... args)
+    T& Array<T, I>::EmplaceBack(ArenaAllocator& arena, Args&&... args)
     {
         if (last_ == sentinel_)
             Reserve(arena, first_ == sentinel_ ? 32 : (sentinel_ - first_) * 2);

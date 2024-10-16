@@ -26,16 +26,23 @@ namespace potato::schematic::compiler
         ModuleIndex CreateModule(IRModule* irModule);
 
         Type* Resolve(IRType* type);
+        TypeIndex ResolveIndex(IRType* type);
+
         void CreateType(IRType* type);
-        ReadOnlySpan<Annotation*> CreateAnnotations(Array<IRAnnotation*> irAnnotations);
+        Annotations CreateAnnotations(Array<IRAnnotation*> irAnnotations);
 
         Value* Resolve(IRValue* value);
+        ValueIndex ResolveIndex(IRValue* value);
 
         ArenaAllocator& arena_;
         Logger& logger_;
         Schema* schema_ = nullptr;
 
-        Array<Module> modules_;
-        Array<Type*> types_;
+        Array<Module, ModuleIndex> modules_;
+        Array<Field, FieldIndex> fields_;
+        Array<EnumItem, EnumItemIndex> enumItems_;
+        Array<Annotation, AnnotationIndex> annotations_;
+        Array<Type*, TypeIndex> types_;
+        Array<Value*, ValueIndex> values_;
     };
 } // namespace potato::schematic::compiler

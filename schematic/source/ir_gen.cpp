@@ -71,7 +71,7 @@ IRModule* IRGenerator::CompileModule()
             IRTypeAlias* const type = arena_.New<IRTypeAlias>();
             type->name = declNode->name->name;
             type->ast = declNode;
-            type->owner = module_;
+            type->parent = module_;
             type->target = LowerType(declNode->target);
             type->annotations = LowerAnnotations(declNode->annotations);
             type->location = GetLocation(declNode);
@@ -88,7 +88,7 @@ IRModule* IRGenerator::CompileModule()
             IRTypeAttribute* const type = arena_.New<IRTypeAttribute>();
             type->name = declNode->name->name;
             type->ast = declNode;
-            type->owner = module_;
+            type->parent = module_;
             type->annotations = LowerAnnotations(declNode->annotations);
             type->location = GetLocation(declNode);
 
@@ -97,7 +97,7 @@ IRModule* IRGenerator::CompileModule()
 
             for (const AstNodeField* const fieldNode : declNode->fields)
             {
-                IRAttributeField* const field = arena_.New<IRAttributeField>();
+                IRField* const field = arena_.New<IRField>();
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
 
@@ -123,7 +123,7 @@ IRModule* IRGenerator::CompileModule()
             IRTypeEnum* const type = arena_.New<IRTypeEnum>();
             type->name = declNode->name->name;
             type->ast = declNode;
-            type->owner = module_;
+            type->parent = module_;
             type->base = LowerType(declNode->base);
             type->annotations = LowerAnnotations(declNode->annotations);
             type->location = GetLocation(declNode);
@@ -169,7 +169,7 @@ IRModule* IRGenerator::CompileModule()
             IRTypeMessage* const type = arena_.New<IRTypeMessage>();
             type->name = declNode->name->name;
             type->ast = declNode;
-            type->owner = module_;
+            type->parent = module_;
             type->annotations = LowerAnnotations(declNode->annotations);
             type->location = GetLocation(declNode);
 
@@ -178,7 +178,7 @@ IRModule* IRGenerator::CompileModule()
 
             for (const AstNodeField* const fieldNode : declNode->fields)
             {
-                IRMessageField* const field = arena_.New<IRMessageField>();
+                IRField* const field = arena_.New<IRField>();
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
 
@@ -244,7 +244,7 @@ IRModule* IRGenerator::CompileModule()
             IRTypeStruct* const type = arena_.New<IRTypeStruct>();
             type->name = declNode->name->name;
             type->ast = declNode;
-            type->owner = module_;
+            type->parent = module_;
             type->base = LowerType(declNode->base);
             type->annotations = LowerAnnotations(declNode->annotations);
             type->location = GetLocation(declNode);
@@ -255,7 +255,7 @@ IRModule* IRGenerator::CompileModule()
 
             for (const AstNodeField* const fieldNode : declNode->fields)
             {
-                IRStructField* const field = arena_.New<IRStructField>();
+                IRField* const field = arena_.New<IRField>();
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
                 if (IsReservedName(field->name))
@@ -282,7 +282,7 @@ IRModule* IRGenerator::CompileModule()
                 IRTypeStructVersioned* const versioned = arena_.New<IRTypeStructVersioned>();
                 versioned->name = type->name;
                 versioned->ast = declNode;
-                versioned->owner = module_;
+                versioned->parent = module_;
                 versioned->latest = type;
                 versioned->versions.PushBack(arena_, type);
                 versioned->location = GetLocation(declNode);
@@ -325,7 +325,7 @@ IRModule* IRGenerator::CompileModule()
         if (IRTypeAttribute* type = CastTo<IRTypeAttribute>(irTypeIter); type != nullptr)
         {
             ResolveAttributes(type->annotations);
-            for (IRAttributeField* field : type->fields)
+            for (IRField* field : type->fields)
             {
                 field->type = ResolveType(field->type);
                 field->value = ResolveValue(field->type, field->value);
@@ -357,7 +357,7 @@ IRModule* IRGenerator::CompileModule()
 
         if (IRTypeMessage* type = CastTo<IRTypeMessage>(irTypeIter); type != nullptr)
         {
-            for (IRMessageField* field : type->fields)
+            for (IRField* field : type->fields)
             {
                 field->type = ResolveType(field->type);
                 field->value = ResolveValue(field->type, field->value);
@@ -378,7 +378,7 @@ IRModule* IRGenerator::CompileModule()
                     type->base = base;
             }
             ResolveAttributes(type->annotations);
-            for (IRStructField* field : type->fields)
+            for (IRField* field : type->fields)
             {
                 field->type = ResolveType(field->type);
                 field->value = ResolveValue(field->type, field->value);
@@ -393,7 +393,7 @@ IRModule* IRGenerator::CompileModule()
             {
                 version->base = ResolveAlias(ResolveType(version->base));
                 ResolveAttributes(type->annotations);
-                for (IRStructField* field : version->fields)
+                for (IRField* field : version->fields)
                 {
                     field->type = ResolveType(field->type);
                     field->value = ResolveValue(field->type, field->value);
@@ -455,9 +455,9 @@ void IRGenerator::ValidateTypeUnique(IRType* type)
         Error(type->ast, "Type already defined: {}", type->name);
 }
 
-void IRGenerator::ValidateStructField(IRTypeStruct* type, IRStructField* field)
+void IRGenerator::ValidateStructField(IRTypeStruct* type, IRField* field)
 {
-    IRStructField* const existing = Find(type->fields, MatchNamePred(field->name));
+    IRField* const existing = Find(type->fields, MatchNamePred(field->name));
     if (existing == nullptr)
         return;
 
@@ -495,7 +495,7 @@ static T* CreateBuiltinType(ArenaAllocator& arena, IRModule* module, TypeKind ki
     T* const type = arena.New<T>();
     type->name = name;
     type->typeKind = kind;
-    type->owner = module;
+    type->parent = module;
 
     module->types.PushBack(arena, type);
     return type;
@@ -568,7 +568,7 @@ IRType* IRGenerator::LowerType(const AstNode* ast)
     {
         IRTypeIndirectArray* const indirect = arena_.New<IRTypeIndirectArray>();
         indirect->ast = astArray;
-        indirect->owner = module_;
+        indirect->parent = module_;
         indirect->location = GetLocation(astArray);
         indirect->target = LowerType(astArray->type);
         if (astArray->size != nullptr)
@@ -588,7 +588,7 @@ IRType* IRGenerator::LowerType(const AstNode* ast)
     {
         IRTypeIndirectIdentifier* const indirect = arena_.New<IRTypeIndirectIdentifier>();
         indirect->ast = astName;
-        indirect->owner = module_;
+        indirect->parent = module_;
         indirect->location = GetLocation(astName);
         indirect->name = astName->name;
         return indirect;
@@ -598,7 +598,7 @@ IRType* IRGenerator::LowerType(const AstNode* ast)
     {
         IRTypeIndirectNullable* const indirect = arena_.New<IRTypeIndirectNullable>();
         indirect->ast = astNullable;
-        indirect->owner = module_;
+        indirect->parent = module_;
         indirect->location = GetLocation(astNullable);
         indirect->target = LowerType(astNullable->type);
         return indirect;
@@ -608,7 +608,7 @@ IRType* IRGenerator::LowerType(const AstNode* ast)
     {
         IRTypeIndirectPointer* const indirect = arena_.New<IRTypeIndirectPointer>();
         indirect->ast = astPointer;
-        indirect->owner = module_;
+        indirect->parent = module_;
         indirect->location = GetLocation(astPointer);
         indirect->target = LowerType(astPointer->type);
         return indirect;
@@ -702,7 +702,7 @@ void IRGenerator::ResolveAttributes(Array<IRAnnotation*> annotations)
         {
             if (const AstNodeNamedArgument* const namedNode = CastTo<AstNodeNamedArgument>(node); namedNode != nullptr)
             {
-                IRAttributeField* const field = Find(attribute->fields, MatchNamePred(namedNode->name->name));
+                IRField* const field = Find(attribute->fields, MatchNamePred(namedNode->name->name));
                 if (field == nullptr)
                 {
                     Error(node, "Field does not exist on attribute type: {}.{}", attribute->name, namedNode->name->name);
@@ -717,7 +717,7 @@ void IRGenerator::ResolveAttributes(Array<IRAnnotation*> annotations)
             }
             else if (nextArgumentIndex < attribute->fields.Size())
             {
-                IRAttributeField* const field = attribute->fields[nextArgumentIndex++];
+                IRField* const field = attribute->fields[nextArgumentIndex++];
                 IRAnnotationArgument* const arg = arena_.New<IRAnnotationArgument>();
                 arg->ast = node;
                 arg->field = field;
@@ -900,7 +900,7 @@ IRValue* IRGenerator::ResolveValue(IRType* type, IRValue* value)
                     continue;
                 }
 
-                IRStructField* const field = structType->fields[fieldIndex];
+                IRField* const field = structType->fields[fieldIndex];
 
                 if (fieldIndex < firstNamedIndex)
                 {
@@ -923,7 +923,7 @@ IRValue* IRGenerator::ResolveValue(IRType* type, IRValue* value)
                 if (fieldIndex >= structType->fields.Size())
                     Error(positional->ast, "Too many positional initializers for struct type: {}", structType->name);
 
-                IRStructField* const field = structType->fields[fieldIndex];
+                IRField* const field = structType->fields[fieldIndex];
                 positional = ResolveValue(field->type, positional);
 
                 ++fieldIndex;

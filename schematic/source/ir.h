@@ -47,10 +47,8 @@ namespace potato::schematic::compiler
     struct IRAnnotation;
 
     struct IRAnnotationArgument;
-    struct IRAttributeField;
     struct IREnumItem;
-    struct IRMessageField;
-    struct IRStructField;
+    struct IRField;
     struct IRInitializerNamedArgument;
 
     struct IRType;
@@ -77,6 +75,7 @@ namespace potato::schematic::compiler
 
     struct IRAnnotation
     {
+        AnnotationIndex index = InvalidIndex;
         const AstNodeAnnotation* ast = nullptr;
         IRType* attribute;
         Array<IRAnnotationArgument*> arguments;
@@ -89,9 +88,9 @@ namespace potato::schematic::compiler
         const AstNode* ast = nullptr;
         Type* type = nullptr;
         const char* name = nullptr;
-        std::uint32_t index = 0;
+        TypeIndex index = InvalidIndex;
         Array<IRAnnotation*> annotations;
-        IRModule* owner = nullptr;
+        IRModule* parent = nullptr;
         Location location;
 
         Array<IRTypeIndirectArray*> arrayTypes;
@@ -111,6 +110,8 @@ namespace potato::schematic::compiler
     {
         IRValueKind kind = IRValueKind::Literal;
         const AstNode* ast = nullptr;
+        ValueIndex index = InvalidIndex;
+        Value* value = nullptr;
         Location location;
 
         template <typename T>
@@ -135,24 +136,15 @@ namespace potato::schematic::compiler
     struct IRAnnotationArgument
     {
         const AstNode* ast = nullptr;
-        IRAttributeField* field = nullptr;
+        IRField* field = nullptr;
         IRValue* value = nullptr;
-        Location location;
-    };
-
-    struct IRAttributeField
-    {
-        const char* name = nullptr;
-        IRType* type = nullptr;
-        const AstNodeField* ast = nullptr;
-        IRValue* value = nullptr;
-        Array<IRAnnotation*> annotations;
         Location location;
     };
 
     struct IREnumItem
     {
         const char* name = nullptr;
+        EnumItemIndex index = InvalidIndex;
         const AstNodeEnumItem* ast = nullptr;
         EnumItem* item = nullptr;
         std::int64_t value = 0;
@@ -160,25 +152,14 @@ namespace potato::schematic::compiler
         Location location;
     };
 
-    struct IRMessageField
+    struct IRField
     {
         const char* name = nullptr;
+        FieldIndex index = InvalidIndex;
         IRType* type = nullptr;
         const AstNodeField* ast = nullptr;
-        Field* item = nullptr;
-        std::uint32_t proto = 0;
-        IRValue* value = nullptr;
-        Array<IRAnnotation*> annotations;
-        Location location;
-    };
-
-    struct IRStructField
-    {
-        const char* name = nullptr;
-        IRType* type = nullptr;
-        const AstNodeField* ast = nullptr;
-        Field* field = nullptr;
-        IRVersionRange version;
+        IRVersionRange version; // only for Struct
+        std::uint32_t proto = 0; // only for Message
         IRValue* value = nullptr;
         Array<IRAnnotation*> annotations;
         Location location;
@@ -188,7 +169,7 @@ namespace potato::schematic::compiler
     {
         const char* name = nullptr;
         const AstNodeNamedArgument* ast = nullptr;
-        IRStructField* field = nullptr;
+        IRField* field = nullptr;
         IRValue* value = nullptr;
         Location location;
     };
@@ -222,7 +203,7 @@ namespace potato::schematic::compiler
     {
         IR_TYPE(IRTypeAttribute, IRTypeKind::Attribute);
 
-        Array<IRAttributeField*> fields;
+        Array<IRField*> fields;
     };
 
     struct IRTypeEnum : IRType
@@ -237,7 +218,7 @@ namespace potato::schematic::compiler
     {
         IR_TYPE(IRTypeMessage, IRTypeKind::Message);
 
-        Array<IRMessageField*> fields;
+        Array<IRField*> fields;
     };
 
     struct IRTypeStruct : IRType
@@ -245,7 +226,7 @@ namespace potato::schematic::compiler
         IR_TYPE(IRTypeStruct, IRTypeKind::Struct);
 
         IRType* base = nullptr;
-        Array<IRStructField*> fields;
+        Array<IRField*> fields;
         IRVersionRange version;
     };
 
@@ -339,7 +320,7 @@ namespace potato::schematic::compiler
         const char* filename = nullptr;
         const AstNodeModule* ast = nullptr;
         const Module* module = nullptr;
-        ModuleIndex index = 0;
+        ModuleIndex index = InvalidIndex;
         Array<IRImport*> imports;
         Array<IRType*> types;
     };

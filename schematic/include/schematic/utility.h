@@ -4,7 +4,10 @@
 #define SCHEMATIC_UTILITY_H 1
 #pragma once
 
+#include "common.h"
+
 #include <cstdint>
+#include <span>
 #include <string_view>
 
 namespace potato::schematic
@@ -27,45 +30,53 @@ namespace potato::schematic
 
     struct ValueObject;
 
-    using ModuleIndex = std::uint32_t;
-
     class Visitor;
 
-    const Field* FindField(const TypeAttribute* type, std::string_view name) noexcept;
-    const Field* FindField(const TypeMessage* type, std::string_view name) noexcept;
-    const Field* FindField(const TypeStruct* type, std::string_view name) noexcept;
-    const Field* FindField(const Type* type, std::string_view name) noexcept;
+    const Type* GetType(const Schema* schema, TypeIndex typeIndex) noexcept;
+    const Value* GetValue(const Schema* schema, ValueIndex valueIndex) noexcept;
+    const EnumItem* GetEnumItem(const Schema* schema, EnumItemIndex enumItemIndex) noexcept;
 
-    const EnumItem* FindItem(const TypeEnum* type, std::string_view name) noexcept;
+    ReadOnlySpan<Field> GetFields(const Schema* schema, IndexRange<FieldIndex> fields) noexcept;
+    ReadOnlySpan<EnumItem> GetEnumItems(const Schema* schema, IndexRange<EnumItemIndex> items) noexcept;
 
-    const Annotation* FindAnnotation(const Type* type, const TypeAttribute* attribute) noexcept;
-    const Annotation* FindAnnotation(const Type* type, std::string_view name) noexcept;
+    const Field* FindField(const Schema* schema, const TypeAttribute* type, std::string_view name) noexcept;
+    const Field* FindField(const Schema* schema, const TypeMessage* type, std::string_view name) noexcept;
+    const Field* FindField(const Schema* schema, const TypeStruct* type, std::string_view name) noexcept;
+    const Field* FindField(const Schema* schema, const Type* type, std::string_view name) noexcept;
+    const Field* FindField(const Schema* schema, TypeIndex typeIndex, std::string_view name) noexcept;
 
-    const Annotation* FindAnnotation(const Field* field, const TypeAttribute* attribute) noexcept;
-    const Annotation* FindAnnotation(const Field* field, std::string_view name) noexcept;
+    const EnumItem* FindItem(const Schema* schema, const TypeEnum* type, std::string_view name) noexcept;
 
-    const Annotation* FindAnnotation(const EnumItem* item, const TypeAttribute* attribute) noexcept;
-    const Annotation* FindAnnotation(const EnumItem* item, std::string_view name) noexcept;
+    const Annotation* FindAnnotation(const Schema* schema, const Type* type, const TypeAttribute* attribute) noexcept;
+    const Annotation* FindAnnotation(const Schema* schema, const Type* type, std::string_view name) noexcept;
+    const Annotation* FindAnnotation(const Schema* schema, TypeIndex typeIndex, const TypeAttribute* attribute) noexcept;
+    const Annotation* FindAnnotation(const Schema* schema, TypeIndex typeIndex, std::string_view name) noexcept;
 
-    bool HasAttribute(const Type* type, const TypeAttribute* attribute) noexcept;
-    bool HasAttribute(const Type* type, std::string_view name) noexcept;
+    const Annotation* FindAnnotation(const Schema* schema, const Field* field, const TypeAttribute* attribute) noexcept;
+    const Annotation* FindAnnotation(const Schema* schema, const Field* field, std::string_view name) noexcept;
 
-    bool HasAttribute(const Field* field, const TypeAttribute* attribute) noexcept;
-    bool HasAttribute(const Field* field, std::string_view name) noexcept;
+    const Annotation* FindAnnotation(const Schema* schema, const EnumItem* item, const TypeAttribute* attribute) noexcept;
+    const Annotation* FindAnnotation(const Schema* schema, const EnumItem* item, std::string_view name) noexcept;
 
-    bool HasAttribute(const EnumItem* item, const TypeAttribute* attribute) noexcept;
-    bool HasAttribute(const EnumItem* item, std::string_view name) noexcept;
+    bool HasAttribute(const Schema* schema, const Type* type, const TypeAttribute* attribute) noexcept;
+    bool HasAttribute(const Schema* schema, const Type* type, std::string_view name) noexcept;
+
+    bool HasAttribute(const Schema* schema, const Field* field, const TypeAttribute* attribute) noexcept;
+    bool HasAttribute(const Schema* schema, const Field* field, std::string_view name) noexcept;
+
+    bool HasAttribute(const Schema* schema, const EnumItem* item, const TypeAttribute* attribute) noexcept;
+    bool HasAttribute(const Schema* schema, const EnumItem* item, std::string_view name) noexcept;
 
     const Type* FindType(const Schema* schema, std::string_view name) noexcept;
     const Type* FindType(const Schema* schema, ModuleIndex moduleIndex, std::string_view name) noexcept;
 
-    const Value* FindArgument(const ValueObject* object, const Field* field) noexcept;
-    const Value* FindArgument(const ValueObject* object, std::string_view name) noexcept;
+    const Value* FindArgument(const Schema* schema, const ValueObject* object, const Field* field) noexcept;
+    const Value* FindArgument(const Schema* schema, const ValueObject* object, std::string_view name) noexcept;
 
-    const Value* FindArgument(const Annotation* annotation, const Field* field) noexcept;
-    const Value* FindArgument(const Annotation* annotation, std::string_view name) noexcept;
+    const Value* FindArgument(const Schema* schema, const Annotation* annotation, const Field* field) noexcept;
+    const Value* FindArgument(const Schema* schema, const Annotation* annotation, std::string_view name) noexcept;
 
-    bool IsA(const Type* type, const Type* parent) noexcept;
+    bool IsA(const Schema* schema, const Type* type, const Type* parent) noexcept;
 
     bool IsKind(const Type* type, TypeKind kind) noexcept;
     bool IsKind(const Value* value, ValueKind kind) noexcept;
@@ -74,6 +85,8 @@ namespace potato::schematic
     const T* CastTo(const Type* type) noexcept
         requires std::is_base_of_v<Type, T>
     {
+        if (type == nullptr)
+            return nullptr;
         if (IsKind(type, T::Kind))
             return static_cast<const T*>(type);
         return nullptr;
@@ -83,9 +96,18 @@ namespace potato::schematic
     const T* CastTo(const Value* value) noexcept
         requires std::is_base_of_v<Value, T>
     {
+        if (value == nullptr)
+            return nullptr;
         if (IsKind(value, T::Kind))
             return static_cast<const T*>(value);
         return nullptr;
+    }
+
+    template <typename T>
+    const T* GetTypeAs(const Schema* schema, TypeIndex typeIndex) noexcept
+        requires std::is_base_of_v<Type, T>
+    {
+        return CastTo<T>(GetType(schema, typeIndex));
     }
 
 } // namespace potato::schematic

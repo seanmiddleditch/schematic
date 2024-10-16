@@ -5,5 +5,6 @@ struct type
 }
 
 // CHECK: type.dynamic.@type == int32[]
+// CHECK: type.dynamic.@type.@elements == int32
 // CHECK: type.fixed.@type == int32[3]
 // CHECK: type.fixed.@size == 3

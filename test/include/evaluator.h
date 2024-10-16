@@ -45,13 +45,16 @@ namespace potato::schematic::test
             Finish(value);
         }
 
-        void Evaluate(ReadOnlySpan<const Annotation*> annotations);
+        void Evaluate(Annotations annotations);
 
         void Evaluate(const Annotation* annotation);
         void Evaluate(const Field* field);
         void Evaluate(const EnumItem* item);
         void Evaluate(const Argument* arg);
         void Evaluate(const Type* type);
+        void Evaluate(TypeIndex typeIndex);
+        void Evaluate(ValueIndex valueIndex);
+        void Evaluate(EnumItemIndex itemIndex);
         void Evaluate(const Value* value);
         void Evaluate(const Module* mod);
         void Evaluate(const Schema* schema);
@@ -61,6 +64,7 @@ namespace potato::schematic::test
         // Source
         std::string filename_;
         std::size_t line_ = 1;
+        const Schema* schema_ = nullptr;
 
         // Inputs
         std::string expression_;
