@@ -49,9 +49,9 @@ namespace potato::schematic
             return { first_, last_ };
         }
 
-        template <typename U, typename I>
+        template <typename U, typename J>
             requires std::is_convertible_v<T, U>
-        [[nodiscard]] operator ReadOnlySpan<U, I>() const noexcept
+        [[nodiscard]] operator ReadOnlySpan<U, J>() const noexcept
         {
             return { first_, static_cast<std::uint32_t>(last_ - first_) };
         }
