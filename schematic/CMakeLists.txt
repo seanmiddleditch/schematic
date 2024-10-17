@@ -1,5 +1,4 @@
 find_package(fmt CONFIG REQUIRED)
-find_package(Protobuf CONFIG REQUIRED)
 
 add_library(schematic_core)
 add_library(schematic::schematic_core ALIAS schematic_core)
@@ -21,7 +20,7 @@ target_sources(schematic_core PRIVATE
 add_library(schematic_compiler)
 add_library(schematic::schematic_compiler ALIAS schematic_compiler)
 target_compile_features(schematic_compiler PUBLIC cxx_std_23)
-target_link_libraries(schematic_compiler PUBLIC schematic_core PRIVATE fmt::fmt protobuf::libprotobuf)
+target_link_libraries(schematic_compiler PUBLIC schematic_core PRIVATE fmt::fmt)
 target_sources(schematic_compiler PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
     "include/schematic/compiler.h"
     "include/schematic/logger.h"
@@ -48,6 +47,8 @@ target_sources(schematic_compiler PRIVATE
 set(LIBS "schematic_core;schematic_compiler")
 
 if(SCHEMATIC_PROTOBUF)
+    find_package(Protobuf CONFIG REQUIRED)
+
     add_library(schematic_protobuf)
     add_library(schematic::schematic_protobuf ALIAS schematic_protobuf)
     target_compile_features(schematic_protobuf PUBLIC cxx_std_23)
