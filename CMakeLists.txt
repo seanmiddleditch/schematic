@@ -69,7 +69,7 @@ if(SCHEMATIC_INSTALL)
         ${CMAKE_CURRENT_BINARY_DIR}/SchematicConfig.cmake
         INSTALL_DESTINATION lib/cmake/schematic
     )
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/SchematicConfig.cmake
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/SchematicConfig.cmake cmake/schematic.cmake
         DESTINATION lib/cmake/schematic
     )
 endif()
