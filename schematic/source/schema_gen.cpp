@@ -53,13 +53,16 @@ ModuleIndex SchemaGenerator::CreateModule(IRModule* irModule)
     modules_.EmplaceBack(arena_);
     modules_[irModule->index].filename = arena_.NewString(irModule->filename);
 
-    Array<ModuleIndex> imports = arena_.NewArray<ModuleIndex>(irModule->imports.Size());
+    Array<Import> imports = arena_.NewArray<Import>(irModule->imports.Size());
     for (IRImport* const irImport : irModule->imports)
     {
         if (irImport->resolved->index == InvalidIndex)
             CreateModule(irImport->resolved);
 
-        imports.PushBack(arena_, irImport->resolved->index);
+        Import& import = imports.EmplaceBack(arena_);
+        if (irImport->ast != nullptr)
+            import.import = arena_.NewString(irImport->ast->target->value);
+        import.module = irImport->resolved->index;
     }
     modules_[irModule->index].imports = imports;
 

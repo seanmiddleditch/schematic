@@ -18,6 +18,7 @@ namespace potato::schematic
     struct Annotation;
     struct EnumItem;
     struct Field;
+    struct Import;
     struct Location;
     struct Module;
     struct Schema;
@@ -121,11 +122,17 @@ namespace potato::schematic
         Location location;
     };
 
+    struct Import
+    {
+        const char* import = nullptr;
+        ModuleIndex module = InvalidIndex;
+    };
+
     struct Module
     {
         const char* filename = nullptr;
         TypeIndex index = InvalidIndex;
-        ReadOnlySpan<ModuleIndex> imports;
+        ReadOnlySpan<Import> imports;
     };
 
     struct Schema

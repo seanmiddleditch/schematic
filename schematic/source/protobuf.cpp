@@ -167,8 +167,13 @@ void Serializer::Serialize(proto::Schema& out)
     {
         proto::Module* const pmod = out.add_modules();
         pmod->set_filename(mod.filename);
-        for (const ModuleIndex index : mod.imports)
-            pmod->add_imports(index.index);
+        for (const Import& import : mod.imports)
+        {
+            proto::Import* const pimport = pmod->add_imports();
+            if (import.import != nullptr)
+                pimport->set_import(import.import);
+            pimport->set_module(import.module.index);
+        }
     }
 
     out.set_root(schema_.root.index);
@@ -555,11 +560,14 @@ const Schema* Deserializer::Deserialize()
         Module& out_mod = modules_[moduleIndex++];
         out_mod.filename = arena_.NewString(mod.filename());
 
-        Array<ModuleIndex> imports = arena_.NewArray<ModuleIndex>(mod.imports_size());
-        for (std::uint32_t targetIndex : mod.imports())
+        Array<Import> imports = arena_.NewArray<Import>(mod.imports_size());
+        for (const proto::Import& import : mod.imports())
         {
-            if (VERIFY_INDEX(modules_, targetIndex, "Invalid import index {}", targetIndex))
-                imports.PushBack(arena_, ModuleIndex(targetIndex));
+            Import& out_import = imports.EmplaceBack(arena_);
+            if (!import.import().empty())
+                out_import.import = arena_.NewString(import.import());
+            if (VERIFY_INDEX(modules_, import.module(), "Invalid import index {}", import.module()))
+                out_import.module = ModuleIndex(import.module());
         }
         out_mod.imports = imports;
     }
