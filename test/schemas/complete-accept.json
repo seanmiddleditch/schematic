@@ -3,8 +3,14 @@
   {
    "filename": "schemas/complete.sat",
    "imports": [
-    1,
-    2
+    {
+     "import": "",
+     "module": 1
+    },
+    {
+     "import": "sub/imported.sat",
+     "module": 2
+    }
    ]
   },
   {
@@ -14,7 +20,10 @@
   {
    "filename": "schemas/sub/imported.sat",
    "imports": [
-    1
+    {
+     "import": "",
+     "module": 1
+    }
    ]
   }
  ],

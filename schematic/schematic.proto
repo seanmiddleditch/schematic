@@ -19,10 +19,16 @@ message Schema
     uint32 root = 10;
 }
 
+message Import
+{
+    string import = 1;
+    uint32 module = 2;
+}
+
 message Module
 {
     string filename = 1;
-    repeated uint32 imports = 2;
+    repeated Import imports = 2;
 }
 
 message Field
