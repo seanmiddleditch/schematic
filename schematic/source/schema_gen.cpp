@@ -103,7 +103,8 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
             field.name = arena_.NewString(irField->name);
             field.index = irField->index;
             field.type = irField->type->index;
-            field.value = ResolveIndex(irField->value);
+            if (irField->value != nullptr)
+                field.value = irField->value->index;
             field.parent = irType->index;
             field.location = irField->location;
             field.annotations = CreateAnnotations(irField->annotations);
@@ -161,7 +162,8 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
             field.name = arena_.NewString(irField->name);
             field.index = irField->index;
             field.type = irField->type->index;
-            field.value = ResolveIndex(irField->value);
+            if (irField->value != nullptr)
+                field.value = irField->value->index;
             field.proto = irField->proto;
             field.parent = irType->index;
             field.location = irField->location;
@@ -193,7 +195,8 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
             field.name = arena_.NewString(irField->name);
             field.index = irField->index;
             field.type = irField->type->index;
-            field.value = ResolveIndex(irField->value);
+            if (irField->value != nullptr)
+                field.value = irField->value->index;
             field.parent = irType->index;
             field.location = irField->location;
             field.annotations = CreateAnnotations(irField->annotations);
@@ -349,7 +352,7 @@ Annotations SchemaGenerator::CreateAnnotations(Array<IRAnnotation*> irAnnotation
         {
             Argument& arg = arguments.EmplaceBack(arena_);
             arg.field = irArgument->field->index;
-            arg.value = ResolveIndex(irArgument->value);
+            arg.value = irArgument->value->index;
             arg.location = irArgument->location;
         }
         annotation.arguments = arguments;
@@ -434,7 +437,7 @@ const Value* SchemaGenerator::CreateValue(IRValue* value)
 
             Array<ValueIndex> elements = arena_.NewArrayCapacity<ValueIndex>(initializerList->positional.Size());
             for (IRValue* const element : initializerList->positional)
-                elements.PushBack(arena_, ResolveIndex(element));
+                elements.PushBack(arena_, element->index);
 
             result->elements = elements;
             return result;
@@ -453,7 +456,7 @@ const Value* SchemaGenerator::CreateValue(IRValue* value)
             {
                 Argument& field = fields.EmplaceBack(arena_);
                 field.field = typeStruct->fields[fieldIndex]->index;
-                field.value = ResolveIndex(element);
+                field.value = element->index;
                 ++fieldIndex;
             }
 
@@ -461,7 +464,7 @@ const Value* SchemaGenerator::CreateValue(IRValue* value)
             {
                 Argument& field = fields.EmplaceBack(arena_);
                 field.field = named->field->index;
-                field.value = ResolveIndex(named->value);
+                field.value = named->value->index;
                 ++fieldIndex;
             }
 
@@ -472,12 +475,4 @@ const Value* SchemaGenerator::CreateValue(IRValue* value)
 
     assert(false);
     return nullptr;
-}
-
-ValueIndex SchemaGenerator::ResolveIndex(IRValue* value)
-{
-    if (value == nullptr)
-        return InvalidIndex;
-
-    return value->index;
 }
