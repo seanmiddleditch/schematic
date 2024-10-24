@@ -504,7 +504,7 @@ namespace potato::schematic::test
 
         for (const Type* type : schema->types)
         {
-            if (Match(type->name))
+            if (type != nullptr && Match(type->name))
                 return Evaluate(type);
         }
 

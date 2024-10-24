@@ -54,7 +54,7 @@ message Argument
 message EnumItem
 {
     string name = 1;
-    uint32 value = 2;
+    int64 value = 2;
     uint32 parent = 3;
 
     uint32 annotations_start = 7;

@@ -73,12 +73,17 @@ namespace potato::schematic
         [[nodiscard]] const char* NewString(std::string_view string);
 
         template <Trivial T, typename I = std::uint32_t, template <typename, typename> class A = Array>
-        [[nodiscard]] A<T, I> NewArray(size_t capacity)
-            requires std::is_trivially_destructible_v<T>;
+        [[nodiscard]] A<T, I> NewArrayCapacity(size_t capacity);
 
-        template <typename T, typename... Args>
+        template <Trivial T, typename I = std::uint32_t, template <typename, typename> class A = Array>
+        [[nodiscard]] A<T, I> NewArray(size_t size);
+
+        template <Trivial T, typename I = std::uint32_t, template <typename, typename> class A = Array>
+        [[nodiscard]] A<T, I> NewArray(size_t size, const T& value);
+
+        template <Trivial T, typename... Args>
         [[nodiscard]] T* New(Args&&... args)
-            requires std::is_trivially_destructible_v<T> && std::is_constructible_v<T, Args...>;
+            requires std::is_constructible_v<T, Args...>;
 
         void Clear();
 
@@ -95,16 +100,40 @@ namespace potato::schematic
     };
 
     template <Trivial T, typename I, template <typename, typename> class A>
-    A<T, I> ArenaAllocator::NewArray(size_t capacity)
-        requires std::is_trivially_destructible_v<T>
+    A<T, I> ArenaAllocator::NewArrayCapacity(size_t capacity)
     {
         void* const memory = Allocate(sizeof(T) * capacity, alignof(T));
         return A<T, I>(static_cast<T*>(memory), capacity);
     }
 
-    template <typename T, typename... Args>
+    template <Trivial T, typename I, template <typename, typename> class A>
+    [[nodiscard]] A<T, I> ArenaAllocator::NewArray(size_t size)
+    {
+        T* const elements = static_cast<T*>(Allocate(sizeof(T) * size, alignof(T)));
+
+        if constexpr (!std::is_trivially_default_constructible_v<T>)
+        {
+            for (T* element = elements; element != elements + size; ++element)
+                new (element) T();
+        }
+
+        return A<T, I>(elements, size, size);
+    }
+
+    template <Trivial T, typename I, template <typename, typename> class A>
+    [[nodiscard]] A<T, I> ArenaAllocator::NewArray(size_t size, const T& value)
+    {
+        T* const elements = static_cast<T*>(Allocate(sizeof(T) * size, alignof(T)));
+
+        for (T* element = elements; element != elements + size; ++element)
+            new (element) T(value);
+
+        return A<T, I>(elements, size, size);
+    }
+
+    template <Trivial T, typename... Args>
     T* ArenaAllocator::New(Args&&... args)
-        requires std::is_trivially_destructible_v<T> && std::is_constructible_v<T, Args...>
+        requires std::is_constructible_v<T, Args...>
     {
         return new (Allocate(sizeof(T), alignof(T))) T(std::forward<Args>(args)...);
     }

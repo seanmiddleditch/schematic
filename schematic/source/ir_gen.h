@@ -58,6 +58,11 @@ namespace potato::schematic::compiler
         IRValue* LowerValue(const AstNode* node);
         IRValue* ResolveValue(IRType* type, IRValue* value);
 
+        void AssignIndices(Array<IRAnnotation*> annotations, IRSchema* schema);
+        void AssignIndices(IRType* type, IRSchema* schema);
+        void AssignIndices(IRValue* value, IRSchema* schema);
+        void AssignIndices(IRModule* module, IRSchema* schema);
+
         Location GetLocation(const AstNode* node);
 
         template <typename... Args>

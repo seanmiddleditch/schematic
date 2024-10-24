@@ -28,6 +28,13 @@ namespace potato::schematic
         {
         }
 
+        explicit Array(T* first, size_t size, size_t capacity) noexcept
+            : first_(first)
+            , last_(first + size)
+            , sentinel_(first + capacity)
+        {
+        }
+
         [[nodiscard]] const T* begin() const noexcept { return first_; }
         [[nodiscard]] const T* end() const noexcept { return last_; }
 
@@ -122,7 +129,7 @@ namespace potato::schematic
 
         const Array<T, I> previous = *this;
 
-        *this = arena.NewArray<T, I>(capacity);
+        *this = arena.NewArrayCapacity<T, I>(capacity);
         for (const T* item = previous.first_; item != previous.last_; ++item)
             new (static_cast<void*>(last_++)) T(*item); // NOLINT(bugprone-multi-level-implicit-pointer-conversion)
     }

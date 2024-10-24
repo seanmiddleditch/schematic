@@ -86,7 +86,6 @@ namespace potato::schematic::compiler
     {
         IRTypeKind kind = IRTypeKind::Alias;
         const AstNode* ast = nullptr;
-        Type* type = nullptr;
         const char* name = nullptr;
         TypeIndex index = InvalidIndex;
         Array<IRAnnotation*> annotations;
@@ -111,7 +110,6 @@ namespace potato::schematic::compiler
         IRValueKind kind = IRValueKind::Literal;
         const AstNode* ast = nullptr;
         ValueIndex index = InvalidIndex;
-        Value* value = nullptr;
         Location location;
 
         template <typename T>
@@ -146,7 +144,6 @@ namespace potato::schematic::compiler
         const char* name = nullptr;
         EnumItemIndex index = InvalidIndex;
         const AstNodeEnumItem* ast = nullptr;
-        EnumItem* item = nullptr;
         std::int64_t value = 0;
         Array<IRAnnotation*> annotations;
         Location location;
@@ -319,7 +316,6 @@ namespace potato::schematic::compiler
     {
         const char* filename = nullptr;
         const AstNodeModule* ast = nullptr;
-        const Module* module = nullptr;
         ModuleIndex index = InvalidIndex;
         Array<IRImport*> imports;
         Array<IRType*> types;
@@ -330,6 +326,13 @@ namespace potato::schematic::compiler
         Array<IRModule*> modules;
         Array<IRType*> types;
         IRModule* root = nullptr;
+
+        AnnotationIndex maxAnnotationIndex{ 0 };
+        EnumItemIndex maxEnumItemIndex{ 0 };
+        FieldIndex maxFieldIndex{ 0 };
+        ModuleIndex maxModuleIndex{ 0 };
+        TypeIndex maxTypeIndex{ 0 };
+        ValueIndex maxValueIndex{ 0 };
     };
 
 } // namespace potato::schematic::compiler

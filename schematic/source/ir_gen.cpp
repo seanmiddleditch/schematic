@@ -34,6 +34,13 @@ IRSchema* IRGenerator::Compile()
     if (state_.schema->root == nullptr)
         return nullptr;
 
+    AssignIndices(state_.schema->root, state_.schema);
+
+    for (IRType* const type : state_.schema->root->types)
+        AssignIndices(type, state_.schema);
+
+    state_.schema->modules = state_.modules;
+
     return state_.schema;
 }
 
@@ -52,7 +59,6 @@ IRModule* IRGenerator::CompileModule()
     module_ = arena_.New<IRModule>();
     module_->filename = arena_.NewString(filename_);
     state_.stack.PushBack(arena_, module_);
-
     {
         IRImport* const builtinsImport = arena_.New<IRImport>();
         builtinsImport->resolved = state_.builtins;
@@ -385,6 +391,7 @@ IRModule* IRGenerator::CompileModule()
     if (failed_)
         return nullptr;
 
+    state_.modules.PushBack(arena_, module_);
     return module_;
 }
 
@@ -626,6 +633,7 @@ IRType* IRGenerator::ResolveType(IRType* type)
         if (indirect->target->nullableType != nullptr)
             return indirect->target->nullableType;
         indirect->target->nullableType = indirect;
+
         return indirect;
     }
 
@@ -706,7 +714,7 @@ void IRGenerator::ResolveAttributes(Array<IRAnnotation*> annotations)
 
 Array<IRAnnotation*> IRGenerator::LowerAnnotations(Array<const AstNodeAnnotation*> astNodes)
 {
-    Array<IRAnnotation*> annotations = arena_.NewArray<IRAnnotation*>(astNodes.Size());
+    Array<IRAnnotation*> annotations = arena_.NewArrayCapacity<IRAnnotation*>(astNodes.Size());
     for (const AstNodeAnnotation* const astAnnotation : astNodes)
     {
         IRAnnotation* const annotation = arena_.New<IRAnnotation>();
@@ -911,6 +919,161 @@ IRValue* IRGenerator::ResolveValue(IRType* type, IRValue* value)
 
     assert(false);
     return value;
+}
+
+void IRGenerator::AssignIndices(IRType* type, IRSchema* schema)
+{
+    if (type->index != InvalidIndex)
+        return;
+
+    schema->types.PushBack(arena_, type);
+
+    AssignIndices(type->annotations, schema);
+
+    if (IRTypeAttribute* const attributeType = CastTo<IRTypeAttribute>(type); attributeType != nullptr)
+    {
+        for (IRField* const field : attributeType->fields)
+        {
+            field->index = schema->maxFieldIndex++;
+
+            AssignIndices(field->type, schema);
+            if (field->value != nullptr)
+                AssignIndices(field->value, schema);
+
+            AssignIndices(field->annotations, schema);
+        }
+    }
+    else if (IRTypeEnum* const enumType = CastTo<IRTypeEnum>(type); enumType != nullptr)
+    {
+        if (enumType->base != nullptr)
+            AssignIndices(enumType->base, schema);
+
+        for (IREnumItem* const item : enumType->items)
+        {
+            item->index = schema->maxEnumItemIndex++;
+
+            AssignIndices(item->annotations, schema);
+        }
+    }
+    else if (IRTypeMessage* const messageType = CastTo<IRTypeMessage>(type); messageType != nullptr)
+    {
+        for (IRField* const field : messageType->fields)
+        {
+            field->index = schema->maxFieldIndex++;
+
+            AssignIndices(field->type, schema);
+            if (field->value != nullptr)
+                AssignIndices(field->value, schema);
+
+            AssignIndices(field->annotations, schema);
+        }
+    }
+    else if (IRTypeStruct* const structType = CastTo<IRTypeStruct>(type); structType != nullptr)
+    {
+        if (structType->base != nullptr)
+            AssignIndices(structType->base, schema);
+
+        for (IRField* const field : structType->fields)
+        {
+            field->index = schema->maxFieldIndex++;
+
+            AssignIndices(field->type, schema);
+            if (field->value != nullptr)
+                AssignIndices(field->value, schema);
+
+            AssignIndices(field->annotations, schema);
+        }
+    }
+    else if (IRTypeStructVersioned* const structVersionedType = CastTo<IRTypeStructVersioned>(type); structVersionedType != nullptr)
+    {
+        for (IRTypeStruct* const structType : structVersionedType->versions)
+        {
+            structType->index = schema->maxTypeIndex;
+            schema->maxTypeIndex += structType->version.max - structType->version.min;
+
+            if (structType->base != nullptr)
+                AssignIndices(structType->base, schema);
+
+            for (IRField* const field : structType->fields)
+            {
+                field->index = schema->maxFieldIndex++;
+
+                AssignIndices(field->type, schema);
+                if (field->value != nullptr)
+                    AssignIndices(field->value, schema);
+
+                AssignIndices(field->annotations, schema);
+            }
+        }
+    }
+    else if (IRTypeIndirectArray* const arrayType = CastTo<IRTypeIndirectArray>(type); arrayType != nullptr)
+    {
+        AssignIndices(arrayType->target, schema);
+    }
+    else if (IRTypeIndirectPointer* const pointerType = CastTo<IRTypeIndirectPointer>(type); pointerType != nullptr)
+    {
+        AssignIndices(pointerType->target, schema);
+    }
+    else if (IRTypeIndirectNullable* const nullableType = CastTo<IRTypeIndirectNullable>(type); nullableType != nullptr)
+    {
+        AssignIndices(nullableType->target, schema);
+    }
+
+    AssignIndices(type->parent, schema);
+    type->index = schema->maxTypeIndex++;
+}
+
+void IRGenerator::AssignIndices(IRValue* value, IRSchema* schema)
+{
+    if (value->index != InvalidIndex)
+        return;
+
+    if (IRValueType* const valueType = CastTo<IRValueType>(value); valueType != nullptr)
+    {
+        AssignIndices(valueType->target, schema);
+    }
+    else if (IRValueEnumItem* const enumValue = CastTo<IRValueEnumItem>(value); enumValue != nullptr)
+    {
+        AssignIndices(enumValue->type, schema);
+    }
+    else if (IRValueInitializerList* const initValue = CastTo<IRValueInitializerList>(value); initValue != nullptr)
+    {
+        AssignIndices(initValue->type, schema);
+        for (IRInitializerNamedArgument* const named : initValue->named)
+            AssignIndices(named->value, schema);
+        for (IRValue* const pos : initValue->positional)
+            AssignIndices(pos, schema);
+    }
+
+    value->index = schema->maxValueIndex++;
+}
+
+void IRGenerator::AssignIndices(Array<IRAnnotation*> annotations, IRSchema* schema)
+{
+    for (IRAnnotation* const annotation : annotations)
+    {
+        AssignIndices(annotation->attribute, schema);
+
+        for (IRAnnotationArgument* const arg : annotation->arguments)
+            AssignIndices(arg->value, schema);
+    }
+
+    // need to ensure indices in an attribute set are contiguous, so we separate
+    // index assignment from assigning indices to referenced entities, as they
+    // may have attributes of their own.
+    for (IRAnnotation* const annotation : annotations)
+        annotation->index = schema->maxAnnotationIndex++;
+}
+
+void IRGenerator::AssignIndices(IRModule* module, IRSchema* schema)
+{
+    if (module->index != InvalidIndex)
+        return;
+
+    for (IRImport* const import : module->imports)
+        AssignIndices(import->resolved, schema);
+
+    module->index = schema->maxModuleIndex++;
 }
 
 Location IRGenerator::GetLocation(const AstNode* node)
