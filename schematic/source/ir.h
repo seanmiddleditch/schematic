@@ -51,6 +51,8 @@ namespace potato::schematic::compiler
     struct IRField;
     struct IRInitializerNamedArgument;
 
+    struct IRStructVersionedMeta;
+
     struct IRType;
     struct IRTypeAlias;
     struct IRTypeAttribute;
@@ -171,6 +173,12 @@ namespace potato::schematic::compiler
         Location location;
     };
 
+    struct IRStructVersionedMeta
+    {
+        Array<IRTypeStructVersioned*> versions;
+        IRTypeAlias* alias = nullptr;
+    };
+
 #define IR_TYPE(TYPE, KIND) \
     static constexpr IRTypeKind Kind = (KIND); \
     constexpr TYPE() noexcept { kind = Kind; }
@@ -227,12 +235,12 @@ namespace potato::schematic::compiler
         IRVersionRange version;
     };
 
-    struct IRTypeStructVersioned : IRType
+    struct IRTypeStructVersioned : IRTypeStruct
     {
         IR_TYPE(IRTypeStructVersioned, IRTypeKind::StructVersioned);
 
-        IRTypeStruct* latest = nullptr;
-        Array<IRTypeStruct*> versions;
+        IRStructVersionedMeta* meta = nullptr;
+        std::uint64_t version = 0;
     };
 
     struct IRTypeIndirectArray : IRTypeIndirect
@@ -319,12 +327,15 @@ namespace potato::schematic::compiler
         ModuleIndex index = InvalidIndex;
         Array<IRImport*> imports;
         Array<IRType*> types;
+        Array<IRStructVersionedMeta*> versionMetas;
     };
 
     struct IRSchema
     {
         Array<IRModule*> modules;
         Array<IRType*> types;
+        Array<IRValue*> values;
+
         IRModule* root = nullptr;
 
         AnnotationIndex maxAnnotationIndex{ 0 };

@@ -26,7 +26,7 @@ namespace potato::schematic::compiler
         const Type* CreateType(IRType* type);
         Annotations CreateAnnotations(Array<IRAnnotation*> irAnnotations);
 
-        const Value* Resolve(IRValue* value);
+        const Value* CreateValue(IRValue* value);
         ValueIndex ResolveIndex(IRValue* value);
 
         ArenaAllocator& arena_;

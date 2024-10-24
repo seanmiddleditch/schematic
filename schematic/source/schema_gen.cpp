@@ -55,10 +55,16 @@ const Schema* SchemaGenerator::Compile(IRSchema* irSchema)
 
     for (IRType* const irType : irSchema->types)
     {
-        if (irType->index == InvalidIndex)
-            continue;
+        assert(irType->index != InvalidIndex);
 
         types_[irType->index] = CreateType(irType);
+    }
+
+    for (IRValue* const irValue : irSchema->values)
+    {
+        assert(irValue->index != InvalidIndex);
+
+        values_[irValue->index] = CreateValue(irValue);
     }
 
     schema_->types = types_;
@@ -204,68 +210,34 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
 
     if (IRTypeStructVersioned* irType = CastTo<IRTypeStructVersioned>(inIrType); irType != nullptr)
     {
-        IRTypeStruct* maxVersion = 0;
-
-        for (IRTypeStruct* irVersion : irType->versions)
-        {
-            for (std::uint32_t version = irVersion->version.min; version <= irVersion->version.max; ++version)
-            {
-                TypeStruct* const type = arena_.New<TypeStruct>();
-                type->name = NewStringFmt(arena_, "{}#{}", irVersion->name, version);
-                type->parent = irType->parent->index;
-                type->location = irType->location;
-                if (irVersion->base != nullptr)
-                    type->base = irVersion->base->index;
-                type->version = version;
-                type->annotations = CreateAnnotations(irVersion->annotations);
-
-                for (IRField* const irField : irVersion->fields)
-                {
-                    if (irField->version.min != 0 &&
-                        (irField->version.min > version ||
-                            irField->version.max < version))
-                    {
-                        continue;
-                    }
-                }
-
-                irVersion->index = static_cast<TypeIndex>(types_.Size());
-
-                for (IRField* const irField : irVersion->fields)
-                {
-                    if (irField->version.min != 0 &&
-                        (irField->version.min > version ||
-                            irField->version.max < version))
-                    {
-                        continue;
-                    }
-
-                    Field& field = fields_[irField->index];
-                    field.name = arena_.NewString(irField->name);
-                    field.index = irField->index;
-                    field.type = irField->type->index;
-                    if (irField->value != nullptr)
-                        field.value = irField->value->index;
-                    field.parent = irVersion->index;
-                    field.location = irField->location;
-                    field.annotations = CreateAnnotations(irField->annotations);
-                }
-
-                if (!irVersion->fields.IsEmpty())
-                {
-                    type->fields.start = irVersion->fields.Front()->index;
-                    type->fields.count = static_cast<std::uint32_t>(irVersion->fields.Size());
-                }
-
-                if (maxVersion == nullptr || type->version > maxVersion->version.max)
-                    maxVersion = irVersion;
-            }
-        }
-
-        TypeAlias* type = arena_.New<TypeAlias>();
-        type->name = arena_.NewString(irType->name);
+        TypeStruct* const type = arena_.New<TypeStruct>();
+        type->name = NewStringFmt(arena_, "{}#{}", irType->name, irType->version);
         type->parent = irType->parent->index;
         type->location = irType->location;
+        if (irType->base != nullptr)
+            type->base = irType->base->index;
+        type->version = irType->version;
+        type->annotations = CreateAnnotations(irType->annotations);
+
+        for (IRField* const irField : irType->fields)
+        {
+            Field& field = fields_[irField->index];
+            field.name = arena_.NewString(irField->name);
+            field.index = irField->index;
+            field.type = irField->type->index;
+            if (irField->value != nullptr)
+                field.value = irField->value->index;
+            field.parent = irType->index;
+            field.location = irField->location;
+            field.annotations = CreateAnnotations(irField->annotations);
+        }
+
+        if (!irType->fields.IsEmpty())
+        {
+            type->fields.start = irType->fields.Front()->index;
+            type->fields.count = static_cast<std::uint32_t>(irType->fields.Size());
+        }
+
         return type;
     }
 
@@ -366,14 +338,6 @@ Annotations SchemaGenerator::CreateAnnotations(Array<IRAnnotation*> irAnnotation
     if (irAnnotations.IsEmpty())
         return {};
 
-    // resolve the annotations and their values, to ensure any recursive types
-    // are instantiated and we have a contiguous list of annotations.
-    for (IRAnnotation* irAnnotation : irAnnotations)
-    {
-        for (IRAnnotationArgument* irArgument : irAnnotation->arguments)
-            Resolve(irArgument->value);
-    }
-
     for (IRAnnotation* irAnnotation : irAnnotations)
     {
         Annotation& annotation = annotations_[irAnnotation->index];
@@ -394,7 +358,7 @@ Annotations SchemaGenerator::CreateAnnotations(Array<IRAnnotation*> irAnnotation
     return Annotations{ irAnnotations.Front()->index, static_cast<std::uint32_t>(irAnnotations.Size()) };
 }
 
-const Value* SchemaGenerator::Resolve(IRValue* value)
+const Value* SchemaGenerator::CreateValue(IRValue* value)
 {
     if (value == nullptr)
         return nullptr;
@@ -406,8 +370,7 @@ const Value* SchemaGenerator::Resolve(IRValue* value)
             ValueBool* const result = arena_.New<ValueBool>();
             result->location = value->location;
             result->value = node->value;
-            values_.PushBack(arena_, result);
-            return values_[value->index] = result;
+            return result;
         }
 
         if (const AstNodeLiteralInt* const node = CastTo<AstNodeLiteralInt>(value->ast); node != nullptr)
@@ -415,8 +378,7 @@ const Value* SchemaGenerator::Resolve(IRValue* value)
             ValueInt* const result = arena_.New<ValueInt>();
             result->location = value->location;
             result->value = node->value;
-            values_.PushBack(arena_, result);
-            return values_[value->index] = result;
+            return result;
         }
 
         if (const AstNodeLiteralFloat* const node = CastTo<AstNodeLiteralFloat>(value->ast); node != nullptr)
@@ -424,16 +386,14 @@ const Value* SchemaGenerator::Resolve(IRValue* value)
             ValueFloat* const result = arena_.New<ValueFloat>();
             result->location = value->location;
             result->value = node->value;
-            values_.PushBack(arena_, result);
-            return values_[value->index] = result;
+            return result;
         }
 
         if (const AstNodeLiteralNull* const node = CastTo<AstNodeLiteralNull>(value->ast); node != nullptr)
         {
             ValueNull* const result = arena_.New<ValueNull>();
             result->location = value->location;
-            values_.PushBack(arena_, result);
-            return values_[value->index] = result;
+            return result;
         }
 
         if (const AstNodeLiteralString* const node = CastTo<AstNodeLiteralString>(value->ast); node != nullptr)
@@ -441,8 +401,7 @@ const Value* SchemaGenerator::Resolve(IRValue* value)
             ValueString* const result = arena_.New<ValueString>();
             result->location = value->location;
             result->value = arena_.NewString(node->value);
-            values_.PushBack(arena_, result);
-            return values_[value->index] = result;
+            return result;
         }
 
         assert(false);
@@ -454,8 +413,7 @@ const Value* SchemaGenerator::Resolve(IRValue* value)
         ValueType* const result = arena_.New<ValueType>();
         result->location = value->location;
         result->type = type->target->index;
-        values_.PushBack(arena_, result);
-        return values_[value->index] = result;
+        return result;
     }
 
     if (IRValueEnumItem* item = CastTo<IRValueEnumItem>(value))
@@ -463,8 +421,7 @@ const Value* SchemaGenerator::Resolve(IRValue* value)
         ValueEnum* const result = arena_.New<ValueEnum>();
         result->location = value->location;
         result->item = item->item->index;
-        values_.PushBack(arena_, result);
-        return values_[value->index] = result;
+        return result;
     }
 
     if (IRValueInitializerList* initializerList = CastTo<IRValueInitializerList>(value))
@@ -480,8 +437,7 @@ const Value* SchemaGenerator::Resolve(IRValue* value)
                 elements.PushBack(arena_, ResolveIndex(element));
 
             result->elements = elements;
-            values_.PushBack(arena_, result);
-            return values_[value->index] = result;
+            return result;
         }
 
         if (IRTypeStruct* typeStruct = CastTo<IRTypeStruct>(initializerList->type); typeStruct != nullptr)
@@ -510,8 +466,7 @@ const Value* SchemaGenerator::Resolve(IRValue* value)
             }
 
             result->fields = fields;
-            values_.PushBack(arena_, result);
-            return values_[value->index] = result;
+            return result;
         }
     }
 
@@ -521,7 +476,7 @@ const Value* SchemaGenerator::Resolve(IRValue* value)
 
 ValueIndex SchemaGenerator::ResolveIndex(IRValue* value)
 {
-    if (Resolve(value) == nullptr)
+    if (value == nullptr)
         return InvalidIndex;
 
     return value->index;

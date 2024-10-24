@@ -202,29 +202,33 @@ bool Parser::ParseAliasDecl()
 
 bool Parser::ParseStructDecl()
 {
-    AstNodeStructDecl* const struct_ = arena_.New<AstNodeStructDecl>(Pos());
-    struct_->annotations = annotations_;
+    const auto declPos = Pos();
 
-    mod->nodes.EmplaceBack(arena_, struct_);
+    const AstNodeIdentifier* name = nullptr;
+    const AstNodeIdentifier* base = nullptr;
+    const AstNodeLiteralInt* minVersion = nullptr;
+    const AstNodeLiteralInt* maxVersion = nullptr;
+    Array<const AstNodeField*> fields;
+    const auto annotations = annotations_;
 
-    if (!ExpectIdent(&struct_->name))
+    if (!ExpectIdent(&name))
         return false;
 
     if (Consume(TokenType::Hash))
     {
-        if (!ExpectInt(struct_->minVersion))
+        if (!ExpectInt(minVersion))
             return false;
 
         if (Consume(TokenType::Range))
         {
-            if (!ExpectInt(struct_->maxVersion))
+            if (!ExpectInt(maxVersion))
                 return false;
         }
     }
 
     if (Consume(TokenType::Colon))
     {
-        if (!ExpectIdent(&struct_->base))
+        if (!ExpectIdent(&base))
             return false;
     }
 
@@ -242,7 +246,7 @@ bool Parser::ParseStructDecl()
             if (!ParseAnnotations())
                 return false;
 
-            if (!ParseField(struct_->fields, FieldMode::Struct))
+            if (!ParseField(fields, FieldMode::Struct))
                 return false;
 
             if (!Expect(TokenType::SemiColon))
@@ -254,6 +258,29 @@ bool Parser::ParseStructDecl()
     else
     {
         return false;
+    }
+
+    if (minVersion == nullptr)
+    {
+        AstNodeStructDecl* const decl = arena_.New<AstNodeStructDecl>(declPos);
+        mod->nodes.PushBack(arena_, decl);
+
+        decl->name = name;
+        decl->base = base;
+        decl->fields = fields;
+        decl->annotations = annotations;
+    }
+    else
+    {
+        AstNodeStructVersionedDecl* const decl = arena_.New<AstNodeStructVersionedDecl>(declPos);
+        mod->nodes.PushBack(arena_, decl);
+
+        decl->name = name;
+        decl->base = base;
+        decl->fields = fields;
+        decl->annotations = annotations;
+        decl->minVersion = minVersion;
+        decl->maxVersion = maxVersion;
     }
 
     return true;

@@ -1,19 +1,6 @@
 {
  "modules": [
   {
-   "filename": "schemas/complete.sat",
-   "imports": [
-    {
-     "import": "",
-     "module": 1
-    },
-    {
-     "import": "sub/imported.sat",
-     "module": 2
-    }
-   ]
-  },
-  {
    "filename": "$builtins",
    "imports": []
   },
@@ -22,6 +9,19 @@
    "imports": [
     {
      "import": "",
+     "module": 0
+    }
+   ]
+  },
+  {
+   "filename": "schemas/complete.sat",
+   "imports": [
+    {
+     "import": "",
+     "module": 0
+    },
+    {
+     "import": "sub/imported.sat",
      "module": 1
     }
    ]
@@ -31,7 +31,7 @@
   {
    "int": {
     "name": "int32",
-    "module": 1,
+    "module": 0,
     "annotations_start": 0,
     "annotations_count": 0,
     "location": {
@@ -45,7 +45,7 @@
   {
    "float": {
     "name": "float32",
-    "module": 1,
+    "module": 0,
     "annotations_start": 0,
     "annotations_count": 0,
     "location": {
@@ -58,7 +58,7 @@
   {
    "struct": {
     "name": "struct",
-    "module": 0,
+    "module": 2,
     "annotations_start": 0,
     "annotations_count": 0,
     "location": {
@@ -72,7 +72,7 @@
   {
    "struct": {
     "name": "base",
-    "module": 2,
+    "module": 1,
     "annotations_start": 0,
     "annotations_count": 0,
     "location": {
@@ -86,7 +86,7 @@
   {
    "string": {
     "name": "string",
-    "module": 1,
+    "module": 0,
     "annotations_start": 0,
     "annotations_count": 0,
     "location": {
@@ -98,7 +98,7 @@
   {
    "nullable": {
     "name": "string?",
-    "module": 0,
+    "module": 2,
     "annotations_start": 0,
     "annotations_count": 0,
     "location": {
@@ -111,7 +111,7 @@
   {
    "bool": {
     "name": "bool",
-    "module": 1,
+    "module": 0,
     "annotations_start": 0,
     "annotations_count": 0,
     "location": {
@@ -123,7 +123,7 @@
   {
    "struct": {
     "name": "derived",
-    "module": 0,
+    "module": 2,
     "annotations_start": 0,
     "annotations_count": 0,
     "location": {
@@ -138,7 +138,7 @@
   {
    "array": {
     "name": "string[]",
-    "module": 0,
+    "module": 2,
     "annotations_start": 0,
     "annotations_count": 0,
     "location": {
@@ -152,7 +152,7 @@
   {
    "message": {
     "name": "command",
-    "module": 0,
+    "module": 2,
     "annotations_start": 0,
     "annotations_count": 0,
     "location": {
@@ -168,67 +168,66 @@
   {
    "name": "i32",
    "type": 0,
-   "value": 0,
    "parent": 2,
    "annotations_start": 0,
    "annotations_count": 0,
    "location": {
     "line": 4,
     "column": 5
-   }
+   },
+   "value": 0
   },
   {
    "name": "f32",
    "type": 1,
-   "value": 1,
    "parent": 2,
    "annotations_start": 0,
    "annotations_count": 0,
    "location": {
     "line": 5,
     "column": 5
-   }
+   },
+   "value": 1
   },
   {
    "name": "opt",
    "type": 5,
-   "value": 2,
    "parent": 7,
    "annotations_start": 0,
    "annotations_count": 0,
    "location": {
     "line": 9,
     "column": 5
-   }
+   },
+   "value": 2
   },
   {
    "name": "flag",
    "type": 6,
-   "value": 3,
    "parent": 7,
    "annotations_start": 0,
    "annotations_count": 0,
    "location": {
     "line": 10,
     "column": 5
-   }
+   },
+   "value": 3
   },
   {
    "name": "s",
    "type": 2,
-   "value": 6,
    "parent": 7,
    "annotations_start": 0,
    "annotations_count": 0,
    "location": {
     "line": 11,
     "column": 5
-   }
+   },
+   "value": 6
   },
   {
    "name": "ids",
    "type": 8,
-   "value": 4294967295,
    "parent": 9,
    "annotations_start": 0,
    "annotations_count": 0,
@@ -241,7 +240,6 @@
   {
    "name": "var",
    "type": 0,
-   "value": 7,
    "parent": 9,
    "annotations_start": 0,
    "annotations_count": 0,
@@ -249,6 +247,7 @@
     "line": 19,
     "column": 5
    },
+   "value": 7,
    "proto": 2
   }
  ],
@@ -345,5 +344,5 @@
  ],
  "enum_items": [],
  "annotations": [],
- "root": 0
+ "root": 2
 }

@@ -12,17 +12,17 @@ struct Pos #1..3 {}
 
 struct Pos #4..5 {
     int32 x #4..5;
-    // ERROR: schemas/fail/version_dupes.sat(16): Field version already defined: Pos.x#4..5
+    // ERROR: schemas/fail/version_dupes.sat(16): Struct field version already defined: Pos.x#4
     int32 x #4;
-    // ERROR: schemas/fail/version_dupes.sat(18): Field version already defined: Pos.x#4..5
+    // ERROR: schemas/fail/version_dupes.sat(18): Struct field version already defined: Pos.x#5
     int32 x #5;
 }
 
-// ERROR: schemas/fail/version_dupes.sat(22): Type already defined: Pos
+// ERROR: schemas/fail/version_dupes.sat(22): Struct already defined with versioning: Pos
 struct Pos {}
 
 struct Vec {}
-// ERROR: schemas/fail/version_dupes.sat(26): Type already defined: Vec
+// ERROR: schemas/fail/version_dupes.sat(26): Struct already defined without version: Vec
 struct Vec#2 {}
 
 // ERROR: schemas/fail/version_dupes.sat(29): Version must be positive: 0

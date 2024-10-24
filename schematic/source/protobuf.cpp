@@ -292,8 +292,11 @@ void Serializer::Serialize(proto::Type::Array& out, const TypeArray& in)
 {
     SerializeTypeCommon(out, in);
 
-    out.set_elements(in.elements.index);
-    out.set_size(in.size);
+    if (in.elements != InvalidIndex)
+    {
+        out.set_elements(in.elements.index);
+        out.set_size(in.size);
+    }
 }
 
 void Serializer::Serialize(proto::Type::String& out, const TypeString& in)
@@ -308,8 +311,11 @@ void Serializer::Serialize(proto::Type::Enum& out, const TypeEnum& in)
     if (in.base != InvalidIndex)
         out.set_base(in.base.index);
 
-    out.set_items_start(in.items.start.index);
-    out.set_items_count(in.items.count);
+    if (in.items.start != InvalidIndex)
+    {
+        out.set_items_start(in.items.start.index);
+        out.set_items_count(in.items.count);
+    }
 }
 
 void Serializer::Serialize(proto::Type::TypeRef& out, const TypeType& in)
@@ -362,9 +368,10 @@ void Serializer::SerializeField(proto::Field& out, const Field& in)
     if (in.proto != 0)
         out.set_proto(in.proto);
 
-    out.set_value(in.value.index);
+    if (in.value != InvalidIndex)
+        out.set_value(in.value.index);
 
-    if (in.annotations.count != 0)
+    if (in.annotations.start != InvalidIndex)
     {
         out.set_annotations_start(in.annotations.start.index);
         out.set_annotations_count(in.annotations.count);
@@ -379,7 +386,7 @@ void Serializer::SerializeEnumItem(proto::EnumItem& out, const EnumItem& in)
     out.set_parent(in.parent.index);
     out.set_value(in.value);
 
-    if (in.annotations.count != 0)
+    if (in.annotations.start != InvalidIndex)
     {
         out.set_annotations_start(in.annotations.start.index);
         out.set_annotations_count(in.annotations.count);
@@ -394,7 +401,7 @@ void Serializer::SerializeTypeCommon(T& out, const Type& in)
     out.set_name(in.name);
     out.set_module(in.parent.index);
 
-    if (in.annotations.count != 0)
+    if (in.annotations.start != InvalidIndex)
     {
         out.set_annotations_start(in.annotations.start.index);
         out.set_annotations_count(in.annotations.count);
@@ -456,7 +463,8 @@ void Serializer::Serialize(proto::Value::Object& out, const ValueObject& in)
 
         SerializeLocation(out_arg.mutable_location(), arg.location);
 
-        out_arg.set_value(arg.value.index);
+        if (arg.value != InvalidIndex)
+            out_arg.set_value(arg.value.index);
     }
 }
 
@@ -934,8 +942,11 @@ void Deserializer::DeserializeField(Field& out, const proto::Field& in)
     if (VERIFY_INDEX(types_, in.type(), "Invalid field type index {}", in.type()))
         out.type = TypeIndex(in.type());
 
-    if (ValueIndex(in.value()) != InvalidIndex && VERIFY_INDEX(values_, in.value(), "Invalid field value index {}", in.value()))
-        out.value = ValueIndex(in.value());
+    if (in.has_value())
+    {
+        if (ValueIndex(in.value()) != InvalidIndex && VERIFY_INDEX(values_, in.value(), "Invalid field value index {}", in.value()))
+            out.value = ValueIndex(in.value());
+    }
 
     out.annotations = DeserializeAnnotations(in);
 }

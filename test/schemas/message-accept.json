@@ -1,24 +1,24 @@
 {
  "modules": [
   {
+   "filename": "$builtins",
+   "imports": []
+  },
+  {
    "filename": "schemas/message.sat",
    "imports": [
     {
      "import": "",
-     "module": 1
+     "module": 0
     }
    ]
-  },
-  {
-   "filename": "$builtins",
-   "imports": []
   }
  ],
  "types": [
   {
    "string": {
     "name": "string",
-    "module": 1,
+    "module": 0,
     "annotations_start": 0,
     "annotations_count": 0,
     "location": {
@@ -30,7 +30,7 @@
   {
    "int": {
     "name": "int32",
-    "module": 1,
+    "module": 0,
     "annotations_start": 0,
     "annotations_count": 0,
     "location": {
@@ -44,7 +44,7 @@
   {
    "message": {
     "name": "test",
-    "module": 0,
+    "module": 1,
     "annotations_start": 0,
     "annotations_count": 0,
     "location": {
@@ -60,7 +60,6 @@
   {
    "name": "name",
    "type": 0,
-   "value": 4294967295,
    "parent": 2,
    "annotations_start": 0,
    "annotations_count": 0,
@@ -73,7 +72,6 @@
   {
    "name": "payload1",
    "type": 1,
-   "value": 4294967295,
    "parent": 2,
    "annotations_start": 0,
    "annotations_count": 0,
@@ -86,7 +84,6 @@
   {
    "name": "payload2",
    "type": 1,
-   "value": 4294967295,
    "parent": 2,
    "annotations_start": 0,
    "annotations_count": 0,
@@ -100,5 +97,5 @@
  "values": [],
  "enum_items": [],
  "annotations": [],
- "root": 0
+ "root": 1
 }

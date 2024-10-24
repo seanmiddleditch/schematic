@@ -35,7 +35,7 @@ message Field
 {
     string name = 1;
     uint32 type = 2;
-    uint32 value = 3;
+    optional uint32 value = 3;
     uint32 parent = 4;
     optional uint32 proto = 5;
 
