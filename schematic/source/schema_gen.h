@@ -23,16 +23,9 @@ namespace potato::schematic::compiler
         const Schema* Compile(IRSchema* irSchema);
 
     private:
-        ModuleIndex CreateModule(IRModule* irModule);
-
-        Type* Resolve(IRType* type);
-        TypeIndex ResolveIndex(IRType* type);
-
-        void CreateType(IRType* type);
+        const Type* CreateType(IRType* type);
         Annotations CreateAnnotations(Array<IRAnnotation*> irAnnotations);
-
-        Value* Resolve(IRValue* value);
-        ValueIndex ResolveIndex(IRValue* value);
+        const Value* CreateValue(IRValue* value);
 
         ArenaAllocator& arena_;
         Logger& logger_;
@@ -42,7 +35,7 @@ namespace potato::schematic::compiler
         Array<Field, FieldIndex> fields_;
         Array<EnumItem, EnumItemIndex> enumItems_;
         Array<Annotation, AnnotationIndex> annotations_;
-        Array<Type*, TypeIndex> types_;
-        Array<Value*, ValueIndex> values_;
+        Array<const Type*, TypeIndex> types_;
+        Array<const Value*, ValueIndex> values_;
     };
 } // namespace potato::schematic::compiler

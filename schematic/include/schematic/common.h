@@ -86,6 +86,12 @@ namespace potato::schematic
             return index - rhs.index;
         }
 
+        constexpr Index& operator+=(std::uint32_t offset) noexcept
+        {
+            index += offset;
+            return *this;
+        }
+
         std::uint32_t index = std::uint32_t(-1);
     };
 

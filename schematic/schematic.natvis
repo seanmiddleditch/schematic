@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
-  <Type Name="potato::schematic::Array&lt;*&gt;">
+  <Type Name="potato::schematic::Array&lt;*,*&gt;">
     <DisplayString>{{ size={last_ - first_} }}</DisplayString>
     <Expand>
         <Item Name="[size]" ExcludeView="simple">last_ - first_</Item>
@@ -11,9 +11,14 @@
         </ArrayItems>
     </Expand>
   </Type>
-
-  <Type Name="potato::schematic::String">
-    <DisplayString>{str_}</DisplayString>
-    <StringView>str_</StringView>
+  <Type Name="potato::schematic::ReadOnlySpan&lt;*,*&gt;">
+    <DisplayString>{{ size={size} }}</DisplayString>
+    <Expand>
+      <Item Name="[size]" ExcludeView="simple">size</Item>
+      <ArrayItems>
+        <Size>size</Size>
+        <ValuePointer>data</ValuePointer>
+      </ArrayItems>
+    </Expand>
   </Type>
 </AutoVisualizer>

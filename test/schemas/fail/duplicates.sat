@@ -1,6 +1,6 @@
 struct dupes {
     int32 field;
-    // ERROR: schemas/fail/duplicates.sat(4): Field already defined: dupes.field
+    // ERROR: schemas/fail/duplicates.sat(4): Struct field already defined: dupes.field
     int32 field;
 }
 

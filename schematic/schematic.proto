@@ -35,7 +35,7 @@ message Field
 {
     string name = 1;
     uint32 type = 2;
-    uint32 value = 3;
+    optional uint32 value = 3;
     uint32 parent = 4;
     optional uint32 proto = 5;
 
@@ -54,7 +54,7 @@ message Argument
 message EnumItem
 {
     string name = 1;
-    uint32 value = 2;
+    int64 value = 2;
     uint32 parent = 3;
 
     uint32 annotations_start = 7;

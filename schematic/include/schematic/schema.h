@@ -105,7 +105,7 @@ namespace potato::schematic
     {
         const char* name = nullptr;
         TypeIndex parent = InvalidIndex;
-        ValueIndex value = InvalidIndex;
+        std::int64_t value = 0;
         Annotations annotations;
         Location location;
     };
