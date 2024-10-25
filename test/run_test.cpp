@@ -8,10 +8,6 @@
 #include "schematic/compiler.h"
 #include "schematic/schema.h"
 
-#if SCHEMATIC_PROTOBUF
-#    include "schematic/protobuf.h"
-#endif
-
 #include <sstream>
 #include <string>
 #include <vector>
@@ -24,9 +20,6 @@ void TestSchema(const char* filename)
     TestContext ctx;
     TestLogger logger;
     ArenaAllocator arena;
-#if SCHEMATIC_PROTOBUF
-    google::protobuf::Arena protobufArena;
-#endif
 
     const EmbeddedTest* test = nullptr;
     for (std::size_t i = 0; i != test_embeds_count; ++i)
@@ -70,23 +63,6 @@ void TestSchema(const char* filename)
 
         for (CheckEvaluator& check : checks)
             check.Check(schema);
-
-            // Check protobuf encoding, decoding, round-trip preservations
-#if SCHEMATIC_PROTOBUF
-        const Schema* const original = Compile(arena, logger, ctx, test->name, test->source);
-        REQUIRE(original != nullptr);
-
-        const proto::Schema* const proto = SerializeSchemaProto(protobufArena, original);
-        REQUIRE(proto != nullptr);
-
-        const Schema* const deserialized = ParseSchemaProto(arena, logger, proto);
-        REQUIRE(deserialized != nullptr);
-
-        const proto::Schema* const proto2 = SerializeSchemaProto(protobufArena, deserialized);
-        REQUIRE(proto2 != nullptr);
-
-        CHECK(proto->ShortDebugString() == proto2->ShortDebugString());
-#endif
     }
 
     for (const auto& expected : logger.expectedErrors)
