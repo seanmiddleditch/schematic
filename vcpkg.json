@@ -4,8 +4,7 @@
   "version": "0.1",
   "dependencies": [
     "catch2",
-    "fmt",
-    "protobuf"
+    "fmt"
   ],
   "builtin-baseline": "9edb1b8e590cc086563301d735cae4b6e732d2d2"
 }

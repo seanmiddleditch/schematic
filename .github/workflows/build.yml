@@ -50,14 +50,6 @@ jobs:
           build-dir: out/clang++-debug
           cmake-args: -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
-      - name: Build clang++ debug (no protobuf)
-        uses: ./.github/actions/build
-        with:
-          cxx: clang++
-          config: Debug
-          build-dir: out/clang++-release-noproto
-          cmake-args: -DSCHEMATIC_PROTOBUF=OFF
-
       - name: Lint changes
         uses: cpp-linter/cpp-linter-action@v2.12.1
         id: linter
