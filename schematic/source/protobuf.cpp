@@ -39,6 +39,7 @@ namespace
         void Serialize(proto::Type::Message& out, const TypeMessage& in);
         void Serialize(proto::Type::Nullable& out, const TypeNullable& in);
         void Serialize(proto::Type::Pointer& out, const TypePointer& in);
+        void Serialize(proto::Type::Schema& out, const TypeSchema& in);
         void Serialize(proto::Type::String& out, const TypeString& in);
         void Serialize(proto::Type::Struct& out, const TypeStruct& in);
         void Serialize(proto::Type::TypeRef& out, const TypeType& in);
@@ -93,6 +94,7 @@ namespace
         void Deserialize(TypeMessage& out, const proto::Type::Message& in);
         void Deserialize(TypeNullable& out, const proto::Type::Nullable& in);
         void Deserialize(TypePointer& out, const proto::Type::Pointer& in);
+        void Deserialize(TypeSchema& out, const proto::Type::Schema& in);
         void Deserialize(TypeString& out, const proto::Type::String& in);
         void Deserialize(TypeStruct& out, const proto::Type::Struct& in);
         void Deserialize(TypeType& out, const proto::Type::TypeRef& in);
@@ -241,6 +243,9 @@ void Serializer::Serialize(proto::Type& out, const Type& in)
         case Pointer:
             Serialize(*out.mutable_pointer(), static_cast<const TypePointer&>(in));
             break;
+        case Schema:
+            Serialize(*out.mutable_schema(), static_cast<const TypeSchema&>(in));
+            break;
         case String:
             Serialize(*out.mutable_string(), static_cast<const TypeString&>(in));
             break;
@@ -256,6 +261,16 @@ void Serializer::Serialize(proto::Type& out, const Type& in)
 void Serializer::Serialize(proto::Type::Struct& out, const TypeStruct& in)
 {
     SerializeTypeCommon(out, in);
+
+    if (in.base != InvalidIndex)
+        out.set_base(in.base.index);
+}
+
+void Serializer::Serialize(proto::Type::Schema& out, const TypeSchema& in)
+{
+    SerializeTypeCommon(out, in);
+
+    out.set_version(in.version);
 
     if (in.base != InvalidIndex)
         out.set_base(in.base.index);
@@ -616,6 +631,9 @@ const Schema* Deserializer::Deserialize()
             case proto::Type::kPointer:
                 types_.PushBack(arena_, arena_.New<TypePointer>());
                 continue;
+            case proto::Type::kSchema:
+                types_.PushBack(arena_, arena_.New<TypeSchema>());
+                continue;
             case proto::Type::kString:
                 types_.PushBack(arena_, arena_.New<TypeString>());
                 continue;
@@ -771,6 +789,9 @@ void Deserializer::Deserialize(Type& out, const proto::Type& in)
         case TypeKind::Pointer:
             Deserialize(static_cast<TypePointer&>(out), in.pointer());
             return;
+        case TypeKind::Schema:
+            Deserialize(static_cast<TypeSchema&>(out), in.schema());
+            return;
         case TypeKind::String:
             Deserialize(static_cast<TypeString&>(out), in.string());
             return;
@@ -792,6 +813,32 @@ void Deserializer::Deserialize(TypeAlias& out, const proto::Type::Alias& in)
 void Deserializer::Deserialize(TypeStruct& out, const proto::Type::Struct& in)
 {
     DeserializeTypeCommon(out, in);
+
+    if (in.has_base())
+    {
+        if (VERIFY_INDEX(types_, in.base(), "Invalid base type index {}", in.base()))
+        {
+            const Type* const base = types_[TypeIndex(in.base())];
+            if (VERIFY(base->kind == TypeKind::Struct, "Invalid base type kind"))
+                out.base = TypeIndex(in.base());
+        }
+    }
+
+    if (FieldIndex(in.field_start()) != InvalidIndex)
+    {
+        if (VERIFY_INDEX(fields_, in.field_start(), "Invalid field start index {}", in.field_start()))
+            out.fields.start = FieldIndex(in.field_start());
+
+        if (VERIFY(out.fields.start + in.field_count() <= fields_.Size(), "Overflow field range {},{}", out.fields.start.index, in.field_count()))
+            out.fields.count = in.field_count();
+    }
+}
+
+void Deserializer::Deserialize(TypeSchema& out, const proto::Type::Schema& in)
+{
+    DeserializeTypeCommon(out, in);
+
+    out.version = in.version();
 
     if (in.has_base())
     {

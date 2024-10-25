@@ -54,6 +54,7 @@ namespace potato::schematic::compiler
         bool ParseImport();
         bool ParseAliasDecl();
         bool ParseStructDecl();
+        bool ParseSchemaDecl();
         bool ParseMessageDecl();
         bool ParseAttributeDecl();
         bool ParseEnumDecl();

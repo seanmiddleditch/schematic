@@ -35,6 +35,7 @@ namespace potato::schematic
     struct TypeMessage;
     struct TypeNullable;
     struct TypePointer;
+    struct TypeSchema;
     struct TypeString;
     struct TypeStruct;
     struct TypeType;
@@ -63,6 +64,7 @@ namespace potato::schematic
         Message,
         Nullable,
         Pointer,
+        Schema,
         String,
         Struct,
         Type,
@@ -237,6 +239,15 @@ namespace potato::schematic
         TypeIndex target = InvalidIndex;
     };
 
+    struct TypeSchema : Type
+    {
+        SCHEMATIC_TYPE(TypeSchema, TypeKind::Schema);
+
+        IndexRange<FieldIndex> fields;
+        TypeIndex base = InvalidIndex;
+        std::uint32_t version = 1;
+    };
+
     struct TypeString : Type
     {
         SCHEMATIC_TYPE(TypeString, TypeKind::String);
@@ -248,7 +259,6 @@ namespace potato::schematic
 
         IndexRange<FieldIndex> fields;
         TypeIndex base = InvalidIndex;
-        std::uint32_t version = 1;
     };
 
     struct TypeType : Type

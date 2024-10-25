@@ -17,7 +17,7 @@ namespace potato::schematic::compiler
         Import,
         AliasDecl,
         StructDecl,
-        StructVersionedDecl,
+        SchemaDecl,
         MessageDecl,
         AttributeDecl,
         Field,
@@ -42,6 +42,7 @@ namespace potato::schematic::compiler
     struct AstNodeImport;
     struct AstNodeAliasDecl;
     struct AstNodeStructDecl;
+    struct AstNodeSchemaDecl;
     struct AstNodeMessageDecl;
     struct AstNodeAttributeDecl;
     struct AstNodeField;
@@ -135,9 +136,9 @@ namespace potato::schematic::compiler
         Array<const AstNodeField*> fields;
     };
 
-    struct AstNodeStructVersionedDecl : AstNode
+    struct AstNodeSchemaDecl : AstNode
     {
-        AST_NODE(AstNodeStructVersionedDecl, AstNodeKind::StructVersionedDecl);
+        AST_NODE(AstNodeSchemaDecl, AstNodeKind::SchemaDecl);
 
         const AstNodeIdentifier* name = nullptr;
         Array<const AstNodeAnnotation*> annotations;

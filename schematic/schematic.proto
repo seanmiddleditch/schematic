@@ -194,6 +194,21 @@ message Type
 
         uint32 target = 10;
     }
+    
+    message Schema
+    {
+        string name = 1;
+        uint32 module = 2;
+        uint64 version = 3;
+
+        uint32 annotations_start = 7;
+        uint32 annotations_count = 8;
+        Location location = 9;
+
+        optional uint32 base = 10;
+        uint32 field_start = 11;
+        uint32 field_count = 12;
+    }
 
     message String
     {
@@ -241,9 +256,10 @@ message Type
         Message message = 8;
         Nullable nullable = 9;
         Pointer pointer = 10;
-        String string = 11;
-        Struct struct = 12;
-        TypeRef type = 13;
+        Schema schema = 11;
+        String string = 12;
+        Struct struct = 13;
+        TypeRef type = 14;
     }
 }
 
