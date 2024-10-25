@@ -34,6 +34,7 @@ function(schematic_embed_schemas)
     endif()
     set(INCLUDES "")
     set(ENTRIES "")
+    set(TEST_CASES "")
     foreach(SCHEMA ${ARG_SCHEMAS})
         get_filename_component(NAME ${SCHEMA} NAME_WE)
         set(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/embed_${NAME}.inc")
@@ -49,13 +50,24 @@ function(schematic_embed_schemas)
             DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed.cmake"
         )
 
+        file(READ "${SCHEMA}" SOURCE)
+        string(FIND "${SOURCE}" "NOTEST" NO_TEST)
+
         set(INCLUDES "${INCLUDES}#include \"embed_${NAME}.inc\"\n")
         set(ENTRIES "${ENTRIES}    { .name = \"${SCHEMA}\", .source = embed_${NAME}_source },\n")
+
+        if(${NO_TEST} EQUAL -1)
+            set(TEST_CASES "${TEST_CASES}TEST_CASE(\"Schema ${NAME}\", \"[potato][schematic]\") { TestSchema(\"${SCHEMA}\"); }\n")
+        endif()
 
         target_sources("${ARG_TARGET}" PRIVATE "${OUTPUT}")
     endforeach()
 
-    set(EMBED_TESTS "${CMAKE_CURRENT_BINARY_DIR}/embed_tests.cpp")
-    file(WRITE "${EMBED_TESTS}" "// GENERATED -- do not edit!\n#include \"embed_tests.h\"\n${INCLUDES}\nnamespace potato::schematic::test\n{\n  const EmbeddedTest test_embeds[] =\n  {\n${ENTRIES}  };\n  const std::size_t test_embeds_count = sizeof(test_embeds)/sizeof(test_embeds[0]);}\n")
-    target_sources("${ARG_TARGET}" PRIVATE "${EMBED_TESTS}")
+    set(EMBEDDED_FILENAME "${CMAKE_CURRENT_BINARY_DIR}/embeded_schemas.cpp")
+    set(TEST_CASES_FILENAME "${CMAKE_CURRENT_BINARY_DIR}/test_cases.cpp")
+
+    file(WRITE "${EMBEDDED_FILENAME}" "// GENERATED -- do not edit!\n#include \"embed_tests.h\"\n${INCLUDES}\nnamespace potato::schematic::test\n{\n  const EmbeddedTest test_embeds[] =\n  {\n${ENTRIES}  };\n  const std::size_t test_embeds_count = sizeof(test_embeds)/sizeof(test_embeds[0]);}\n")
+    file(WRITE "${TEST_CASES_FILENAME}" "// GENERATED -- do not edit!\n#include <catch2/catch_test_macros.hpp>\nextern void TestSchema(const char* filename);\n${TEST_CASES}\n")
+
+    target_sources("${ARG_TARGET}" PRIVATE "${EMBEDDED_FILENAME}" "${TEST_CASES_FILENAME}")
 endfunction(schematic_embed_schemas)
