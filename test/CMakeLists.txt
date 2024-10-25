@@ -20,7 +20,7 @@ target_sources(schematic_test PRIVATE FILE_SET HEADERS BASE_DIRS include FILES
 target_sources(schematic_test PRIVATE
     "evaluator.cpp"
     "lexer_tests.cpp"
-    "schema_tests.cpp"
+    "run_test.cpp"
 )
 catch_discover_tests(schematic_test)
 
