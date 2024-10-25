@@ -19,7 +19,7 @@ namespace potato::schematic::compiler
         Enum,
         Message,
         Struct,
-        StructVersioned,
+        Schema,
 
         Builtin,
 
@@ -51,7 +51,7 @@ namespace potato::schematic::compiler
     struct IRField;
     struct IRInitializerNamedArgument;
 
-    struct IRStructVersionedMeta;
+    struct IRSchemaMeta;
 
     struct IRType;
     struct IRTypeAlias;
@@ -60,7 +60,7 @@ namespace potato::schematic::compiler
     struct IRTypeEnum;
     struct IRTypeIndirect;
     struct IRTypeMessage;
-    struct IRTypeStructVersioned;
+    struct IRTypeSchema;
     struct IRTypeStruct;
     struct IRTypeIndirectArray;
     struct IRTypeIndirectNullable;
@@ -173,9 +173,9 @@ namespace potato::schematic::compiler
         Location location;
     };
 
-    struct IRStructVersionedMeta
+    struct IRSchemaMeta
     {
-        Array<IRTypeStructVersioned*> versions;
+        Array<IRTypeSchema*> versions;
         IRTypeAlias* alias = nullptr;
     };
 
@@ -235,11 +235,11 @@ namespace potato::schematic::compiler
         IRVersionRange version;
     };
 
-    struct IRTypeStructVersioned : IRTypeStruct
+    struct IRTypeSchema : IRTypeStruct
     {
-        IR_TYPE(IRTypeStructVersioned, IRTypeKind::StructVersioned);
+        IR_TYPE(IRTypeSchema, IRTypeKind::Schema);
 
-        IRStructVersionedMeta* meta = nullptr;
+        IRSchemaMeta* meta = nullptr;
         std::uint64_t version = 0;
     };
 
@@ -327,7 +327,7 @@ namespace potato::schematic::compiler
         ModuleIndex index = InvalidIndex;
         Array<IRImport*> imports;
         Array<IRType*> types;
-        Array<IRStructVersionedMeta*> versionMetas;
+        Array<IRSchemaMeta*> versionMetas;
     };
 
     struct IRSchema

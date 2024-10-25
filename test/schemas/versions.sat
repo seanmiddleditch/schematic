@@ -6,7 +6,7 @@
 // CHECK: Pos#3.@version == 3
 // CHECK: Pos#3.x.@type == float32
 // CHECK: Pos#3.y.@type == float32
-struct Pos #2..3 {
+schema Pos #2..3 {
     float32 x;
     float32 y #3;
     int32 y #2..2;
@@ -15,7 +15,7 @@ struct Pos #2..3 {
 // CHECK: Pos#1.@version == 1
 // CHECK: Pos#1.x.@type == int32
 // CHECK: Pos#1.y.@type == int32
-struct Pos #1 {
+schema Pos #1 {
     int32 x;
     int32 y;
 }

@@ -404,6 +404,20 @@ namespace potato::schematic::test
                 return Evaluate(struct_->base);
             if (Match("@fields"))
                 return Evaluate(struct_->fields.count);
+
+            for (const Field& field : GetFields(schema_, struct_->fields))
+            {
+                if (Match(field.name))
+                    return Evaluate(&field);
+            }
+        }
+
+        else if (const TypeSchema* struct_ = CastTo<TypeSchema>(type); struct_ != nullptr)
+        {
+            if (Match("@base"))
+                return Evaluate(struct_->base);
+            if (Match("@fields"))
+                return Evaluate(struct_->fields.count);
             if (Match("@version"))
                 return Evaluate(struct_->version);
 

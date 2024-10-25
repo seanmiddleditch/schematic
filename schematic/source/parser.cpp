@@ -71,6 +71,13 @@ const AstNodeModule* Parser::Parse()
             continue;
         }
 
+        if (ConsumeKey("schema"))
+        {
+            if (!ParseSchemaDecl())
+                Recover(RecoverType::Declaration);
+            continue;
+        }
+
         if (ConsumeKey("message"))
         {
             if (!ParseMessageDecl())
@@ -202,41 +209,21 @@ bool Parser::ParseAliasDecl()
 
 bool Parser::ParseStructDecl()
 {
-    const auto declPos = Pos();
+    AstNodeStructDecl* const struct_ = arena_.New<AstNodeStructDecl>(Pos());
+    struct_->annotations = annotations_;
 
-    const AstNodeIdentifier* name = nullptr;
-    const AstNodeIdentifier* base = nullptr;
-    const AstNodeLiteralInt* minVersion = nullptr;
-    const AstNodeLiteralInt* maxVersion = nullptr;
-    Array<const AstNodeField*> fields;
-    const auto annotations = annotations_;
+    mod->nodes.EmplaceBack(arena_, struct_);
 
-    if (!ExpectIdent(&name))
+    if (!ExpectIdent(&struct_->name))
         return false;
-
-    if (Consume(TokenType::Hash))
-    {
-        if (!ExpectInt(minVersion))
-            return false;
-
-        if (Consume(TokenType::Range))
-        {
-            if (!ExpectInt(maxVersion))
-                return false;
-        }
-    }
 
     if (Consume(TokenType::Colon))
     {
-        if (!ExpectIdent(&base))
+        if (!ExpectIdent(&struct_->base))
             return false;
     }
 
-    if (Consume(TokenType::SemiColon))
-    {
-        // empty body
-    }
-    else if (Expect(TokenType::LBrace))
+    if (Expect(TokenType::LBrace))
     {
         while (!Match(TokenType::RBrace))
         {
@@ -246,7 +233,7 @@ bool Parser::ParseStructDecl()
             if (!ParseAnnotations())
                 return false;
 
-            if (!ParseField(fields, FieldMode::Struct))
+            if (!ParseField(struct_->fields, FieldMode::Struct))
                 return false;
 
             if (!Expect(TokenType::SemiColon))
@@ -260,27 +247,59 @@ bool Parser::ParseStructDecl()
         return false;
     }
 
-    if (minVersion == nullptr)
-    {
-        AstNodeStructDecl* const decl = arena_.New<AstNodeStructDecl>(declPos);
-        mod->nodes.PushBack(arena_, decl);
+    return true;
+}
 
-        decl->name = name;
-        decl->base = base;
-        decl->fields = fields;
-        decl->annotations = annotations;
+bool Parser::ParseSchemaDecl()
+{
+    AstNodeSchemaDecl* const schema = arena_.New<AstNodeSchemaDecl>(Pos());
+    schema->annotations = annotations_;
+
+    mod->nodes.EmplaceBack(arena_, schema);
+
+    if (!ExpectIdent(&schema->name))
+        return false;
+
+    if (!Expect(TokenType::Hash))
+        return false;
+
+    if (!ExpectInt(schema->minVersion))
+        return false;
+
+    if (Consume(TokenType::Range))
+    {
+        if (!ExpectInt(schema->maxVersion))
+            return false;
+    }
+
+    if (Consume(TokenType::Colon))
+    {
+        if (!ExpectIdent(&schema->base))
+            return false;
+    }
+
+    if (Expect(TokenType::LBrace))
+    {
+        while (!Match(TokenType::RBrace))
+        {
+            if (Consume(TokenType::End))
+                break;
+
+            if (!ParseAnnotations())
+                return false;
+
+            if (!ParseField(schema->fields, FieldMode::Struct))
+                return false;
+
+            if (!Expect(TokenType::SemiColon))
+                return false;
+        }
+
+        Expect(TokenType::RBrace);
     }
     else
     {
-        AstNodeStructVersionedDecl* const decl = arena_.New<AstNodeStructVersionedDecl>(declPos);
-        mod->nodes.PushBack(arena_, decl);
-
-        decl->name = name;
-        decl->base = base;
-        decl->fields = fields;
-        decl->annotations = annotations;
-        decl->minVersion = minVersion;
-        decl->maxVersion = maxVersion;
+        return false;
     }
 
     return true;

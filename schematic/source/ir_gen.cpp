@@ -29,17 +29,17 @@ static auto MatchAstIdentPred(const char* name) noexcept
 
 namespace
 {
-    struct VersionedFieldPrinter
+    struct SchemaFieldPrinter
     {
-        const AstNodeStructVersionedDecl* parent = nullptr;
+        const AstNodeSchemaDecl* parent = nullptr;
         const AstNodeField* ast = nullptr;
     };
 } // namespace
 template <>
-struct fmt::formatter<VersionedFieldPrinter> : fmt::formatter<fmt::string_view>
+struct fmt::formatter<SchemaFieldPrinter> : fmt::formatter<fmt::string_view>
 {
     template <typename FormatContext>
-    constexpr auto format(const VersionedFieldPrinter& val, FormatContext& ctx) const
+    constexpr auto format(const SchemaFieldPrinter& val, FormatContext& ctx) const
         -> decltype(ctx.out())
     {
         if (val.parent == nullptr || val.ast == nullptr)
@@ -274,14 +274,7 @@ IRModule* IRGenerator::CompileModule()
             type->annotations = LowerAnnotations(declNode->annotations);
             type->location = GetLocation(declNode);
 
-            IRType* const previousType = Find(module_->types, MatchNamePred(declNode->name->name));
-            if (previousType != nullptr)
-            {
-                if (previousType->kind == IRTypeKind::StructVersioned)
-                    Error(declNode, "Struct already defined with versioning: {}", declNode->name->name);
-                else
-                    Error(declNode, "Type already defined: {}", declNode->name->name);
-            }
+            ValidateTypeUnique(type);
 
             for (const AstNodeField* const fieldNode : declNode->fields)
             {
@@ -303,36 +296,31 @@ IRModule* IRGenerator::CompileModule()
             continue;
         }
 
-        if (const AstNodeStructVersionedDecl* const declNode = node->CastTo<AstNodeStructVersionedDecl>(); declNode != nullptr)
+        if (const AstNodeSchemaDecl* const declNode = node->CastTo<AstNodeSchemaDecl>(); declNode != nullptr)
         {
             const IRVersionRange versionRange = ReadVersion(declNode->minVersion, declNode->maxVersion);
 
             IRType* const previousType = Find(module_->types, MatchNamePred(declNode->name->name));
-            IRTypeStructVersioned* const previousVersionedType = CastTo<IRTypeStructVersioned>(previousType);
+            IRTypeSchema* const otherSchemaType = CastTo<IRTypeSchema>(previousType);
 
-            if (previousType != nullptr && previousVersionedType == nullptr)
-            {
-                if (previousType->kind == IRTypeKind::Struct)
-                    Error(declNode, "Struct already defined without version: {}", declNode->name->name);
-                else
-                    Error(declNode, "Type already defined: {}", declNode->name->name);
-            }
+            if (previousType != nullptr && otherSchemaType == nullptr)
+                Error(declNode, "Type already defined: {}", declNode->name->name);
 
-            IRStructVersionedMeta* meta = nullptr;
-            if (previousVersionedType != nullptr)
+            IRSchemaMeta* meta = nullptr;
+            if (otherSchemaType != nullptr)
             {
-                meta = previousVersionedType->meta;
+                meta = otherSchemaType->meta;
             }
             else
             {
-                meta = arena_.New<IRStructVersionedMeta>();
+                meta = arena_.New<IRSchemaMeta>();
                 module_->versionMetas.PushBack(arena_, meta);
             }
 
-            for (IRTypeStructVersioned* const version : meta->versions)
+            for (IRTypeSchema* const version : meta->versions)
             {
                 if (versionRange.min <= version->version && version->version <= versionRange.max)
-                    Error(declNode, "Struct versions overlap with previous declaration: {}", declNode->name->name);
+                    Error(declNode, "Schema versions overlap with previous declaration: {}", declNode->name->name);
             }
 
             for (const AstNodeField* const fieldNode : declNode->fields)
@@ -343,7 +331,7 @@ IRModule* IRGenerator::CompileModule()
                 if ((fieldNode->minVersion != nullptr && fieldNode->minVersion->value < versionRange.min) ||
                     (fieldNode->maxVersion != nullptr && fieldNode->maxVersion->value > versionRange.max))
                 {
-                    Error(fieldNode, "Field version range must be within struct version range: {}", VersionedFieldPrinter{ declNode, fieldNode });
+                    Error(fieldNode, "Field version range must be within schema version range: {}", SchemaFieldPrinter{ declNode, fieldNode });
                 }
 
                 const AstNodeField* const existingFieldNode = Find(declNode->fields, MatchAstIdentPred(fieldNode->name->name));
@@ -355,12 +343,12 @@ IRModule* IRGenerator::CompileModule()
                 if (existingFieldNode->maxVersion != nullptr && fieldNode->minVersion != nullptr && existingFieldNode->maxVersion->value < fieldNode->minVersion->value)
                     continue;
 
-                Error(fieldNode, "Struct field version already defined: {}", VersionedFieldPrinter{ declNode, fieldNode });
+                Error(fieldNode, "Schema field version already defined: {}", SchemaFieldPrinter{ declNode, fieldNode });
             }
 
             for (std::uint64_t version = versionRange.min; version <= versionRange.max; ++version)
             {
-                IRTypeStructVersioned* const type = arena_.New<IRTypeStructVersioned>();
+                IRTypeSchema* const type = arena_.New<IRTypeSchema>();
                 type->name = declNode->name->name;
                 type->ast = declNode;
                 type->parent = module_;
@@ -398,14 +386,14 @@ IRModule* IRGenerator::CompileModule()
     if (failed_)
         return nullptr;
 
-    for (IRStructVersionedMeta* const irVersionedMeta : module_->versionMetas)
+    for (IRSchemaMeta* const irVersionedMeta : module_->versionMetas)
     {
         irVersionedMeta->alias = arena_.New<IRTypeAlias>();
         irVersionedMeta->alias->parent = module_;
         module_->types.PushBack(arena_, irVersionedMeta->alias);
 
-        IRTypeStructVersioned* newestVersion = nullptr;
-        for (IRTypeStructVersioned* const versionedStruct : irVersionedMeta->versions)
+        IRTypeSchema* newestVersion = nullptr;
+        for (IRTypeSchema* const versionedStruct : irVersionedMeta->versions)
         {
             if (newestVersion == nullptr || newestVersion->version < versionedStruct->version)
                 newestVersion = versionedStruct;
@@ -492,12 +480,12 @@ IRModule* IRGenerator::CompileModule()
             continue;
         }
 
-        if (IRTypeStructVersioned* type = CastTo<IRTypeStructVersioned>(irTypeIter); type != nullptr)
+        if (IRTypeSchema* type = CastTo<IRTypeSchema>(irTypeIter); type != nullptr)
         {
             IRType* const base = ResolveAlias(ResolveType(type->base));
             if (base != nullptr)
             {
-                if (base->kind != IRTypeKind::Struct && base->kind != IRTypeKind::StructVersioned)
+                if (base->kind != IRTypeKind::Struct && base->kind != IRTypeKind::Schema)
                     Error(type->ast, "Struct base type is not a struct type: {}", type->name);
                 else
                     type->base = base;
@@ -559,45 +547,6 @@ void IRGenerator::ValidateTypeUnique(IRType* type)
     IRType* const existing = Find(module_->types, MatchNamePred(type->name));
     if (existing != nullptr)
         Error(type->ast, "Type already defined: {}", type->name);
-}
-
-void IRGenerator::ValidateVersionedStructField(const AstNodeStructVersionedDecl* decl, IRField* field)
-{
-    const AstNodeField* const existing = Find(decl->fields, MatchAstIdentPred(field->name));
-    if (existing == nullptr)
-        return;
-
-    // if either the existing or new field is not versioned, raise an error
-    if (existing->minVersion == nullptr || field->version.min == 0)
-    {
-        Error(field->ast, "Field already defined: {}.{}", decl->name->name, field->name);
-        return;
-    }
-
-    IRVersionRange existingVersion;
-    existingVersion.max = existingVersion.min = existing->minVersion->value;
-    if (existing->maxVersion != nullptr && existing->maxVersion->value >= existingVersion.min)
-        existingVersion.max = existing->maxVersion->value;
-
-    // if the versions overlap, raise an error
-    if (field->version.min <= existingVersion.min && field->version.max <= existingVersion.max)
-    {
-        if (existing->maxVersion == nullptr)
-        {
-            Error(field->ast, "Field version already defined: {}.{}#{}", decl->name->name, field->name, existingVersion.min);
-            return;
-        }
-        if (existing->maxVersion->value >= field->version.min)
-        {
-            Error(field->ast, "Field version already defined: {}.{}#{}..{}", decl->name->name, field->name, existingVersion.min, existingVersion.max);
-            return;
-        }
-    }
-    else if (existingVersion.min == field->version.min)
-    {
-        Error(field->ast, "Field version already defined: {}.{}#{}..{}", decl->name->name, field->name, existingVersion.min, existingVersion.max);
-        return;
-    }
 }
 
 template <typename T>
@@ -1116,7 +1065,7 @@ void IRGenerator::AssignIndices(IRType* type, IRSchema* schema)
             AssignIndices(field->annotations, schema);
         }
     }
-    else if (IRTypeStructVersioned* const structVersionedType = CastTo<IRTypeStructVersioned>(type); structVersionedType != nullptr)
+    else if (IRTypeSchema* const structVersionedType = CastTo<IRTypeSchema>(type); structVersionedType != nullptr)
     {
         if (structVersionedType->base != nullptr)
             AssignIndices(structVersionedType->base, schema);

@@ -42,7 +42,6 @@ namespace potato::schematic::compiler
         IRVersionRange ReadVersion(const AstNodeLiteralInt* min, const AstNodeLiteralInt* max);
 
         void ValidateTypeUnique(IRType* type);
-        void ValidateVersionedStructField(const AstNodeStructVersionedDecl* decl, IRField* field);
 
         IRModule* CreateBuiltins();
 

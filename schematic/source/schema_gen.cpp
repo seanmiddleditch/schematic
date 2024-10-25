@@ -211,9 +211,9 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
         return type;
     }
 
-    if (IRTypeStructVersioned* irType = CastTo<IRTypeStructVersioned>(inIrType); irType != nullptr)
+    if (IRTypeSchema* irType = CastTo<IRTypeSchema>(inIrType); irType != nullptr)
     {
-        TypeStruct* const type = arena_.New<TypeStruct>();
+        TypeSchema* const type = arena_.New<TypeSchema>();
         type->name = NewStringFmt(arena_, "{}#{}", irType->name, irType->version);
         type->parent = irType->parent->index;
         type->location = irType->location;
