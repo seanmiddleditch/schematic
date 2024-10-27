@@ -24,8 +24,6 @@ namespace potato::schematic
     public:
         virtual void Error(std::string_view filename, const Range& range, std::string_view message) = 0;
 
-        static Logger& Default() noexcept;
-
         Logger(const Logger&) = delete;
         Logger& operator=(const Logger&) = delete;
 

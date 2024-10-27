@@ -54,7 +54,10 @@ void TestSchema(const char* filename)
         }
     }
 
-    const Schema* const schema = Compile(arena, logger, ctx, test->name, test->source);
+    Compiler* compiler = NewCompiler(arena, logger, ctx);
+    compiler->AddStandardPreamble();
+    compiler->AddPreamble("schemas/include/preamble_impl.sat");
+    const Schema* const schema = compiler->Compile(test->name);
 
     if (!checks.empty())
     {

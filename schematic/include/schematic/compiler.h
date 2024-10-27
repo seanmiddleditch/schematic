@@ -19,15 +19,24 @@ namespace potato::schematic
         virtual std::string_view ReadFileContents(ArenaAllocator& arena, std::string_view filename) = 0;
         virtual std::string_view ResolveModule(ArenaAllocator& arena, std::string_view name, std::string_view referrer) = 0;
 
-        CompileContext(const CompileContext&) = delete;
-        CompileContext& operator=(const CompileContext&) = delete;
-
     protected:
-        CompileContext() = default;
         ~CompileContext() = default;
     };
 
-    const Schema* Compile(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, std::string_view filename, std::string_view source);
+    class Compiler
+    {
+    public:
+        ~Compiler() = default; // intentionally trivial; Compiler must not hold onto external resources
+
+        virtual void AddStandardPreamble() = 0;
+        virtual void AddPreamble(std::string_view filename) = 0;
+        virtual const Schema* Compile(std::string_view filename) = 0;
+
+    protected:
+        Compiler() = default;
+    };
+
+    Compiler* NewCompiler(ArenaAllocator& arena, Logger& logger, CompileContext& context);
 } // namespace potato::schematic
 
 #endif // SCHEMATIC_COMPILER_H

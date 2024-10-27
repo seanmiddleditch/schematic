@@ -1,4 +1,4 @@
-import "sub/imported.sat";
+import "include/imported.sat";
 
 struct test : base
 {

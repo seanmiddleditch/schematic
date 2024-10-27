@@ -26,50 +26,121 @@ using namespace potato::schematic::compiler;
 
 namespace
 {
-    struct DefaultLogger final : Logger
+    class CompilerImpl final : public Compiler
     {
-        void Error(std::string_view filename, const Range& range, std::string_view message) override
+    public:
+        CompilerImpl(ArenaAllocator& arena, Logger& logger, CompileContext& ctx)
+            : arena_(arena)
+            , logger_(logger)
+            , ctx_(ctx)
         {
-            if (filename.empty())
-            {
-                fmt::println(stderr, "{}", message);
-                return;
-            }
-
-            if (range.start.line == 0)
-            {
-                fmt::println(stderr, "{}: {}", filename, message);
-                return;
-            }
-
-            if (range.start.column == 0)
-            {
-                fmt::println(stderr, "{}({}): {}", filename, range.start.line, message);
-                return;
-            }
-
-            fmt::println(stderr, "{}({},{}): {}", filename, range.start.line, range.start.column, message);
         }
+
+        void AddStandardPreamble() override;
+        void AddPreamble(std::string_view filename) override;
+        const Schema* Compile(std::string_view filename) override;
+
+    private:
+        template <typename T>
+        static T* CreateBuiltinType(ArenaAllocator& arena, IRModule* module, TypeKind kind, const char* name);
+        IRModule* CreateStandardPreamble();
+
+        ArenaAllocator& arena_;
+        Logger& logger_;
+        CompileContext& ctx_;
+
+        Array<const char*> preambles_;
+        bool useStandardPreamble_ = false;
     };
 } // namespace
 
-Logger& Logger::Default() noexcept
+Compiler* potato::schematic::NewCompiler(ArenaAllocator& arena, Logger& logger, CompileContext& ctx)
 {
-    static DefaultLogger logger;
-    return logger;
+    return arena.New<CompilerImpl>(arena, logger, ctx);
 }
 
-const Schema* potato::schematic::Compile(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, std::string_view filename, std::string_view source)
+void CompilerImpl::AddStandardPreamble()
+{
+    useStandardPreamble_ = true;
+}
+
+void CompilerImpl::AddPreamble(std::string_view filename)
+{
+    preambles_.PushBack(arena_, arena_.NewString(filename));
+}
+
+const Schema* CompilerImpl::Compile(std::string_view filename)
 {
     IRState state;
-    IRGenerator irGen(arena, logger, ctx, state, filename, source);
 
-    IRSchema* const irSchema = irGen.Compile();
+    if (useStandardPreamble_)
+        state.preambles.PushBack(arena_, CreateStandardPreamble());
+
+    for (const char* const preamble : preambles_)
+    {
+        IRGenerator preambleCompiler(arena_, logger_, ctx_, state, preamble);
+        if (!preambleCompiler.CompilePreamble())
+            return nullptr;
+    }
+
+    const std::string_view contents = ctx_.ReadFileContents(arena_, filename);
+    IRGenerator rootCompiler(arena_, logger_, ctx_, state, filename);
+    IRSchema* const irSchema = rootCompiler.CompileRoot();
     if (irSchema == nullptr)
         return nullptr;
 
-    SchemaGenerator schemaGen(arena, logger);
+    SchemaGenerator schemaGen(arena_, logger_);
     const Schema* const schema = schemaGen.Compile(irSchema);
 
     return schema;
+}
+
+template <typename T>
+T* CompilerImpl::CreateBuiltinType(ArenaAllocator& arena, IRModule* module, TypeKind kind, const char* name)
+{
+    T* const type = arena.New<T>();
+    type->name = name;
+    type->typeKind = kind;
+    type->parent = module;
+
+    module->types.PushBack(arena, type);
+    return type;
+};
+
+IRModule* CompilerImpl::CreateStandardPreamble()
+{
+    constexpr std::size_t byteWidthInBits = 8; // we assume target uses expect 8-bit bytes
+
+    IRModule* preamble = arena_.New<IRModule>();
+    preamble->filename = "$builtins";
+
+    auto AddInt = [this, preamble]<typename T>(const char* name, T)
+    {
+        IRTypeBuiltin* const type = CreateBuiltinType<IRTypeBuiltin>(arena_, preamble, TypeKind::Int, name);
+        type->isSigned = std::is_signed_v<T>;
+        type->width = byteWidthInBits * sizeof(T);
+    };
+    auto AddFloat = [this, preamble]<typename T>(const char* name, T)
+    {
+        IRTypeBuiltin* const type = CreateBuiltinType<IRTypeBuiltin>(arena_, preamble, TypeKind::Float, name);
+        type->width = byteWidthInBits * sizeof(T);
+    };
+
+    CreateBuiltinType<IRTypeBuiltin>(arena_, preamble, TypeKind::Type, "type");
+    CreateBuiltinType<IRTypeBuiltin>(arena_, preamble, TypeKind::Bool, "bool");
+    CreateBuiltinType<IRTypeBuiltin>(arena_, preamble, TypeKind::String, "string");
+
+    AddInt("int8", std::int8_t{});
+    AddInt("uint8", std::uint8_t{});
+    AddInt("int16", std::int16_t{});
+    AddInt("uint16", std::uint16_t{});
+    AddInt("int32", std::int32_t{});
+    AddInt("uint32", std::uint32_t{});
+    AddInt("int64", std::int64_t{});
+    AddInt("uint64", std::uint64_t{});
+
+    AddFloat("float32", float{});
+    AddFloat("float64", double{});
+
+    return preamble;
 }

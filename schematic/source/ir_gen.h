@@ -17,33 +17,32 @@ namespace potato::schematic::compiler
     {
         Array<IRModule*> modules;
         Array<IRModule*> stack;
+        Array<IRModule*> preambles;
         IRSchema* schema = nullptr;
-        IRModule* builtins = nullptr;
     };
 
     class IRGenerator final
     {
     public:
-        explicit IRGenerator(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, IRState& state, std::string_view filename, std::string_view source) noexcept
+        explicit IRGenerator(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, IRState& state, std::string_view filename) noexcept
             : arena_(arena)
             , logger_(logger)
             , ctx_(ctx)
             , state_(state)
             , filename_(filename)
-            , source_(source)
         {
         }
 
-        IRSchema* Compile();
+        IRSchema* CompileRoot();
+        bool CompilePreamble();
 
     private:
         IRModule* CompileModule();
+        bool CompileDecls();
 
         IRVersionRange ReadVersion(const AstNodeLiteralInt* min, const AstNodeLiteralInt* max);
 
         void ValidateTypeUnique(IRType* type);
-
-        IRModule* CreateBuiltins();
 
         IRType* FindType(const char* name);
 

@@ -81,9 +81,9 @@ namespace potato::schematic
         template <Trivial T, typename I = std::uint32_t, template <typename, typename> class A = Array>
         [[nodiscard]] A<T, I> NewArray(size_t size, const T& value);
 
-        template <Trivial T, typename... Args>
+        template <typename T, typename... Args>
         [[nodiscard]] T* New(Args&&... args)
-            requires std::is_constructible_v<T, Args...>;
+            requires std::is_trivially_destructible_v<T> && std::is_constructible_v<T, Args...>;
 
         void Clear();
 
@@ -131,9 +131,9 @@ namespace potato::schematic
         return A<T, I>(elements, size, size);
     }
 
-    template <Trivial T, typename... Args>
+    template <typename T, typename... Args>
     T* ArenaAllocator::New(Args&&... args)
-        requires std::is_constructible_v<T, Args...>
+        requires std::is_trivially_destructible_v<T> && std::is_constructible_v<T, Args...>
     {
         return new (Allocate(sizeof(T), alignof(T))) T(std::forward<Args>(args)...);
     }
