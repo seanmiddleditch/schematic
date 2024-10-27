@@ -56,14 +56,8 @@ struct fmt::formatter<SchemaFieldPrinter> : fmt::formatter<fmt::string_view>
     }
 };
 
-IRSchema* IRGenerator::Compile()
+IRSchema* IRGenerator::CompileRoot()
 {
-    if (state_.builtins == nullptr)
-    {
-        state_.builtins = CreateBuiltins();
-        state_.modules.PushBack(arena_, state_.builtins);
-    }
-
     if (state_.schema == nullptr)
         state_.schema = arena_.New<IRSchema>();
 
@@ -81,8 +75,20 @@ IRSchema* IRGenerator::Compile()
     return state_.schema;
 }
 
+bool IRGenerator::CompilePreamble()
+{
+    IRModule* const preamble = CompileModule();
+    if (preamble == nullptr)
+        return false;
+
+    state_.preambles.PushBack(arena_, preamble);
+    return true;
+}
+
 IRModule* IRGenerator::CompileModule()
 {
+    source_ = ctx_.ReadFileContents(arena_, filename_);
+
     Lexer lexer(arena_, logger_, filename_, source_);
     tokens_ = lexer.Tokenize();
     if (tokens_.IsEmpty())
@@ -95,13 +101,27 @@ IRModule* IRGenerator::CompileModule()
 
     module_ = arena_.New<IRModule>();
     module_->filename = arena_.NewString(filename_);
-    state_.stack.PushBack(arena_, module_);
+
+    for (IRModule* preamble : state_.preambles)
     {
-        IRImport* const builtinsImport = arena_.New<IRImport>();
-        builtinsImport->resolved = state_.builtins;
-        module_->imports.PushBack(arena_, builtinsImport);
+        IRImport* const preambleImport = arena_.New<IRImport>();
+        preambleImport->resolved = preamble;
+        module_->imports.PushBack(arena_, preambleImport);
     }
 
+    state_.stack.PushBack(arena_, module_);
+    const bool success = CompileDecls();
+    state_.stack.PopBack();
+
+    if (!success)
+        return nullptr;
+
+    state_.modules.PushBack(arena_, module_);
+    return module_;
+}
+
+bool IRGenerator::CompileDecls()
+{
     for (const AstNode* const node : ast_->nodes)
     {
         if (const AstNodeAliasDecl* const declNode = node->CastTo<AstNodeAliasDecl>(); declNode != nullptr)
@@ -252,9 +272,7 @@ IRModule* IRGenerator::CompileModule()
 
             if (doImport)
             {
-                const std::string_view source = ctx_.ReadFileContents(arena_, target);
-
-                IRGenerator generator(arena_, logger_, ctx_, state_, target, source);
+                IRGenerator generator(arena_, logger_, ctx_, state_, target);
                 import->resolved = generator.CompileModule();
                 if (import->resolved == nullptr)
                     failed_ = true;
@@ -384,7 +402,7 @@ IRModule* IRGenerator::CompileModule()
     }
 
     if (failed_)
-        return nullptr;
+        return false;
 
     for (IRSchemaMeta* const irVersionedMeta : module_->versionMetas)
     {
@@ -503,11 +521,7 @@ IRModule* IRGenerator::CompileModule()
         }
     }
 
-    if (failed_)
-        return nullptr;
-
-    state_.modules.PushBack(arena_, module_);
-    return module_;
+    return !failed_;
 }
 
 IRVersionRange IRGenerator::ReadVersion(const AstNodeLiteralInt* min, const AstNodeLiteralInt* max)
@@ -547,59 +561,6 @@ void IRGenerator::ValidateTypeUnique(IRType* type)
     IRType* const existing = Find(module_->types, MatchNamePred(type->name));
     if (existing != nullptr)
         Error(type->ast, "Type already defined: {}", type->name);
-}
-
-template <typename T>
-static T* CreateBuiltinType(ArenaAllocator& arena, IRModule* module, TypeKind kind, const char* name)
-{
-    T* const type = arena.New<T>();
-    type->name = name;
-    type->typeKind = kind;
-    type->parent = module;
-
-    module->types.PushBack(arena, type);
-    return type;
-};
-
-IRModule* IRGenerator::CreateBuiltins()
-{
-    if (builtins_ != nullptr)
-        return builtins_;
-
-    constexpr std::size_t byteWidthInBits = 8; // we assume target uses expect 8-bit bytes
-
-    builtins_ = arena_.New<IRModule>();
-    builtins_->filename = "$builtins";
-
-    auto AddInt = [this]<typename T>(const char* name, T)
-    {
-        IRTypeBuiltin* const type = CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::Int, name);
-        type->isSigned = std::is_signed_v<T>;
-        type->width = byteWidthInBits * sizeof(T);
-    };
-    auto AddFloat = [this]<typename T>(const char* name, T)
-    {
-        IRTypeBuiltin* const type = CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::Float, name);
-        type->width = byteWidthInBits * sizeof(T);
-    };
-
-    CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::Type, "type");
-    CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::Bool, "bool");
-    CreateBuiltinType<IRTypeBuiltin>(arena_, builtins_, TypeKind::String, "string");
-
-    AddInt("int8", std::int8_t{});
-    AddInt("uint8", std::uint8_t{});
-    AddInt("int16", std::int16_t{});
-    AddInt("uint16", std::uint16_t{});
-    AddInt("int32", std::int32_t{});
-    AddInt("uint32", std::uint32_t{});
-    AddInt("int64", std::int64_t{});
-    AddInt("uint64", std::uint64_t{});
-
-    AddFloat("float32", float{});
-    AddFloat("float64", double{});
-
-    return builtins_;
 }
 
 IRType* IRGenerator::FindType(const char* name)

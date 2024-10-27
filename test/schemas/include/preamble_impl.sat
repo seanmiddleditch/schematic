@@ -1,0 +1,3 @@
+// NOTEST
+
+struct PreambleImpl {}

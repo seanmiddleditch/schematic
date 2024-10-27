@@ -33,10 +33,12 @@ schematic_embed_schemas(TARGET schematic_test SCHEMAS
     "schemas/message.sat"
     "schemas/modifiers.sat"
     "schemas/order.sat"
+    "schemas/preamble.sat"
     "schemas/struct.sat"
     "schemas/versions.sat"
 
-    "schemas/sub/imported.sat"
+    "schemas/include/imported.sat"
+    "schemas/include/preamble_impl.sat"
 
     "schemas/fail/circular_import.sat"
     "schemas/fail/circular_import_child.sat"
