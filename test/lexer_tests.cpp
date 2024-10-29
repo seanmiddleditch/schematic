@@ -1,7 +1,6 @@
 // Schematic. Copyright (C) Sean Middleditch and contributors.
 
 #include "lexer.h"
-#include "test_logger.h"
 #include "test_matchers.h"
 #include "test_strings.h"
 
@@ -17,9 +16,6 @@ using namespace schematic::test;
 
 TEST_CASE("Lexer", "[schematic]")
 {
-    TestLogger logger;
-    ArenaAllocator arena;
-
     SECTION("Numbers")
     {
         CHECK_THAT("123", IsTokenType(TokenType::Integer));
@@ -64,7 +60,10 @@ World!""")",
 
     SECTION("Comments")
     {
-        Lexer lexer(arena, logger, "<test>", R"--(
+        ArenaAllocator arena;
+        TestContext ctx;
+
+        Lexer lexer(arena, ctx, "<test>", R"--(
         // this is a comment
 
         // and another comment

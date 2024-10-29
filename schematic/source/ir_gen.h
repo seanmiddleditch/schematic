@@ -24,9 +24,8 @@ namespace schematic::compiler
     class IRGenerator final
     {
     public:
-        explicit IRGenerator(ArenaAllocator& arena, Logger& logger, CompileContext& ctx, IRState& state, std::string_view filename) noexcept
+        explicit IRGenerator(ArenaAllocator& arena, CompileContext& ctx, IRState& state, std::string_view filename) noexcept
             : arena_(arena)
-            , logger_(logger)
             , ctx_(ctx)
             , state_(state)
             , filename_(filename)
@@ -67,7 +66,6 @@ namespace schematic::compiler
         void Error(const AstNode* node, fmt::format_string<Args...> format, Args&&... args);
 
         ArenaAllocator& arena_;
-        Logger& logger_;
         CompileContext& ctx_;
         IRState& state_;
 

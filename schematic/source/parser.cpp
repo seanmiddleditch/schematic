@@ -6,7 +6,6 @@
 #include "location.h"
 
 #include "schematic/allocator.h"
-#include "schematic/logger.h"
 
 #include <fmt/core.h>
 
@@ -808,7 +807,7 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
 void Parser::Error(std::string_view message)
 {
     const Token& token = tokens_[next_];
-    logger_.Error(filename_, FindRange(source_, token), message);
+    context_.LogMessage(FindRange(filename_, source_, token), message);
     failed_ = true;
 }
 

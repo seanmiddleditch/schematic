@@ -5,7 +5,6 @@
 #include "token.h"
 
 #include "schematic/compiler.h"
-#include "schematic/logger.h"
 
 namespace schematic::compiler
 {
@@ -22,10 +21,11 @@ namespace schematic::compiler
         return token.offset - col + 1;
     }
 
-    constexpr Range FindRange(std::string_view source, const Token& token) noexcept
+    constexpr LogLocation FindRange(std::string_view filename, std::string_view source, const Token& token) noexcept
     {
-        Range result;
-        result.start.line = token.line;
+        LogLocation result;
+        result.file = filename;
+        result.line = token.line;
 
         const char* const text = source.data();
         std::size_t col = 0;
@@ -34,19 +34,17 @@ namespace schematic::compiler
             if (text[col - 1] == '\n')
                 break;
         }
-        result.start.column = token.offset - col + 1;
+        result.column = token.offset - col + 1;
 
-        result.end = result.start;
+        std::uint32_t end = result.column;
         for (std::size_t i = 0; i != token.length; ++i)
         {
-            ++result.end.column;
+            ++end;
             if (text[i + token.offset] == '\n')
-            {
-                ++result.start.line;
-                result.end.column = 1;
-            }
+                break;
         }
 
+        result.length = end - result.column;
         return result;
     }
 

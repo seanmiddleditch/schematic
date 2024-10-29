@@ -12,7 +12,6 @@ target_sources(schematic_test PRIVATE FILE_SET HEADERS BASE_DIRS include FILES
     "include/embed_tests.h"
     "include/evaluator.h"
     "include/test_context.h"
-    "include/test_logger.h"
     "include/test_matchers.h"
     "include/test_strings.h"
 )

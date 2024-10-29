@@ -29,9 +29,8 @@ namespace
     class CompilerImpl final : public Compiler
     {
     public:
-        CompilerImpl(ArenaAllocator& arena, Logger& logger, CompileContext& ctx)
+        CompilerImpl(ArenaAllocator& arena, CompileContext& ctx)
             : arena_(arena)
-            , logger_(logger)
             , ctx_(ctx)
         {
         }
@@ -46,7 +45,6 @@ namespace
         IRModule* CreateStandardPreamble();
 
         ArenaAllocator& arena_;
-        Logger& logger_;
         CompileContext& ctx_;
 
         Array<const char*> preambles_;
@@ -54,9 +52,9 @@ namespace
     };
 } // namespace
 
-Compiler* schematic::NewCompiler(ArenaAllocator& arena, Logger& logger, CompileContext& ctx)
+Compiler* schematic::NewCompiler(ArenaAllocator& arena, CompileContext& ctx)
 {
-    return arena.New<CompilerImpl>(arena, logger, ctx);
+    return arena.New<CompilerImpl>(arena, ctx);
 }
 
 void CompilerImpl::AddStandardPreamble()
@@ -78,18 +76,18 @@ const Schema* CompilerImpl::Compile(std::string_view filename)
 
     for (const char* const preamble : preambles_)
     {
-        IRGenerator preambleCompiler(arena_, logger_, ctx_, state, preamble);
+        IRGenerator preambleCompiler(arena_, ctx_, state, preamble);
         if (!preambleCompiler.CompilePreamble())
             return nullptr;
     }
 
     const std::string_view contents = ctx_.ReadFileContents(arena_, filename);
-    IRGenerator rootCompiler(arena_, logger_, ctx_, state, filename);
+    IRGenerator rootCompiler(arena_, ctx_, state, filename);
     IRSchema* const irSchema = rootCompiler.CompileRoot();
     if (irSchema == nullptr)
         return nullptr;
 
-    SchemaGenerator schemaGen(arena_, logger_);
+    SchemaGenerator schemaGen(arena_, ctx_);
     const Schema* const schema = schemaGen.Compile(irSchema);
 
     return schema;

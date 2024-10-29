@@ -5,7 +5,6 @@
 #include "location.h"
 
 #include "schematic/allocator.h"
-#include "schematic/logger.h"
 
 #include <fmt/core.h>
 
@@ -64,7 +63,7 @@ Array<Token> schematic::compiler::Lexer::Tokenize()
 
     auto Error = [this, &in, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
     {
-        logger_.Error(filename_, Range{ .start = { in.Line(), 0 }, .end = { in.Line(), 0 } }, fmt::vformat(format, fmt::make_format_args(args...)));
+        context_.LogMessage(LogLocation{ .file = filename_, .line = in.Line() }, fmt::vformat(format, fmt::make_format_args(args...)));
         result = false;
     };
 

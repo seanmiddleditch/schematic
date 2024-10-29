@@ -17,9 +17,9 @@ namespace schematic::compiler
     class Parser final
     {
     public:
-        Parser(ArenaAllocator& arena, Logger& logger, std::string_view filename, std::string_view source, const Array<Token>& tokens) noexcept
+        Parser(ArenaAllocator& arena, CompileContext& context, std::string_view filename, std::string_view source, const Array<Token>& tokens) noexcept
             : arena_(arena)
-            , logger_(logger)
+            , context_(context)
             , filename_(filename)
             , source_(source)
             , tokens_(tokens)
@@ -89,7 +89,7 @@ namespace schematic::compiler
         std::uint32_t Pos(const Token* token = nullptr) const;
 
         ArenaAllocator& arena_;
-        Logger& logger_;
+        CompileContext& context_;
         std::string_view filename_;
         std::string_view source_;
         std::span<const Token> tokens_;

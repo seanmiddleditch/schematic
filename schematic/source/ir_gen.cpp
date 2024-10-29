@@ -89,12 +89,12 @@ IRModule* IRGenerator::CompileModule()
 {
     source_ = ctx_.ReadFileContents(arena_, filename_);
 
-    Lexer lexer(arena_, logger_, filename_, source_);
+    Lexer lexer(arena_, ctx_, filename_, source_);
     tokens_ = lexer.Tokenize();
     if (tokens_.IsEmpty())
         return nullptr;
 
-    Parser parser(arena_, logger_, filename_, source_, tokens_);
+    Parser parser(arena_, ctx_, filename_, source_, tokens_);
     ast_ = parser.Parse();
     if (ast_ == nullptr)
         return nullptr;
@@ -272,7 +272,7 @@ bool IRGenerator::CompileDecls()
 
             if (doImport)
             {
-                IRGenerator generator(arena_, logger_, ctx_, state_, target);
+                IRGenerator generator(arena_, ctx_, state_, target);
                 import->resolved = generator.CompileModule();
                 if (import->resolved == nullptr)
                     failed_ = true;
@@ -1139,7 +1139,7 @@ void IRGenerator::Error(const AstNode* node, fmt::format_string<Args...> format,
     const auto rs = fmt::format_to_n(buffer, sizeof buffer, format, std::forward<Args>(args)...);
 
     if (node != nullptr && node->tokenIndex < tokens_.Size())
-        logger_.Error(filename_, FindRange(source_, tokens_[node->tokenIndex]), std::string_view(buffer, rs.out));
+        ctx_.LogMessage(FindRange(filename_, source_, tokens_[node->tokenIndex]), std::string_view(buffer, rs.out));
     else
-        logger_.Error(filename_, {}, std::string_view(buffer, rs.out));
+        ctx_.LogMessage(LogLocation{ .file = filename_ }, std::string_view(buffer, rs.out));
 }

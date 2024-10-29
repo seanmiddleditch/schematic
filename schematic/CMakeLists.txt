@@ -8,7 +8,6 @@ target_link_libraries(schematic PRIVATE fmt::fmt)
 target_sources(schematic PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
     "include/schematic/allocator.h"
     "include/schematic/compiler.h"
-    "include/schematic/logger.h"
     "include/schematic/schema.h"
     "include/schematic/utility.h"
 )

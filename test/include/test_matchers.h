@@ -3,7 +3,6 @@
 #pragma once
 
 #include "lexer.h"
-#include "test_logger.h"
 #include "test_strings.h"
 #include "token.h"
 
@@ -30,10 +29,10 @@ namespace schematic::test
         {
             using namespace schematic::compiler;
 
-            TestLogger logger;
+            TestContext ctx;
             ArenaAllocator arena;
 
-            Lexer lexer(arena, logger, "<test>", text);
+            Lexer lexer(arena, ctx, "<test>", text);
             Array<Token> tokens = lexer.Tokenize();
 
             if (tokens.IsEmpty())
@@ -65,12 +64,12 @@ namespace schematic::test
         {
             using namespace schematic::compiler;
 
-            TestLogger logger;
-            logger.reportErrors = false;
+            TestContext ctx;
+            ctx.reportErrors = false;
             ArenaAllocator arena;
             Array<Token> tokens;
 
-            Lexer lexer(arena, logger, "<test>", text);
+            Lexer lexer(arena, ctx, "<test>", text);
             tokens = lexer.Tokenize();
             return !tokens.IsEmpty();
         }
