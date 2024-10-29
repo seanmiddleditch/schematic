@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <span>
 
-namespace potato::schematic
+namespace schematic
 {
     static constexpr struct
     {
@@ -129,6 +129,6 @@ namespace potato::schematic
     using ModuleIndex = Index<struct ModuleIndex_>;
     using TypeIndex = Index<struct TypeIndex_>;
     using ValueIndex = Index<struct ValueIndex_>;
-} // namespace potato::schematic
+} // namespace schematic
 
 #endif // SCHEMATIC_COMMON_H

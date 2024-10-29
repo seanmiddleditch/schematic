@@ -8,7 +8,7 @@
 #include <cassert>
 #include <span>
 
-namespace potato::schematic
+namespace schematic
 {
     // Array is a non-owning growable contiguous container of
     // Trivial elements.
@@ -157,4 +157,4 @@ namespace potato::schematic
         new (static_cast<void*>(last_)) T(std::forward<Args>(args)...); // NOLINT(bugprone-multi-level-implicit-pointer-conversion)
         return *last_++;
     }
-} // namespace potato::schematic
+} // namespace schematic

@@ -1,11 +1,6 @@
 # Standard build output
 out/
 
-# Local data
-data/
-.potato.db
-.potato-old.db
-
 # Visual Studio files
 .vs/
 enc_temp_folder/

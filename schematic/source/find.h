@@ -6,7 +6,7 @@
 
 #include <type_traits>
 
-namespace potato::schematic::compiler
+namespace schematic::compiler
 {
     template <typename T, typename Predicate>
     T* Find(const Array<T*>& container, Predicate&& pred) noexcept
@@ -31,4 +31,4 @@ namespace potato::schematic::compiler
         }
         return container.end() - container.begin();
     }
-} // namespace potato::schematic::compiler
+} // namespace schematic::compiler

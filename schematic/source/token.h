@@ -4,7 +4,7 @@
 
 #include <cstdint>
 
-namespace potato::schematic::compiler
+namespace schematic::compiler
 {
     class Source;
 
@@ -59,4 +59,4 @@ namespace potato::schematic::compiler
     };
 
     const char* ToCStr(TokenType type) noexcept;
-} // namespace potato::schematic::compiler
+} // namespace schematic::compiler

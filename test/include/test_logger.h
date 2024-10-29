@@ -14,9 +14,9 @@
 #include <string>
 #include <vector>
 
-namespace potato::schematic::test
+namespace schematic::test
 {
-    struct TestLogger final : potato::schematic::Logger
+    struct TestLogger final : schematic::Logger
     {
         struct ExpectedError
         {
@@ -69,7 +69,7 @@ namespace potato::schematic::test
             }
         }
 
-        std::string_view line = potato::schematic::compiler::ExtractLine(source, range.start.line);
+        std::string_view line = schematic::compiler::ExtractLine(source, range.start.line);
         if (!line.empty())
         {
             buffer.push_back('\n');
@@ -105,4 +105,4 @@ namespace potato::schematic::test
 
         FAIL_CHECK(buffer);
     }
-} // namespace potato::schematic::test
+} // namespace schematic::test

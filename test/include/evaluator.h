@@ -8,7 +8,7 @@
 #include <string_view>
 #include <type_traits>
 
-namespace potato::schematic::test
+namespace schematic::test
 {
     class CheckEvaluator
     {
@@ -76,4 +76,4 @@ namespace potato::schematic::test
         std::string_view next_;
         std::size_t nextPos_ = 0;
     };
-} // namespace potato::schematic::test
+} // namespace schematic::test

@@ -8,7 +8,7 @@
 
 #include <string_view>
 
-namespace potato::schematic
+namespace schematic
 {
     struct Range
     {
@@ -31,6 +31,6 @@ namespace potato::schematic
         Logger() = default;
         ~Logger() = default;
     };
-} // namespace potato::schematic
+} // namespace schematic
 
 #endif // SCHEMATIC_LOGGER_H

@@ -7,7 +7,7 @@
 #include "schematic/compiler.h"
 #include "schematic/logger.h"
 
-namespace potato::schematic::compiler
+namespace schematic::compiler
 {
 
     constexpr std::uint32_t FindColumn(std::string_view source, const Token& token) noexcept
@@ -70,4 +70,4 @@ namespace potato::schematic::compiler
 
         return std::string_view(lineStart, pos - lineStart);
     }
-} // namespace potato::schematic::compiler
+} // namespace schematic::compiler

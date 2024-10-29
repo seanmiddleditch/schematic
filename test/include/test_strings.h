@@ -16,7 +16,7 @@
 #include <span>
 #include <utility>
 
-namespace potato::schematic::test
+namespace schematic::test
 {
     struct Buffer : std::span<const uint8_t>
     {
@@ -31,56 +31,56 @@ namespace potato::schematic::test
 
     struct ToStringHelper
     {
-        inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::Type* type);
-        inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::EnumItem* enumItem);
-        inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::Value* value);
+        inline static std::string ToString(const schematic::Schema* schema, const schematic::Type* type);
+        inline static std::string ToString(const schematic::Schema* schema, const schematic::EnumItem* enumItem);
+        inline static std::string ToString(const schematic::Schema* schema, const schematic::Value* value);
 
-        inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::TypeIndex typeIndex);
-        inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::ValueIndex valueIndex);
-        inline static std::string ToString(const potato::schematic::Schema* schema, const potato::schematic::EnumItemIndex valueIndex);
+        inline static std::string ToString(const schematic::Schema* schema, const schematic::TypeIndex typeIndex);
+        inline static std::string ToString(const schematic::Schema* schema, const schematic::ValueIndex valueIndex);
+        inline static std::string ToString(const schematic::Schema* schema, const schematic::EnumItemIndex valueIndex);
 
         template <typename T>
-        static std::string ToString(const potato::schematic::Schema* schema, const T& what);
+        static std::string ToString(const schematic::Schema* schema, const T& what);
     };
-} // namespace potato::schematic::test
+} // namespace schematic::test
 
 template <>
-struct Catch::StringMaker<potato::schematic::test::Buffer>
+struct Catch::StringMaker<schematic::test::Buffer>
 {
-    inline static std::string convert(const potato::schematic::test::Buffer& value);
+    inline static std::string convert(const schematic::test::Buffer& value);
 };
 
 template <>
-struct Catch::StringMaker<const potato::schematic::EnumItem*>
+struct Catch::StringMaker<const schematic::EnumItem*>
 {
-    inline static std::string convert(const potato::schematic::EnumItem* item);
+    inline static std::string convert(const schematic::EnumItem* item);
 };
 
 template <>
-struct Catch::StringMaker<const potato::schematic::Field*>
+struct Catch::StringMaker<const schematic::Field*>
 {
-    inline static std::string convert(const potato::schematic::Field* field);
+    inline static std::string convert(const schematic::Field* field);
 };
 
 template <>
-struct Catch::StringMaker<potato::schematic::TypeKind>
+struct Catch::StringMaker<schematic::TypeKind>
 {
-    inline static std::string convert(potato::schematic::TypeKind kind);
+    inline static std::string convert(schematic::TypeKind kind);
 };
 
 template <>
-struct Catch::StringMaker<potato::schematic::ValueKind>
+struct Catch::StringMaker<schematic::ValueKind>
 {
-    inline static std::string convert(potato::schematic::ValueKind kind);
+    inline static std::string convert(schematic::ValueKind kind);
 };
 
 template <typename T>
-struct Catch::StringMaker<potato::schematic::test::NameOf<T>>
+struct Catch::StringMaker<schematic::test::NameOf<T>>
 {
-    inline static std::string convert(potato::schematic::test::NameOf<T> kind);
+    inline static std::string convert(schematic::test::NameOf<T> kind);
 };
 
-std::string Catch::StringMaker<potato::schematic::test::Buffer>::convert(const potato::schematic::test::Buffer& buffer)
+std::string Catch::StringMaker<schematic::test::Buffer>::convert(const schematic::test::Buffer& buffer)
 {
     std::string result;
     result.append("{ ");
@@ -90,7 +90,7 @@ std::string Catch::StringMaker<potato::schematic::test::Buffer>::convert(const p
     return result;
 }
 
-std::string Catch::StringMaker<const potato::schematic::EnumItem*>::convert(const potato::schematic::EnumItem* item)
+std::string Catch::StringMaker<const schematic::EnumItem*>::convert(const schematic::EnumItem* item)
 {
     if (item == nullptr)
         return "{null}";
@@ -98,7 +98,7 @@ std::string Catch::StringMaker<const potato::schematic::EnumItem*>::convert(cons
     return fmt::format("{}.{}", item->parent.index, item->name);
 }
 
-std::string Catch::StringMaker<const potato::schematic::Field*>::convert(const potato::schematic::Field* field)
+std::string Catch::StringMaker<const schematic::Field*>::convert(const schematic::Field* field)
 {
     if (field == nullptr)
         return "{null}";
@@ -106,9 +106,9 @@ std::string Catch::StringMaker<const potato::schematic::Field*>::convert(const p
     return fmt::format("{} {}.{}", field->type.index, field->parent.index, field->name);
 }
 
-std::string Catch::StringMaker<potato::schematic::TypeKind>::convert(potato::schematic::TypeKind kind)
+std::string Catch::StringMaker<schematic::TypeKind>::convert(schematic::TypeKind kind)
 {
-    using namespace potato::schematic;
+    using namespace schematic;
 
     switch (kind)
     {
@@ -130,9 +130,9 @@ std::string Catch::StringMaker<potato::schematic::TypeKind>::convert(potato::sch
     return "<invalid>";
 }
 
-std::string Catch::StringMaker<potato::schematic::ValueKind>::convert(potato::schematic::ValueKind kind)
+std::string Catch::StringMaker<schematic::ValueKind>::convert(schematic::ValueKind kind)
 {
-    using namespace potato::schematic;
+    using namespace schematic;
 
     switch (kind)
     {
@@ -151,22 +151,22 @@ std::string Catch::StringMaker<potato::schematic::ValueKind>::convert(potato::sc
 }
 
 template <typename T>
-std::string Catch::StringMaker<potato::schematic::test::NameOf<T>>::convert(potato::schematic::test::NameOf<T> nameOf)
+std::string Catch::StringMaker<schematic::test::NameOf<T>>::convert(schematic::test::NameOf<T> nameOf)
 {
-    return potato::schematic::test::ToStringHelper::ToString(nameOf.schema, nameOf.what);
+    return schematic::test::ToStringHelper::ToString(nameOf.schema, nameOf.what);
 }
 
-std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema*, const potato::schematic::Type* type)
+std::string schematic::test::ToStringHelper::ToString(const schematic::Schema*, const schematic::Type* type)
 {
-    using namespace potato::schematic;
+    using namespace schematic;
     if (type != nullptr)
         return type->name;
     return "<unknown type>";
 }
 
-std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema* schema, const potato::schematic::EnumItem* enumItem)
+std::string schematic::test::ToStringHelper::ToString(const schematic::Schema* schema, const schematic::EnumItem* enumItem)
 {
-    using namespace potato::schematic;
+    using namespace schematic;
     if (enumItem == nullptr)
         return "<null item>";
 
@@ -177,9 +177,9 @@ std::string potato::schematic::test::ToStringHelper::ToString(const potato::sche
     return fmt::format("{}.{}", enum_->name, enumItem->name);
 }
 
-std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema* schema, const potato::schematic::Value* value)
+std::string schematic::test::ToStringHelper::ToString(const schematic::Schema* schema, const schematic::Value* value)
 {
-    using namespace potato::schematic;
+    using namespace schematic;
 
     if (value == nullptr)
         return "{null}";
@@ -200,26 +200,26 @@ std::string potato::schematic::test::ToStringHelper::ToString(const potato::sche
     return fmt::format("unknown(kind={})", std::to_underlying(value->kind));
 }
 
-std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema* schema, const potato::schematic::TypeIndex typeIndex)
+std::string schematic::test::ToStringHelper::ToString(const schematic::Schema* schema, const schematic::TypeIndex typeIndex)
 {
-    using namespace potato::schematic;
+    using namespace schematic;
     return ToString(schema, GetType(schema, typeIndex));
 }
 
-std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema* schema, const potato::schematic::ValueIndex valueIndex)
+std::string schematic::test::ToStringHelper::ToString(const schematic::Schema* schema, const schematic::ValueIndex valueIndex)
 {
-    using namespace potato::schematic;
+    using namespace schematic;
     return ToString(schema, GetValue(schema, valueIndex));
 }
 
-std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema* schema, const potato::schematic::EnumItemIndex enumItemIndex)
+std::string schematic::test::ToStringHelper::ToString(const schematic::Schema* schema, const schematic::EnumItemIndex enumItemIndex)
 {
-    using namespace potato::schematic;
+    using namespace schematic;
     return ToString(schema, GetEnumItem(schema, enumItemIndex));
 }
 
 template <typename T>
-std::string potato::schematic::test::ToStringHelper::ToString(const potato::schematic::Schema*, const T& what)
+std::string schematic::test::ToStringHelper::ToString(const schematic::Schema*, const T& what)
 {
     return ::Catch::Detail::stringify(what);
 }

@@ -17,18 +17,18 @@
 
 #include <span>
 
-namespace potato::schematic::test
+namespace schematic::test
 {
     struct IsTokenType : Catch::Matchers::MatcherGenericBase
     {
-        IsTokenType(potato::schematic::compiler::TokenType type)
+        IsTokenType(schematic::compiler::TokenType type)
             : type_(type)
         {
         }
 
         bool match(const char* text) const
         {
-            using namespace potato::schematic::compiler;
+            using namespace schematic::compiler;
 
             TestLogger logger;
             ArenaAllocator arena;
@@ -52,18 +52,18 @@ namespace potato::schematic::test
 
         std::string describe() const override
         {
-            return fmt::format("== {}", potato::schematic::compiler::ToCStr(type_));
+            return fmt::format("== {}", schematic::compiler::ToCStr(type_));
         }
 
     private:
-        potato::schematic::compiler::TokenType type_;
+        schematic::compiler::TokenType type_;
     };
 
     struct IsLexError : Catch::Matchers::MatcherGenericBase
     {
         bool match(const char* text) const
         {
-            using namespace potato::schematic::compiler;
+            using namespace schematic::compiler;
 
             TestLogger logger;
             logger.reportErrors = false;
@@ -90,7 +90,7 @@ namespace potato::schematic::test
 
         bool match(Buffer value) const
         {
-            using namespace potato::schematic::compiler;
+            using namespace schematic::compiler;
 
             return value.size() == expected_.size() && std::memcmp(value.data(), expected_.data(), value.size()) == 0;
         }
@@ -103,4 +103,4 @@ namespace potato::schematic::test
     private:
         std::span<const uint8_t> expected_;
     };
-} // namespace potato::schematic::test
+} // namespace schematic::test

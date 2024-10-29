@@ -4,7 +4,7 @@
 
 #include <cstdlib>
 
-namespace potato::schematic::test
+namespace schematic::test
 {
     struct EmbeddedTest
     {
@@ -14,4 +14,4 @@ namespace potato::schematic::test
 
     extern const EmbeddedTest test_embeds[];
     extern const std::size_t test_embeds_count;
-} // namespace potato::schematic::test
+} // namespace schematic::test
