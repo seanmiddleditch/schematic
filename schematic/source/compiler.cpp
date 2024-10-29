@@ -21,8 +21,8 @@
 #include <cstdint>
 #include <utility>
 
-using namespace potato::schematic;
-using namespace potato::schematic::compiler;
+using namespace schematic;
+using namespace schematic::compiler;
 
 namespace
 {
@@ -54,7 +54,7 @@ namespace
     };
 } // namespace
 
-Compiler* potato::schematic::NewCompiler(ArenaAllocator& arena, Logger& logger, CompileContext& ctx)
+Compiler* schematic::NewCompiler(ArenaAllocator& arena, Logger& logger, CompileContext& ctx)
 {
     return arena.New<CompilerImpl>(arena, logger, ctx);
 }

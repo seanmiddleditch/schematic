@@ -8,7 +8,7 @@
 
 #include <cstdint>
 
-namespace potato::schematic::compiler
+namespace schematic::compiler
 {
     enum class AstNodeKind : std::uint8_t
     {
@@ -279,4 +279,4 @@ namespace potato::schematic::compiler
     };
 
 #undef AST_NODE
-} // namespace potato::schematic::compiler
+} // namespace schematic::compiler

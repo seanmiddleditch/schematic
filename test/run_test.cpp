@@ -12,8 +12,8 @@
 #include <string>
 #include <vector>
 
-using namespace potato::schematic;
-using namespace potato::schematic::test;
+using namespace schematic;
+using namespace schematic::test;
 
 void TestSchema(const char* filename)
 {

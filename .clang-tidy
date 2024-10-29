@@ -62,5 +62,5 @@ CheckOptions:
       value:    true
     - key:      readability-magic-numbers.IgnorePowersOf2IntegerValues
       value:    true
-HeaderFilterRegex: "(source/.*|include/potato/.*)"
+HeaderFilterRegex: "(source/.*|include/schematic/.*)"
 WarningsAsErrors: "*"

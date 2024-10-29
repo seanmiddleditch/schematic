@@ -9,9 +9,9 @@
 #include <span>
 #include <string>
 
-namespace potato::schematic::test
+namespace schematic::test
 {
-    struct TestContext final : potato::schematic::CompileContext
+    struct TestContext final : schematic::CompileContext
     {
         inline std::string_view ReadFileContents(ArenaAllocator& arena, std::string_view filename) override;
         inline std::string_view ResolveModule(ArenaAllocator& arena, std::string_view name, std::string_view referrer) override;
@@ -51,4 +51,4 @@ namespace potato::schematic::test
 
         return {};
     }
-} // namespace potato::schematic::test
+} // namespace schematic::test

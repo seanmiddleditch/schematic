@@ -8,8 +8,8 @@
 
 #include <utility>
 
-using namespace potato::schematic;
-using namespace potato::schematic::compiler;
+using namespace schematic;
+using namespace schematic::compiler;
 
 static auto MatchNamePred(const char* name) noexcept
 {

@@ -10,7 +10,7 @@
 
 #include <cstdint>
 
-namespace potato::schematic::compiler
+namespace schematic::compiler
 {
     enum class IRTypeKind : std::uint8_t
     {
@@ -346,4 +346,4 @@ namespace potato::schematic::compiler
         ValueIndex maxValueIndex{ 0 };
     };
 
-} // namespace potato::schematic::compiler
+} // namespace schematic::compiler

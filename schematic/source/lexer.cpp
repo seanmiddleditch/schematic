@@ -11,8 +11,8 @@
 
 #include <cstdint>
 
-using namespace potato::schematic;
-using namespace potato::schematic::compiler;
+using namespace schematic;
+using namespace schematic::compiler;
 
 static bool IsWhitespace(char c) noexcept;
 static bool IsDigit(char c) noexcept;
@@ -55,7 +55,7 @@ namespace
     };
 } // namespace
 
-Array<Token> potato::schematic::compiler::Lexer::Tokenize()
+Array<Token> schematic::compiler::Lexer::Tokenize()
 {
     tokens_.Clear();
 

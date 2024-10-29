@@ -8,8 +8,8 @@
 
 #include <cassert>
 
-using namespace potato::schematic;
-using namespace potato::schematic::compiler;
+using namespace schematic;
+using namespace schematic::compiler;
 
 template <typename... Args>
 static const char* NewStringFmt(ArenaAllocator& arena_, fmt::format_string<Args...> format, Args&&... args)

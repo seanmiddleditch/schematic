@@ -7,7 +7,7 @@
 #include "schematic/logger.h"
 #include "schematic/schema.h"
 
-namespace potato::schematic::compiler
+namespace schematic::compiler
 {
     struct AstNode;
 
@@ -38,4 +38,4 @@ namespace potato::schematic::compiler
         Array<const Type*, TypeIndex> types_;
         Array<const Value*, ValueIndex> values_;
     };
-} // namespace potato::schematic::compiler
+} // namespace schematic::compiler

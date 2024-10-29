@@ -2,7 +2,7 @@
 
 #include "schematic/allocator.h"
 
-static constinit potato::schematic::NewDeleteAllocator default_allocator;
+static constinit schematic::NewDeleteAllocator default_allocator;
 
 [[nodiscard]] static constexpr size_t AlignTo(size_t value, size_t align) noexcept
 {
@@ -15,7 +15,7 @@ static constinit potato::schematic::NewDeleteAllocator default_allocator;
     return value;
 }
 
-namespace potato::schematic
+namespace schematic
 {
     struct ArenaAllocator::BlockHeader
     {
@@ -102,4 +102,4 @@ namespace potato::schematic
 
         block_ = block;
     }
-} // namespace potato::schematic
+} // namespace schematic

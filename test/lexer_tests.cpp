@@ -11,11 +11,11 @@
 #include <catch2/matchers/catch_matchers_templated.hpp>
 #include <fmt/core.h>
 
-using namespace potato::schematic;
-using namespace potato::schematic::compiler;
-using namespace potato::schematic::test;
+using namespace schematic;
+using namespace schematic::compiler;
+using namespace schematic::test;
 
-TEST_CASE("Lexer", "[potato][schematic]")
+TEST_CASE("Lexer", "[schematic]")
 {
     TestLogger logger;
     ArenaAllocator arena;

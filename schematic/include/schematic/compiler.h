@@ -8,7 +8,7 @@
 
 #include <string_view>
 
-namespace potato::schematic
+namespace schematic
 {
     class Logger;
     struct Schema;
@@ -37,6 +37,6 @@ namespace potato::schematic
     };
 
     Compiler* NewCompiler(ArenaAllocator& arena, Logger& logger, CompileContext& context);
-} // namespace potato::schematic
+} // namespace schematic
 
 #endif // SCHEMATIC_COMPILER_H

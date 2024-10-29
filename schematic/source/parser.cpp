@@ -13,8 +13,8 @@
 #include <charconv>
 #include <cstdint>
 
-using namespace potato::schematic;
-using namespace potato::schematic::compiler;
+using namespace schematic;
+using namespace schematic::compiler;
 
 namespace
 {

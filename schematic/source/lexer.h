@@ -8,7 +8,7 @@
 #include "schematic/allocator.h"
 #include "schematic/compiler.h"
 
-namespace potato::schematic::compiler
+namespace schematic::compiler
 {
     class Source;
 
@@ -32,4 +32,4 @@ namespace potato::schematic::compiler
         std::string_view source_;
         Array<Token> tokens_;
     };
-} // namespace potato::schematic::compiler
+} // namespace schematic::compiler

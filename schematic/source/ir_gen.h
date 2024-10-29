@@ -11,7 +11,7 @@
 
 #include <fmt/core.h>
 
-namespace potato::schematic::compiler
+namespace schematic::compiler
 {
     struct IRState final
     {
@@ -81,4 +81,4 @@ namespace potato::schematic::compiler
         IRModule* module_ = nullptr;
         bool failed_ = false;
     };
-} // namespace potato::schematic::compiler
+} // namespace schematic::compiler

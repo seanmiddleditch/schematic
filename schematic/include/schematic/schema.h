@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <span>
 
-namespace potato::schematic
+namespace schematic
 {
     enum class TypeKind : std::uint8_t;
     enum class ValueKind : std::uint8_t;
@@ -337,6 +337,6 @@ namespace potato::schematic
 
 #undef SCHEMATIC_VALUE
 
-} // namespace potato::schematic
+} // namespace schematic
 
 #endif // SCHEMATIC_SCHEMA_H

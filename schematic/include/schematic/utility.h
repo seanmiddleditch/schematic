@@ -10,7 +10,7 @@
 #include <span>
 #include <string_view>
 
-namespace potato::schematic
+namespace schematic
 {
     enum class TypeKind : std::uint8_t;
     enum class ValueKind : std::uint8_t;
@@ -110,6 +110,6 @@ namespace potato::schematic
         return CastTo<T>(GetType(schema, typeIndex));
     }
 
-} // namespace potato::schematic
+} // namespace schematic
 
 #endif // SCHEMATIC_UTILITY_H

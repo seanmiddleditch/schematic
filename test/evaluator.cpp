@@ -15,7 +15,7 @@
 #include <string>
 #include <string_view>
 
-namespace potato::schematic::test
+namespace schematic::test
 {
 
     CheckEvaluator::CheckEvaluator(std::string_view test, std::string_view filename, std::size_t line)
@@ -541,4 +541,4 @@ namespace potato::schematic::test
             nextPos_ = components.size();
         }
     }
-} // namespace potato::schematic::test
+} // namespace schematic::test

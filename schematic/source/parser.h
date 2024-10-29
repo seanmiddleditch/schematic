@@ -12,7 +12,7 @@
 
 #include <span>
 
-namespace potato::schematic::compiler
+namespace schematic::compiler
 {
     class Parser final
     {
@@ -98,4 +98,4 @@ namespace potato::schematic::compiler
         bool failed_ = false;
         Array<const AstNodeAnnotation*> annotations_;
     };
-} // namespace potato::schematic::compiler
+} // namespace schematic::compiler

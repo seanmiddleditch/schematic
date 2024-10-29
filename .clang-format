@@ -66,11 +66,9 @@ IncludeCategories:
   # Local headers
   - Regex: '^"[^/]+"$'
     Priority: 1
-  # Potato headers
+  # Schematic headers
   - Regex: '^"schematic/'
     Priority: 5
-  - Regex: '^"schematic/gen/'
-    Priority: 6
   # Library headers
   - Regex: '^<.*[/.].*>$'
     Priority: 10

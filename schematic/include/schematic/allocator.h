@@ -10,7 +10,7 @@
 #include <string_view>
 #include <type_traits>
 
-namespace potato::schematic
+namespace schematic
 {
     class Allocator;
     class ArenaAllocator;
@@ -137,6 +137,6 @@ namespace potato::schematic
     {
         return new (Allocate(sizeof(T), alignof(T))) T(std::forward<Args>(args)...);
     }
-} // namespace potato::schematic
+} // namespace schematic
 
 #endif // SCHEMATIC_ALLOCATOR_H
