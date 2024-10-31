@@ -63,7 +63,7 @@ namespace schematic::compiler
         Location GetLocation(const AstNode* node);
 
         template <typename... Args>
-        void Error(const AstNode* node, fmt::format_string<Args...> format, Args&&... args);
+        void Log(LogLevel level, const AstNode* node, fmt::format_string<Args...> format, Args&&... args);
 
         ArenaAllocator& arena_;
         CompileContext& ctx_;

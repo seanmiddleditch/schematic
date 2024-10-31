@@ -12,6 +12,12 @@ namespace schematic
 {
     struct Schema;
 
+    enum class LogLevel
+    {
+        Error,
+        Info, // Supplemental for previous error
+    };
+
     struct LogLocation
     {
         std::string_view file;
@@ -26,7 +32,7 @@ namespace schematic
     public:
         virtual std::string_view ReadFileContents(ArenaAllocator& arena, std::string_view filename) = 0;
         virtual std::string_view ResolveModule(ArenaAllocator& arena, std::string_view name, std::string_view referrer) = 0;
-        virtual void LogMessage(const LogLocation& location, std::string_view message) = 0;
+        virtual void LogMessage(LogLevel level, const LogLocation& location, std::string_view message) = 0;
 
     protected:
         ~CompileContext() = default;

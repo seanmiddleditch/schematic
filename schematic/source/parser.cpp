@@ -393,6 +393,8 @@ const bool Parser::ParseField(Array<const AstNodeField*>& fields, FieldMode mode
     if (field->type == nullptr)
         return false;
 
+    field->tokenIndex = Pos();
+
     if (!ExpectIdent(&field->name))
         return false;
 
@@ -807,7 +809,7 @@ bool Parser::ConsumeString(const AstNodeLiteralString*& lit)
 void Parser::Error(std::string_view message)
 {
     const Token& token = tokens_[next_];
-    context_.LogMessage(FindRange(filename_, source_, token), message);
+    context_.LogMessage(LogLevel::Error, FindRange(filename_, source_, token), message);
     failed_ = true;
 }
 

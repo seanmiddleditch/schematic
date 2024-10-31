@@ -1,4 +1,4 @@
-// ERROR: schemas/fail/invalid_base_types.sat(2): Struct base type is not an unversioned struct type: derived
+// ERROR: schemas/fail/invalid_base_types.sat(2): Struct base type is not a struct type: derived
 struct derived : int32 {}
 
 struct base {}

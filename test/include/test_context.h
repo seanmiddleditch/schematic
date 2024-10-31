@@ -26,7 +26,7 @@ namespace schematic::test
 
         inline std::string_view ReadFileContents(ArenaAllocator& arena, std::string_view filename) override;
         inline std::string_view ResolveModule(ArenaAllocator& arena, std::string_view name, std::string_view referrer) override;
-        inline void LogMessage(const LogLocation& location, std::string_view message) override;
+        inline void LogMessage(LogLevel level, const LogLocation& location, std::string_view message) override;
 
         std::vector<ExpectedError> expectedErrors;
         bool reportErrors = true;
@@ -65,7 +65,7 @@ namespace schematic::test
         return {};
     }
 
-    void TestContext::LogMessage(const LogLocation& location, std::string_view message)
+    void TestContext::LogMessage(LogLevel level, const LogLocation& location, std::string_view message)
     {
         // line prefix
         std::string prefix;
@@ -79,6 +79,7 @@ namespace schematic::test
         buffer.append(prefix);
         buffer.append(message);
 
+        bool wasExpected = false;
         for (auto& expected : expectedErrors)
         {
             if (expected.encounted)
@@ -87,20 +88,7 @@ namespace schematic::test
             if (expected.message == buffer)
             {
                 expected.encounted = true;
-                return;
-            }
-        }
-
-        if (!reportErrors)
-            return;
-
-        // find source for error, so we can pretty-print source
-        std::string_view source;
-        for (const EmbeddedTest& test : std::span{ test_embeds, test_embeds_count })
-        {
-            if (test.name == location.file)
-            {
-                source = test.source;
+                wasExpected = true;
                 break;
             }
         }
@@ -138,6 +126,9 @@ namespace schematic::test
             }
         }
 
-        FAIL_CHECK(buffer);
+        if (!wasExpected && reportErrors && level == LogLevel::Error)
+            FAIL_CHECK(buffer);
+        // else // For debugging
+        //     fmt::println("{}", buffer);
     }
 } // namespace schematic::test

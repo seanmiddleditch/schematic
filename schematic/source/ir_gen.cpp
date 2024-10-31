@@ -19,6 +19,14 @@ static auto MatchNamePred(const char* name) noexcept
     };
 }
 
+static auto MatchFieldProto(std::uint32_t proto) noexcept
+{
+    return [proto](auto* const entity) noexcept -> bool
+    {
+        return entity->proto == proto;
+    };
+}
+
 static auto MatchAstIdentPred(const char* name) noexcept
 {
     return [name](auto* const entity) noexcept -> bool
@@ -34,7 +42,13 @@ namespace
         const AstNodeSchemaDecl* parent = nullptr;
         const AstNodeField* ast = nullptr;
     };
+
+    struct SchemaPrinter
+    {
+        const AstNodeSchemaDecl* ast = nullptr;
+    };
 } // namespace
+
 template <>
 struct fmt::formatter<SchemaFieldPrinter> : fmt::formatter<fmt::string_view>
 {
@@ -46,6 +60,27 @@ struct fmt::formatter<SchemaFieldPrinter> : fmt::formatter<fmt::string_view>
             return fmt::format_to(ctx.out(), "null");
 
         auto out = fmt::format_to(ctx.out(), "{}.{}", val.parent->name->name, val.ast->name->name);
+
+        if (val.ast->minVersion != nullptr)
+            out = fmt::format_to(out, "#{}", val.ast->minVersion->value);
+        if (val.ast->maxVersion != nullptr)
+            out = fmt::format_to(out, "..{}", val.ast->maxVersion->value);
+
+        return out;
+    }
+};
+
+template <>
+struct fmt::formatter<SchemaPrinter> : fmt::formatter<fmt::string_view>
+{
+    template <typename FormatContext>
+    constexpr auto format(const SchemaPrinter& val, FormatContext& ctx) const
+        -> decltype(ctx.out())
+    {
+        if (val.ast == nullptr)
+            return fmt::format_to(ctx.out(), "null");
+
+        auto out = fmt::format_to(ctx.out(), "{}", val.ast->name->name);
 
         if (val.ast->minVersion != nullptr)
             out = fmt::format_to(out, "#{}", val.ast->minVersion->value);
@@ -157,8 +192,11 @@ bool IRGenerator::CompileDecls()
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
 
-                if (Find(type->fields, MatchNamePred(field->name)) != nullptr)
-                    Error(field->ast, "Field already defined: {}.{}", type->name, field->name);
+                if (const IRField* const previousNode = Find(type->fields, MatchNamePred(field->name)); previousNode != nullptr)
+                {
+                    Log(LogLevel::Error, field->ast, "Field already defined: {}.{}", type->name, field->name);
+                    Log(LogLevel::Info, previousNode->ast, "Previous definition");
+                }
 
                 field->type = LowerType(fieldNode->type);
                 field->value = LowerValue(fieldNode->value);
@@ -191,8 +229,11 @@ bool IRGenerator::CompileDecls()
                 item->ast = itemNode;
                 item->name = itemNode->name->name;
 
-                if (Find(type->items, MatchNamePred(item->name)) != nullptr)
-                    Error(item->ast, "Enum item already defined: {}.{}", type->name, item->name);
+                if (const IREnumItem* const previousItem = Find(type->items, MatchNamePred(item->name)); previousItem != nullptr)
+                {
+                    Log(LogLevel::Error, item->ast, "Enum item already defined: {}.{}", type->name, item->name);
+                    Log(LogLevel::Info, previousItem->ast, "Previous definition");
+                }
 
                 IRValue* const value = LowerValue(itemNode->value);
                 if (IRValueLiteral* const literal = CastTo<IRValueLiteral>(value); literal != nullptr)
@@ -200,7 +241,7 @@ bool IRGenerator::CompileDecls()
                     if (const AstNodeLiteralInt* intNode = CastTo<AstNodeLiteralInt>(literal->ast); intNode != nullptr)
                         nextValue = static_cast<const AstNodeLiteralInt*>(literal->ast)->value;
                     else
-                        Error(literal->ast, "Enum value must be an integer");
+                        Log(LogLevel::Error, literal->ast, "Enum value must be an integer");
                 }
                 item->value = nextValue++;
 
@@ -230,14 +271,26 @@ bool IRGenerator::CompileDecls()
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
 
-                if (Find(type->fields, MatchNamePred(field->name)) != nullptr)
-                    Error(field->ast, "Message field already defined: {}.{}", type->name, field->name);
+                if (const IRField* previousField = Find(type->fields, MatchNamePred(field->name)); previousField != nullptr)
+                {
+                    Log(LogLevel::Error, field->ast, "Message field already defined: {}.{}", type->name, field->name);
+                    Log(LogLevel::Info, previousField->ast, "Previous declaration");
+                }
+
+                if (fieldNode->proto->value > UINT32_MAX)
+                {
+                    Log(LogLevel::Error, fieldNode->proto, "Message proto must be no greater than {}: {}", UINT32_MAX, fieldNode->proto->value);
+                }
+                field->proto = static_cast<std::uint32_t>(fieldNode->proto->value);
+
+                if (const IRField* previousField = Find(type->fields, MatchFieldProto(field->proto)); previousField != nullptr)
+                {
+                    Log(LogLevel::Error, field->ast, "Message proto already in use: {}.{} @{}", type->name, field->name, field->proto);
+                    Log(LogLevel::Info, previousField->ast, "Previous use of proto @{}", field->proto);
+                }
 
                 field->type = LowerType(fieldNode->type);
                 field->value = LowerValue(fieldNode->value);
-                if (fieldNode->proto->value > UINT32_MAX)
-                    Error(fieldNode->proto, "Message proto must be no greater than {}: {}", UINT32_MAX, fieldNode->proto->value);
-                field->proto = static_cast<std::uint32_t>(fieldNode->proto->value);
                 field->annotations = LowerAnnotations(fieldNode->annotations);
                 field->location = GetLocation(fieldNode);
                 type->fields.PushBack(arena_, field);
@@ -255,7 +308,7 @@ bool IRGenerator::CompileDecls()
             const std::string_view target = ctx_.ResolveModule(arena_, importNode->target->value, filename_);
             if (target.empty())
             {
-                Error(importNode, "Module not found: {}", importNode->target->value);
+                Log(LogLevel::Error, importNode, "Module not found: {}", importNode->target->value);
                 continue;
             }
 
@@ -264,7 +317,8 @@ bool IRGenerator::CompileDecls()
             {
                 if (target == mod->filename)
                 {
-                    Error(importNode, "Recursive import: {}", target);
+                    Log(LogLevel::Error, importNode, "Recursive import: {}", target);
+                    // Log(LogLevel::Info, target->, "Previous import");
                     doImport = false;
                     break;
                 }
@@ -300,8 +354,11 @@ bool IRGenerator::CompileDecls()
                 field->ast = fieldNode;
                 field->name = fieldNode->name->name;
 
-                if (Find(type->fields, MatchNamePred(field->name)) != nullptr)
-                    Error(field->ast, "Struct field already defined: {}.{}", type->name, field->name);
+                if (const IRField* const previousField = Find(type->fields, MatchNamePred(field->name)); previousField != nullptr)
+                {
+                    Log(LogLevel::Error, field->ast, "Struct field already defined: {}.{}", type->name, field->name);
+                    Log(LogLevel::Info, previousField->ast, "Previous field definition");
+                }
 
                 field->type = LowerType(fieldNode->type);
                 field->value = LowerValue(fieldNode->value);
@@ -322,7 +379,10 @@ bool IRGenerator::CompileDecls()
             IRTypeSchema* const otherSchemaType = CastTo<IRTypeSchema>(previousType);
 
             if (previousType != nullptr && otherSchemaType == nullptr)
-                Error(declNode, "Type already defined: {}", declNode->name->name);
+            {
+                Log(LogLevel::Error, declNode, "Type already defined: {}", SchemaPrinter{ declNode });
+                Log(LogLevel::Info, previousType->ast, "Prevous definition of `{}`", previousType->name);
+            }
 
             IRSchemaMeta* meta = nullptr;
             if (otherSchemaType != nullptr)
@@ -338,7 +398,11 @@ bool IRGenerator::CompileDecls()
             for (IRTypeSchema* const version : meta->versions)
             {
                 if (versionRange.min <= version->version && version->version <= versionRange.max)
-                    Error(declNode, "Schema versions overlap with previous declaration: {}", declNode->name->name);
+                {
+                    Log(LogLevel::Error, declNode, "Schema versions overlap with previous declaration: {}", SchemaPrinter{ declNode });
+                    Log(LogLevel::Info, version->ast, "Previous declaration: {}", SchemaPrinter{ version->ast->CastTo<AstNodeSchemaDecl>() });
+                    break;
+                }
             }
 
             for (const AstNodeField* const fieldNode : declNode->fields)
@@ -349,7 +413,7 @@ bool IRGenerator::CompileDecls()
                 if ((fieldNode->minVersion != nullptr && fieldNode->minVersion->value < versionRange.min) ||
                     (fieldNode->maxVersion != nullptr && fieldNode->maxVersion->value > versionRange.max))
                 {
-                    Error(fieldNode, "Field version range must be within schema version range: {}", SchemaFieldPrinter{ declNode, fieldNode });
+                    Log(LogLevel::Error, fieldNode, "Field version range must be within schema version range: {}", SchemaFieldPrinter{ declNode, fieldNode });
                 }
 
                 const AstNodeField* const existingFieldNode = Find(declNode->fields, MatchAstIdentPred(fieldNode->name->name));
@@ -361,7 +425,8 @@ bool IRGenerator::CompileDecls()
                 if (existingFieldNode->maxVersion != nullptr && fieldNode->minVersion != nullptr && existingFieldNode->maxVersion->value < fieldNode->minVersion->value)
                     continue;
 
-                Error(fieldNode, "Schema field version already defined: {}", SchemaFieldPrinter{ declNode, fieldNode });
+                Log(LogLevel::Error, fieldNode, "Schema field version already defined: {}", SchemaFieldPrinter{ declNode, fieldNode });
+                Log(LogLevel::Info, existingFieldNode, "Previous definition of field version: {}", SchemaFieldPrinter{ declNode, existingFieldNode });
             }
 
             for (std::uint64_t version = versionRange.min; version <= versionRange.max; ++version)
@@ -449,10 +514,8 @@ bool IRGenerator::CompileDecls()
             ResolveAttributes(type->annotations);
             if (base != nullptr)
             {
-                if (base->kind != IRTypeKind::Builtin)
-                    Error(type->ast, "Enum base type is not an integer type: {}", type->name);
-                else if (static_cast<IRTypeBuiltin*>(base)->typeKind != TypeKind::Int)
-                    Error(type->ast, "Enum base type is not an integer type: {}", type->name);
+                if (base->kind != IRTypeKind::Builtin || static_cast<IRTypeBuiltin*>(base)->typeKind != TypeKind::Int)
+                    Log(LogLevel::Error, type->ast->CastTo<AstNodeEnumDecl>()->base, "Enum base type is not an integer type: {}", type->name);
                 else
                     type->base = base;
             }
@@ -482,9 +545,14 @@ bool IRGenerator::CompileDecls()
             if (base != nullptr)
             {
                 if (base->kind != IRTypeKind::Struct)
-                    Error(type->ast, "Struct base type is not an unversioned struct type: {}", type->name);
+                {
+                    Log(LogLevel::Error, type->ast->CastTo<AstNodeStructDecl>()->base, "Struct base type is not a struct type: {}", type->name);
+                    Log(LogLevel::Info, base->ast, "Definition of type: {}", base->name);
+                }
                 else
+                {
                     type->base = base;
+                }
             }
 
             for (IRField* field : type->fields)
@@ -504,9 +572,14 @@ bool IRGenerator::CompileDecls()
             if (base != nullptr)
             {
                 if (base->kind != IRTypeKind::Struct && base->kind != IRTypeKind::Schema)
-                    Error(type->ast, "Struct base type is not a struct type: {}", type->name);
+                {
+                    Log(LogLevel::Error, type->ast->CastTo<AstNodeSchemaDecl>()->base, "Schema base type is not a struct type: {}", type->name);
+                    Log(LogLevel::Info, base->ast, "Definition of type: {}", base->name);
+                }
                 else
+                {
                     type->base = base;
+                }
             }
 
             for (IRField* field : type->fields)
@@ -532,23 +605,23 @@ IRVersionRange IRGenerator::ReadVersion(const AstNodeLiteralInt* min, const AstN
     IRVersionRange version;
 
     if (min->value <= 0)
-        Error(min, "Version must be positive: {}", min->value);
+        Log(LogLevel::Error, min, "Version must be positive: {}", min->value);
     else if (min->value > UINT32_MAX)
-        Error(min, "Version must be no greater than {}: {}", UINT32_MAX, min->value);
+        Log(LogLevel::Error, min, "Version must be no greater than {}: {}", UINT32_MAX, min->value);
     version.max = version.min = static_cast<std::uint32_t>(min->value);
 
     if (max != nullptr)
     {
         if (max->value <= 0)
-            Error(max, "Version must be positive: {}", max->value);
+            Log(LogLevel::Error, max, "Version must be positive: {}", max->value);
         else if (max->value > UINT32_MAX)
-            Error(max, "Version must be no greater than {}: {}", UINT32_MAX, max->value);
+            Log(LogLevel::Error, max, "Version must be no greater than {}: {}", UINT32_MAX, max->value);
         else
             version.max = static_cast<std::uint32_t>(max->value);
 
         if (max->value < min->value)
         {
-            Error(max, "Version range must be lower to higher: {}..{}", version.min, version.max);
+            Log(LogLevel::Error, max, "Version range must be lower to higher: {}..{}", version.min, version.max);
             return {};
         }
     }
@@ -560,7 +633,10 @@ void IRGenerator::ValidateTypeUnique(IRType* type)
 {
     IRType* const existing = Find(module_->types, MatchNamePred(type->name));
     if (existing != nullptr)
-        Error(type->ast, "Type already defined: {}", type->name);
+    {
+        Log(LogLevel::Error, type->ast, "Type already defined: {}", type->name);
+        Log(LogLevel::Info, existing->ast, "Previous declaration");
+    }
 }
 
 IRType* IRGenerator::FindType(const char* name)
@@ -596,9 +672,9 @@ IRType* IRGenerator::LowerType(const AstNode* ast)
         {
             const std::int64_t size = astArray->size->value;
             if (size <= 0)
-                Error(astArray, "Array size must be positive, got {}", size);
+                Log(LogLevel::Error, astArray, "Array size must be positive, got {}", size);
             else if (size > UINT32_MAX)
-                Error(astArray, "Array size must be no greater than {}, got {}", UINT32_MAX, size);
+                Log(LogLevel::Error, astArray, "Array size must be no greater than {}, got {}", UINT32_MAX, size);
             else
                 indirect->size = static_cast<std::uint32_t>(size);
         }
@@ -635,7 +711,7 @@ IRType* IRGenerator::LowerType(const AstNode* ast)
         return indirect;
     }
 
-    Error(ast, "Internal error: unknown AST node type: {}", std::to_underlying(ast->kind));
+    Log(LogLevel::Error, ast, "Internal error: unknown AST node type: {}", std::to_underlying(ast->kind));
     return nullptr;
 }
 
@@ -649,7 +725,7 @@ IRType* IRGenerator::ResolveType(IRType* type)
         if (IRType* resolved = FindType(indirect->name); resolved != nullptr)
             return resolved;
 
-        Error(indirect->ast, "Type not found: {}", indirect->name);
+        Log(LogLevel::Error, indirect->ast, "Type not found: {}", indirect->name);
         return type;
     }
 
@@ -715,7 +791,8 @@ void IRGenerator::ResolveAttributes(Array<IRAnnotation*> annotations)
         IRTypeAttribute* const attribute = CastTo<IRTypeAttribute>(annotation->attribute);
         if (attribute == nullptr)
         {
-            Error(annotation->ast, "Annotation must be an attribute type: {}", annotation->attribute->name);
+            Log(LogLevel::Error, annotation->ast, "Annotation must be an attribute type: {}", annotation->attribute->name);
+            Log(LogLevel::Info, annotation->attribute->ast, "Definition of type: {}", annotation->attribute->name);
             continue;
         }
 
@@ -727,7 +804,8 @@ void IRGenerator::ResolveAttributes(Array<IRAnnotation*> annotations)
                 IRField* const field = Find(attribute->fields, MatchNamePred(namedNode->name->name));
                 if (field == nullptr)
                 {
-                    Error(node, "Field does not exist on attribute type: {}.{}", attribute->name, namedNode->name->name);
+                    Log(LogLevel::Error, node, "Field does not exist on attribute type: {}.{}", attribute->name, namedNode->name->name);
+                    Log(LogLevel::Info, attribute->ast, "Definition of type: {}", attribute->name);
                     continue;
                 }
 
@@ -748,7 +826,8 @@ void IRGenerator::ResolveAttributes(Array<IRAnnotation*> annotations)
             }
             else
             {
-                Error(node, "Too many arguments for attribute: {}", attribute->name);
+                Log(LogLevel::Error, node, "Too many arguments for attribute: {}", attribute->name);
+                Log(LogLevel::Info, attribute->ast, "Definition of type: {}", attribute->name);
             }
         }
     }
@@ -815,7 +894,7 @@ IRValue* IRGenerator::LowerValue(const AstNode* node)
                 else
                 {
                     if (!value->named.IsEmpty())
-                        Error(element, "Positional initializer arguments must come before any named arguments");
+                        Log(LogLevel::Error, element, "Positional initializer arguments must come before any named arguments");
 
                     IRValue* const positional = LowerValue(element);
                     value->positional.PushBack(arena_, positional);
@@ -866,7 +945,7 @@ IRValue* IRGenerator::ResolveValue(IRType* type, IRValue* value)
             }
         }
 
-        Error(ident->ast, "Type not found: {}", ident->name);
+        Log(LogLevel::Error, ident->ast, "Type not found: {}", ident->name);
         return value;
     }
 
@@ -884,15 +963,15 @@ IRValue* IRGenerator::ResolveValue(IRType* type, IRValue* value)
 
         if (type == nullptr)
         {
-            Error(initializerList->ast, "Initializer list requires known type");
+            Log(LogLevel::Error, initializerList->ast, "Initializer list requires known type");
         }
         else if (IRTypeIndirectArray* const arrayType = CastTo<IRTypeIndirectArray>(type))
         {
             if (!initializerList->named.IsEmpty())
-                Error(initializerList->named.Front()->ast, "Named initializer elements may only be used for struct types");
+                Log(LogLevel::Error, initializerList->named.Front()->ast, "Named initializer elements may only be used for struct types");
 
             if (arrayType->size != 0 && initializerList->positional.Size() > arrayType->size)
-                Error(initializerList->ast, "Too many initializer elements for fixed-size array type: {}", arrayType->name);
+                Log(LogLevel::Error, initializerList->ast, "Too many initializer elements for fixed-size array type: {}[{}]", arrayType->name, arrayType->size);
 
             IRType* const elementType = arrayType->target;
 
@@ -912,13 +991,15 @@ IRValue* IRGenerator::ResolveValue(IRType* type, IRValue* value)
                 const auto fieldIndex = FindIndex(structType->fields, MatchNamePred(named->name));
                 if (fieldIndex >= structType->fields.Size())
                 {
-                    Error(named->ast, "Field does not exist on struct type: {}.{}", structType->name, named->name);
+                    Log(LogLevel::Error, named->ast, "Field does not exist on struct type: {}.{}", structType->name, named->name);
+                    Log(LogLevel::Info, structType->ast, "Definition of type: {}", structType->name);
                     continue;
                 }
 
-                if (FindIndex(initializerList->named, MatchNamePred(named->name)) != currentNamedIndex)
+                if (const auto index = FindIndex(initializerList->named, MatchNamePred(named->name)); index != currentNamedIndex)
                 {
-                    Error(named->ast, "Field initializer cannot be used more than once: {}", named->name);
+                    Log(LogLevel::Error, named->ast, "Field initializer cannot be used more than once: {}", named->name);
+                    Log(LogLevel::Info, initializerList->named[index]->ast, "Previous use of field: {}", named->name);
                     continue;
                 }
 
@@ -935,15 +1016,23 @@ IRValue* IRGenerator::ResolveValue(IRType* type, IRValue* value)
             }
 
             if (!initializerList->positional.IsEmpty() && structType->base != nullptr)
-                Error(initializerList->positional.Front()->ast, "Positional field initializer cannot be used for struct type with base: {}", structType->name);
+            {
+                Log(LogLevel::Error, initializerList->positional.Front()->ast, "Positional field initializer cannot be used for struct type with base: {}", structType->name);
+                Log(LogLevel::Info, structType->ast, "Definition of type: {}", structType->name);
+            }
             else if (initializerList->positional.Size() > firstNamedIndex)
-                Error(firstNamedField->ast, "Named and positional field initializer cannot be used for the same field: {}", firstNamedField->name);
+            {
+                Log(LogLevel::Error, firstNamedField->ast, "Named and positional field initializer cannot be used for the same field: {}", firstNamedField->name);
+            }
 
             std::uint32_t fieldIndex = 0;
             for (IRValue*& positional : initializerList->positional)
             {
                 if (fieldIndex >= structType->fields.Size())
-                    Error(positional->ast, "Too many positional initializers for struct type: {}", structType->name);
+                {
+                    Log(LogLevel::Error, positional->ast, "Too many positional initializers for struct type: {}", structType->name);
+                    Log(LogLevel::Info, structType->ast, "Definition of type: {}", structType->name);
+                }
 
                 IRField* const field = structType->fields[fieldIndex];
                 positional = ResolveValue(field->type, positional);
@@ -953,7 +1042,8 @@ IRValue* IRGenerator::ResolveValue(IRType* type, IRValue* value)
         }
         else
         {
-            Error(initializerList->ast, "Initializer list may only be used for array or struct types");
+            Log(LogLevel::Error, initializerList->ast, "Initializer list may only be used for array or struct types");
+            Log(LogLevel::Error, type->ast, "Definition of type: {}", type->name);
         }
 
         return value;
@@ -1132,7 +1222,7 @@ Location IRGenerator::GetLocation(const AstNode* node)
 }
 
 template <typename... Args>
-void IRGenerator::Error(const AstNode* node, fmt::format_string<Args...> format, Args&&... args)
+void IRGenerator::Log(LogLevel level, const AstNode* node, fmt::format_string<Args...> format, Args&&... args)
 {
     failed_ = true;
 
@@ -1140,7 +1230,9 @@ void IRGenerator::Error(const AstNode* node, fmt::format_string<Args...> format,
     const auto rs = fmt::format_to_n(buffer, sizeof buffer, format, std::forward<Args>(args)...);
 
     if (node != nullptr && node->tokenIndex < tokens_.Size())
-        ctx_.LogMessage(FindRange(filename_, source_, tokens_[node->tokenIndex]), std::string_view(buffer, rs.out));
+        ctx_.LogMessage(level, FindRange(filename_, source_, tokens_[node->tokenIndex]), std::string_view(buffer, rs.out));
+    else if (node != nullptr)
+        ctx_.LogMessage(level, LogLocation{ .file = filename_ }, std::string_view(buffer, rs.out));
     else
-        ctx_.LogMessage(LogLocation{ .file = filename_ }, std::string_view(buffer, rs.out));
+        ctx_.LogMessage(level, LogLocation{ .file = "<builtin>" }, std::string_view(buffer, rs.out));
 }

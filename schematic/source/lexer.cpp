@@ -66,7 +66,7 @@ Array<Token> schematic::compiler::Lexer::Tokenize()
     {
         char buffer[1024];
         auto rs = fmt::format_to_n(buffer, sizeof buffer, format, std::forward<Args>(args)...);
-        context_.LogMessage(FindRange(filename_, source_, in.Line(), pos, in.Pos() - pos), { buffer, rs.out });
+        context_.LogMessage(LogLevel::Error, FindRange(filename_, source_, in.Line(), pos, in.Pos() - pos), { buffer, rs.out });
         result = false;
     };
 
@@ -270,7 +270,7 @@ Array<Token> schematic::compiler::Lexer::Tokenize()
             {
                 if (in.IsEof())
                 {
-                    context_.LogMessage(FindRange(filename_, source_, startLine, start, in.Pos() - start), "Unterminated long string");
+                    context_.LogMessage(LogLevel::Error, FindRange(filename_, source_, startLine, start, in.Pos() - start), "Unterminated long string");
                     result = false;
                     break;
                 }
