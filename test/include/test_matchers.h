@@ -60,24 +60,32 @@ namespace schematic::test
 
     struct IsLexError : Catch::Matchers::MatcherGenericBase
     {
+        /*implicit*/ IsLexError(std::string_view expected)
+            : expected_(expected)
+        {
+        }
+
         bool match(const char* text) const
         {
             using namespace schematic::compiler;
 
             TestContext ctx;
-            ctx.reportErrors = false;
             ArenaAllocator arena;
-            Array<Token> tokens;
+
+            ctx.expectedErrors.push_back(TestContext::ExpectedError{ std::string(expected_), false });
 
             Lexer lexer(arena, ctx, "<test>", text);
-            tokens = lexer.Tokenize();
-            return !tokens.IsEmpty();
+            lexer.Tokenize();
+            return ctx.expectedErrors.front().encounted;
         }
 
         std::string describe() const override
         {
             return "IsLexError";
         }
+
+    private:
+        std::string_view expected_;
     };
 
     struct IsExactSequence : Catch::Matchers::MatcherGenericBase

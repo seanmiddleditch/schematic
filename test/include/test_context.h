@@ -105,17 +105,16 @@ namespace schematic::test
             }
         }
 
-        std::string_view line = schematic::compiler::ExtractLine(source, location.line);
-        if (!line.empty())
+        if (!location.source.empty())
         {
             buffer.push_back('\n');
             buffer.append(prefix);
-            buffer.append(line);
+            buffer.append(location.source);
 
             buffer.push_back('\n');
             buffer.append(prefix.size(), ' ');
             unsigned col = 0;
-            for (const char c : line)
+            for (const char c : location.source)
             {
                 ++col;
                 if (col >= location.column)

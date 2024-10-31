@@ -31,8 +31,8 @@ TEST_CASE("Lexer", "[schematic]")
         CHECK_THAT("0.0e1", IsTokenType(TokenType::Float));
         CHECK_THAT("0.0e-1", IsTokenType(TokenType::Float));
 
-        CHECK_THAT("00", IsLexError());
-        CHECK_THAT("01234", IsLexError());
+        CHECK_THAT("00", IsLexError("<test>(1): Leading zeroes are not permitted"));
+        CHECK_THAT("01234", IsLexError("<test>(1): Leading zeroes are not permitted"));
     }
 
     SECTION("Symbols")
@@ -48,14 +48,16 @@ TEST_CASE("Lexer", "[schematic]")
     SECTION("Strings")
     {
         CHECK_THAT(R"("Hello World!")", IsTokenType(TokenType::String));
-        CHECK_THAT(R"("Hello World!)", IsLexError());
-        CHECK_THAT("\"Hello World!\n\"", IsLexError());
-        CHECK_THAT("\\L", IsLexError());
+        CHECK_THAT(R"("Hello World!)", IsLexError("<test>(1): Unterminated string"));
+        CHECK_THAT("\"Hello World!\n\"", IsLexError("<test>(1): Unterminated string"));
+        CHECK_THAT("\\L", IsLexError("<test>(1): Unexpected input `\\`"));
 
         CHECK_THAT(R"("""Hello
 World!""")",
             IsTokenType(TokenType::MultilineString));
-        CHECK_THAT(R"("""Hello World!)", IsLexError());
+        CHECK_THAT(R"("""
+Hello World!)",
+            IsLexError("<test>(1): Unterminated long string"));
     }
 
     SECTION("Comments")
@@ -71,6 +73,6 @@ World!""")",
         Array<Token> tokens;
         REQUIRE(!lexer.Tokenize().IsEmpty());
 
-        CHECK_THAT("/", IsLexError());
+        CHECK_THAT("/", IsLexError("<test>(1): Unexpected input `/`"));
     }
 }
