@@ -1124,9 +1124,10 @@ Location IRGenerator::GetLocation(const AstNode* node)
 
     const Token& token = tokens_[node->tokenIndex];
 
+    const LogLocation log = FindRange(filename_, source_, token);
     return Location{
-        .line = token.line,
-        .column = FindColumn(source_, token),
+        .line = log.line,
+        .column = log.column,
     };
 }
 

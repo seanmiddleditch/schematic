@@ -8,19 +8,6 @@
 
 namespace schematic::compiler
 {
-
-    constexpr std::uint32_t FindColumn(std::string_view source, const Token& token) noexcept
-    {
-        const char* const text = source.data();
-        std::size_t col = 0;
-        for (col = token.offset; col != 0; --col)
-        {
-            if (text[col - 1] == '\n')
-                break;
-        }
-        return token.offset - col + 1;
-    }
-
     constexpr LogLocation FindRange(std::string_view filename, std::string_view source, const Token& token) noexcept
     {
         LogLocation result;
