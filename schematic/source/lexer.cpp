@@ -9,6 +9,7 @@
 #include <fmt/core.h>
 
 #include <cstdint>
+#include <utility>
 
 using namespace schematic;
 using namespace schematic::compiler;
@@ -61,9 +62,11 @@ Array<Token> schematic::compiler::Lexer::Tokenize()
     Input in(source_.data(), source_.size());
     bool result = true;
 
-    auto Error = [this, &in, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
+    auto Error = [this, &in, &result]<typename... Args>(fmt::format_string<Args...> format, Args&&... args)
     {
-        context_.LogMessage(LogLocation{ .file = filename_, .line = in.Line() }, fmt::vformat(format, fmt::make_format_args(args...)));
+        char buffer[1024];
+        auto rs = fmt::format_to_n(buffer, sizeof buffer, format, std::forward<Args>(args)...);
+        context_.LogMessage(LogLocation{ .file = filename_, .source = source_, .line = in.Line() }, { buffer, rs.out });
         result = false;
     };
 

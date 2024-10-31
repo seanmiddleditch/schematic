@@ -15,6 +15,7 @@ namespace schematic
     struct LogLocation
     {
         std::string_view file;
+        std::string_view source; // line of source for error
         std::uint32_t line = 0;
         std::uint32_t column = 0;
         std::uint32_t length = 0;

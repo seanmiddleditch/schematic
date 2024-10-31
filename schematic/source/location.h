@@ -36,6 +36,8 @@ namespace schematic::compiler
         }
         result.column = token.offset - col + 1;
 
+        result.source = source.substr(token.offset - col);
+
         std::uint32_t end = result.column;
         for (std::size_t i = 0; i != token.length; ++i)
         {
@@ -43,6 +45,8 @@ namespace schematic::compiler
             if (text[i + token.offset] == '\n')
                 break;
         }
+
+        result.source = result.source.substr(0, end);
 
         result.length = end - result.column;
         return result;
