@@ -5,69 +5,41 @@
 #include "token.h"
 
 #include "schematic/compiler.h"
-#include "schematic/logger.h"
 
 namespace schematic::compiler
 {
-
-    constexpr std::uint32_t FindColumn(std::string_view source, const Token& token) noexcept
+    constexpr LogLocation FindRange(std::string_view filename, std::string_view source, std::uint32_t line, std::uint32_t offset, std::uint32_t length) noexcept
     {
-        const char* const text = source.data();
-        std::size_t col = 0;
-        for (col = token.offset; col != 0; --col)
+        LogLocation result;
+        result.file = filename;
+        result.line = line;
+
+        if (length == 0)
+            length = 1;
+
+        std::size_t start = offset;
+        for (; start != 0; --start)
         {
-            if (text[col - 1] == '\n')
+            if (source[start - 1] == '\n')
                 break;
         }
-        return token.offset - col + 1;
-    }
+        result.column = offset - start + 1;
 
-    constexpr Range FindRange(std::string_view source, const Token& token) noexcept
-    {
-        Range result;
-        result.start.line = token.line;
-
-        const char* const text = source.data();
-        std::size_t col = 0;
-        for (col = token.offset; col != 0; --col)
+        std::uint32_t newline = offset;
+        for (; newline != source.size(); ++newline)
         {
-            if (text[col - 1] == '\n')
+            if (source[newline] == '\n')
                 break;
         }
-        result.start.column = token.offset - col + 1;
+        const std::uint32_t lineLength = static_cast<std::uint32_t>(newline - start);
 
-        result.end = result.start;
-        for (std::size_t i = 0; i != token.length; ++i)
-        {
-            ++result.end.column;
-            if (text[i + token.offset] == '\n')
-            {
-                ++result.start.line;
-                result.end.column = 1;
-            }
-        }
-
+        result.source = source.substr(start, lineLength);
+        result.length = lineLength > length ? length : lineLength;
         return result;
     }
 
-    constexpr std::string_view ExtractLine(std::string_view source, std::uint32_t line) noexcept
+    constexpr LogLocation FindRange(std::string_view filename, std::string_view source, const Token& token) noexcept
     {
-        const char* pos = source.data();
-        const char* lineStart = pos;
-        const char* const end = pos + source.size();
-
-        while (pos != end && line > 1)
-        {
-            if (*pos++ == '\n')
-            {
-                lineStart = pos;
-                --line;
-            }
-        }
-
-        while (pos != end && *pos != '\n')
-            ++pos;
-
-        return std::string_view(lineStart, pos - lineStart);
+        return FindRange(filename, source, token.line, token.offset, token.length);
     }
 } // namespace schematic::compiler

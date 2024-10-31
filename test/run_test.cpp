@@ -3,7 +3,6 @@
 #include "embed_tests.h"
 #include "evaluator.h"
 #include "test_context.h"
-#include "test_logger.h"
 
 #include "schematic/compiler.h"
 #include "schematic/schema.h"
@@ -18,7 +17,6 @@ using namespace schematic::test;
 void TestSchema(const char* filename)
 {
     TestContext ctx;
-    TestLogger logger;
     ArenaAllocator arena;
 
     const EmbeddedTest* test = nullptr;
@@ -45,7 +43,7 @@ void TestSchema(const char* filename)
             constexpr char error_prefix[] = "ERROR: ";
             const auto error_pos = line.find(error_prefix);
             if (error_pos != std::string::npos)
-                logger.expectedErrors.push_back({ line.substr(error_pos + std::strlen(error_prefix)) });
+                ctx.expectedErrors.push_back({ line.substr(error_pos + std::strlen(error_prefix)) });
 
             constexpr char check_prefix[] = "CHECK: ";
             const auto check_pos = line.find(check_prefix);
@@ -54,7 +52,7 @@ void TestSchema(const char* filename)
         }
     }
 
-    Compiler* compiler = NewCompiler(arena, logger, ctx);
+    Compiler* compiler = NewCompiler(arena, ctx);
     compiler->AddStandardPreamble();
     compiler->AddPreamble("schemas/include/preamble_impl.sat");
     const Schema* const schema = compiler->Compile(test->name);
@@ -68,7 +66,7 @@ void TestSchema(const char* filename)
             check.Check(schema);
     }
 
-    for (const auto& expected : logger.expectedErrors)
+    for (const auto& expected : ctx.expectedErrors)
     {
         if (expected.encounted)
             continue;

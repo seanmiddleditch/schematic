@@ -5,11 +5,11 @@
 #include "location.h"
 
 #include "schematic/allocator.h"
-#include "schematic/logger.h"
 
 #include <fmt/core.h>
 
 #include <cstdint>
+#include <utility>
 
 using namespace schematic;
 using namespace schematic::compiler;
@@ -62,9 +62,11 @@ Array<Token> schematic::compiler::Lexer::Tokenize()
     Input in(source_.data(), source_.size());
     bool result = true;
 
-    auto Error = [this, &in, &result]<typename... Args>(fmt::format_string<Args...> format, const Args&... args)
+    auto Error = [this, &in, &result]<typename... Args>(std::uint32_t pos, fmt::format_string<Args...> format, Args&&... args)
     {
-        logger_.Error(filename_, Range{ .start = { in.Line(), 0 }, .end = { in.Line(), 0 } }, fmt::vformat(format, fmt::make_format_args(args...)));
+        char buffer[1024];
+        auto rs = fmt::format_to_n(buffer, sizeof buffer, format, std::forward<Args>(args)...);
+        context_.LogMessage(LogLevel::Error, FindRange(filename_, source_, in.Line(), pos, in.Pos() - pos), { buffer, rs.out });
         result = false;
     };
 
@@ -181,7 +183,7 @@ Array<Token> schematic::compiler::Lexer::Tokenize()
                 if (in.Match('x'))
                 {
                     if (!in.Match(IsHexDigit))
-                        Error("Expected digits after 0x prefix");
+                        Error(start, "Expected digits after 0x prefix");
                     while (in.Match(IsHexDigit))
                         ;
                     tokens_.PushBack(arena_, Token{ .type = TokenType::HexInteger, .line = in.Line(), .offset = start, .length = in.Pos() - start });
@@ -192,7 +194,7 @@ Array<Token> schematic::compiler::Lexer::Tokenize()
                 if (in.Match('b'))
                 {
                     if (!in.Match(IsBinaryDigit))
-                        Error("Expected digits after 0b prefix");
+                        Error(start, "Expected digits after 0b prefix");
                     while (in.Match(IsBinaryDigit))
                         ;
                     tokens_.PushBack(arena_, Token{ .type = TokenType::BinaryInteger, .line = in.Line(), .offset = start, .length = in.Pos() - start });
@@ -201,7 +203,7 @@ Array<Token> schematic::compiler::Lexer::Tokenize()
 
                 // zero may not be followed by any other digits
                 if (in.Match(IsDigit))
-                    Error("Leading zeroes are not permitted");
+                    Error(start, "Leading zeroes are not permitted");
             }
 
             if (isDot && !in.Match(IsDigit))
@@ -240,7 +242,7 @@ Array<Token> schematic::compiler::Lexer::Tokenize()
                     ;
 
                 if (!in.Match(IsDigit))
-                    Error("Digits expected after exponent");
+                    Error(start, "Digits expected after exponent");
 
                 while (in.Match(IsDigit))
                     ;
@@ -263,11 +265,13 @@ Array<Token> schematic::compiler::Lexer::Tokenize()
         // strings
         if (in.Match("\"\"\""))
         {
+            const std::uint32_t startLine = in.Line();
             while (!in.Match("\"\"\""))
             {
                 if (in.IsEof())
                 {
-                    Error("Unterminated long string");
+                    context_.LogMessage(LogLevel::Error, FindRange(filename_, source_, startLine, start, in.Pos() - start), "Unterminated long string");
+                    result = false;
                     break;
                 }
 
@@ -287,7 +291,7 @@ Array<Token> schematic::compiler::Lexer::Tokenize()
                         break; // will trigger the unterminated string error
 
                     if (!in.Match('\\') && !in.Match('n'))
-                        Error("Unexpected string escape \\%c", in.Peek());
+                        Error(in.Pos(), "Unexpected string escape \\%c", in.Peek());
 
                     continue;
                 }
@@ -302,7 +306,7 @@ Array<Token> schematic::compiler::Lexer::Tokenize()
 
             if (!in.Match('"'))
             {
-                Error("Unterminated string");
+                Error(start, "Unterminated string");
                 break;
             }
 
@@ -311,7 +315,7 @@ Array<Token> schematic::compiler::Lexer::Tokenize()
         }
 
         // unknown token
-        Error("Unexpected input `{}`", in.Peek());
+        Error(in.Pos(), "Unexpected input `{}`", in.Peek());
         in.Advance();
     }
 

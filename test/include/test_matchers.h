@@ -3,7 +3,6 @@
 #pragma once
 
 #include "lexer.h"
-#include "test_logger.h"
 #include "test_strings.h"
 #include "token.h"
 
@@ -30,10 +29,10 @@ namespace schematic::test
         {
             using namespace schematic::compiler;
 
-            TestLogger logger;
+            TestContext ctx;
             ArenaAllocator arena;
 
-            Lexer lexer(arena, logger, "<test>", text);
+            Lexer lexer(arena, ctx, "<test>", text);
             Array<Token> tokens = lexer.Tokenize();
 
             if (tokens.IsEmpty())
@@ -61,24 +60,32 @@ namespace schematic::test
 
     struct IsLexError : Catch::Matchers::MatcherGenericBase
     {
+        /*implicit*/ IsLexError(std::string_view expected)
+            : expected_(expected)
+        {
+        }
+
         bool match(const char* text) const
         {
             using namespace schematic::compiler;
 
-            TestLogger logger;
-            logger.reportErrors = false;
+            TestContext ctx;
             ArenaAllocator arena;
-            Array<Token> tokens;
 
-            Lexer lexer(arena, logger, "<test>", text);
-            tokens = lexer.Tokenize();
-            return !tokens.IsEmpty();
+            ctx.expectedErrors.push_back(TestContext::ExpectedError{ std::string(expected_), false });
+
+            Lexer lexer(arena, ctx, "<test>", text);
+            lexer.Tokenize();
+            return ctx.expectedErrors.front().encounted;
         }
 
         std::string describe() const override
         {
             return "IsLexError";
         }
+
+    private:
+        std::string_view expected_;
     };
 
     struct IsExactSequence : Catch::Matchers::MatcherGenericBase

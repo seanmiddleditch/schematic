@@ -10,14 +10,29 @@
 
 namespace schematic
 {
-    class Logger;
     struct Schema;
+
+    enum class LogLevel
+    {
+        Error,
+        Info, // Supplemental for previous error
+    };
+
+    struct LogLocation
+    {
+        std::string_view file;
+        std::string_view source; // line of source for error
+        std::uint32_t line = 0;
+        std::uint32_t column = 0;
+        std::uint32_t length = 0;
+    };
 
     class CompileContext
     {
     public:
         virtual std::string_view ReadFileContents(ArenaAllocator& arena, std::string_view filename) = 0;
         virtual std::string_view ResolveModule(ArenaAllocator& arena, std::string_view name, std::string_view referrer) = 0;
+        virtual void LogMessage(LogLevel level, const LogLocation& location, std::string_view message) = 0;
 
     protected:
         ~CompileContext() = default;
@@ -36,7 +51,7 @@ namespace schematic
         Compiler() = default;
     };
 
-    Compiler* NewCompiler(ArenaAllocator& arena, Logger& logger, CompileContext& context);
+    Compiler* NewCompiler(ArenaAllocator& arena, CompileContext& context);
 } // namespace schematic
 
 #endif // SCHEMATIC_COMPILER_H

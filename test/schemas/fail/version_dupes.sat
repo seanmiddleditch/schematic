@@ -1,29 +1,27 @@
 schema Pos #2 {}
 
-// ERROR: schemas/fail/version_dupes.sat(4): Schema versions overlap with previous declaration: Pos
+// ERROR: schemas/fail/version_dupes.sat(4): Schema versions overlap with previous declaration: Pos#2
 schema Pos #2 {}
 
 schema Pos #3 {}
 
-// ERROR: schemas/fail/version_dupes.sat(11): Schema versions overlap with previous declaration: Pos
-// ERROR: schemas/fail/version_dupes.sat(11): Schema versions overlap with previous declaration: Pos
-// ERROR: schemas/fail/version_dupes.sat(11): Schema versions overlap with previous declaration: Pos
+// ERROR: schemas/fail/version_dupes.sat(9): Schema versions overlap with previous declaration: Pos#1..3
 schema Pos #1..3 {}
 
 schema Pos #4..5 {
     int32 x #4..5;
-    // ERROR: schemas/fail/version_dupes.sat(16): Schema field version already defined: Pos.x#4
+    // ERROR: schemas/fail/version_dupes.sat(14): Schema field version already defined: Pos.x#4
     int32 x #4;
-    // ERROR: schemas/fail/version_dupes.sat(18): Schema field version already defined: Pos.x#5
+    // ERROR: schemas/fail/version_dupes.sat(16): Schema field version already defined: Pos.x#5
     int32 x #5;
 }
 
-// ERROR: schemas/fail/version_dupes.sat(22): Type already defined: Pos
+// ERROR: schemas/fail/version_dupes.sat(20): Type already defined: Pos
 struct Pos {}
 
 struct Vec {}
-// ERROR: schemas/fail/version_dupes.sat(26): Type already defined: Vec
+// ERROR: schemas/fail/version_dupes.sat(24): Type already defined: Vec#2
 schema Vec#2 {}
 
-// ERROR: schemas/fail/version_dupes.sat(29): Version must be positive: 0
+// ERROR: schemas/fail/version_dupes.sat(27): Version must be positive: 0
 schema Zero#0 {}

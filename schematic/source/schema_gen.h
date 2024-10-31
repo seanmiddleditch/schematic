@@ -4,7 +4,7 @@
 
 #include "ir.h"
 
-#include "schematic/logger.h"
+#include "schematic/compiler.h"
 #include "schematic/schema.h"
 
 namespace schematic::compiler
@@ -14,9 +14,9 @@ namespace schematic::compiler
     class SchemaGenerator final
     {
     public:
-        explicit SchemaGenerator(ArenaAllocator& arena, Logger& logger) noexcept
+        explicit SchemaGenerator(ArenaAllocator& arena, CompileContext& ctx) noexcept
             : arena_(arena)
-            , logger_(logger)
+            , ctx_(ctx)
         {
         }
 
@@ -28,7 +28,7 @@ namespace schematic::compiler
         const Value* CreateValue(IRValue* value);
 
         ArenaAllocator& arena_;
-        Logger& logger_;
+        CompileContext& ctx_;
         Schema* schema_ = nullptr;
 
         Array<Module, ModuleIndex> modules_;

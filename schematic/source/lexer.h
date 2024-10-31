@@ -15,9 +15,9 @@ namespace schematic::compiler
     class Lexer final
     {
     public:
-        Lexer(ArenaAllocator& arena, Logger& logger, std::string_view filename, std::string_view source) noexcept
+        Lexer(ArenaAllocator& arena, CompileContext& context, std::string_view filename, std::string_view source) noexcept
             : arena_(arena)
-            , logger_(logger)
+            , context_(context)
             , filename_(filename)
             , source_(source)
         {
@@ -27,7 +27,7 @@ namespace schematic::compiler
 
     private:
         ArenaAllocator& arena_;
-        Logger& logger_;
+        CompileContext& context_;
         std::string_view filename_;
         std::string_view source_;
         Array<Token> tokens_;
