@@ -39,6 +39,7 @@ const Schema* SchemaGenerator::Compile(IRSchema* irSchema)
             continue;
 
         Module& module = modules_[irModule->index];
+        module.index = irModule->index;
         module.filename = arena_.NewString(irModule->filename);
 
         Array<Import> imports = arena_.NewArrayCapacity<Import>(irModule->imports.Size());
@@ -81,6 +82,7 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
     if (IRTypeAlias* irType = CastTo<IRTypeAlias>(inIrType); irType != nullptr)
     {
         TypeAlias* const type = arena_.New<TypeAlias>();
+        type->index = irType->index;
         type->name = arena_.NewString(irType->name);
         type->parent = irType->parent->index;
         type->location = irType->location;
@@ -92,6 +94,7 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
     if (IRTypeAttribute* irType = CastTo<IRTypeAttribute>(inIrType); irType != nullptr)
     {
         TypeAttribute* const type = arena_.New<TypeAttribute>();
+        type->index = irType->index;
         type->name = arena_.NewString(irType->name);
         type->parent = irType->parent->index;
         type->location = irType->location;
@@ -122,6 +125,7 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
     if (IRTypeEnum* irType = CastTo<IRTypeEnum>(inIrType); irType != nullptr)
     {
         TypeEnum* const type = arena_.New<TypeEnum>();
+        type->index = irType->index;
         type->name = arena_.NewString(irType->name);
         type->parent = irType->parent->index;
         type->location = irType->location;
@@ -151,6 +155,7 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
     if (IRTypeMessage* irType = CastTo<IRTypeMessage>(inIrType); irType != nullptr)
     {
         TypeMessage* const type = arena_.New<TypeMessage>();
+        type->index = irType->index;
         type->name = arena_.NewString(irType->name);
         type->parent = irType->parent->index;
         type->location = irType->location;
@@ -182,6 +187,7 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
     if (IRTypeStruct* irType = CastTo<IRTypeStruct>(inIrType); irType != nullptr)
     {
         TypeStruct* const type = arena_.New<TypeStruct>();
+        type->index = irType->index;
         type->name = arena_.NewString(irType->name);
         type->parent = irType->parent->index;
         type->location = irType->location;
@@ -214,6 +220,7 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
     if (IRTypeSchema* irType = CastTo<IRTypeSchema>(inIrType); irType != nullptr)
     {
         TypeSchema* const type = arena_.New<TypeSchema>();
+        type->index = irType->index;
         type->name = NewStringFmt(arena_, "{}#{}", irType->name, irType->version);
         type->parent = irType->parent->index;
         type->location = irType->location;
@@ -249,6 +256,7 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
         if (irType->typeKind == TypeKind::Bool)
         {
             TypeBool* const type = arena_.New<TypeBool>();
+            type->index = irType->index;
             type->name = arena_.NewString(irType->name);
             type->parent = irType->parent->index;
             type->location = irType->location;
@@ -258,6 +266,7 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
         if (irType->typeKind == TypeKind::Float)
         {
             TypeFloat* const type = arena_.New<TypeFloat>();
+            type->index = irType->index;
             type->name = arena_.NewString(irType->name);
             type->parent = irType->parent->index;
             type->location = irType->location;
@@ -268,6 +277,7 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
         if (irType->typeKind == TypeKind::Int)
         {
             TypeInt* const type = arena_.New<TypeInt>();
+            type->index = irType->index;
             type->name = arena_.NewString(irType->name);
             type->parent = irType->parent->index;
             type->location = irType->location;
@@ -279,6 +289,7 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
         if (irType->typeKind == TypeKind::String)
         {
             TypeString* const type = arena_.New<TypeString>();
+            type->index = irType->index;
             type->name = arena_.NewString(irType->name);
             type->parent = irType->parent->index;
             type->location = irType->location;
@@ -288,6 +299,7 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
         if (irType->typeKind == TypeKind::Type)
         {
             TypeType* const type = arena_.New<TypeType>();
+            type->index = irType->index;
             type->name = arena_.NewString(irType->name);
             type->parent = irType->parent->index;
             type->location = irType->location;
@@ -301,6 +313,7 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
     if (IRTypeIndirectArray* irType = CastTo<IRTypeIndirectArray>(inIrType); irType != nullptr)
     {
         TypeArray* const type = arena_.New<TypeArray>();
+        type->index = irType->index;
         if (irType->size != 0)
             type->name = NewStringFmt(arena_, "{}[{}]", irType->target->name, irType->size);
         else
@@ -315,6 +328,7 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
     if (IRTypeIndirectNullable* irType = CastTo<IRTypeIndirectNullable>(inIrType); irType != nullptr)
     {
         TypeNullable* const type = arena_.New<TypeNullable>();
+        type->index = irType->index;
         type->name = NewStringFmt(arena_, "{}?", irType->target->name);
         type->parent = irType->parent->index;
         type->location = irType->location;
@@ -325,6 +339,7 @@ const Type* SchemaGenerator::CreateType(IRType* inIrType)
     if (IRTypeIndirectPointer* irType = CastTo<IRTypeIndirectPointer>(inIrType); irType != nullptr)
     {
         TypeNullable* const type = arena_.New<TypeNullable>();
+        type->index = irType->index;
         type->name = NewStringFmt(arena_, "{}*", irType->target->name);
         type->parent = irType->parent->index;
         type->location = irType->location;

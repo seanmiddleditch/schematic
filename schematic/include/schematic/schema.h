@@ -133,7 +133,7 @@ namespace schematic
     struct Module
     {
         const char* filename = nullptr;
-        TypeIndex index = InvalidIndex;
+        ModuleIndex index = InvalidIndex;
         ReadOnlySpan<Import> imports;
     };
 
