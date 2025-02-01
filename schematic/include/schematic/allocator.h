@@ -4,6 +4,7 @@
 #define SCHEMATIC_ALLOCATOR_H 1
 #pragma once
 
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <new>
