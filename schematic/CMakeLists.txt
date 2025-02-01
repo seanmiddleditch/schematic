@@ -7,6 +7,7 @@ target_compile_features(schematic PUBLIC cxx_std_23)
 target_link_libraries(schematic PRIVATE fmt::fmt)
 target_sources(schematic PUBLIC FILE_SET HEADERS BASE_DIRS include FILES
     "include/schematic/allocator.h"
+    "include/schematic/common.h"
     "include/schematic/compiler.h"
     "include/schematic/schema.h"
     "include/schematic/utility.h"
