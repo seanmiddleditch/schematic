@@ -3,7 +3,7 @@
 include(CMakeFindDependencyMacro)
 find_dependency(fmt CONFIG REQUIRED)
 
-include("${CMAKE_CURRENT_LIST_DIR}/SchematicTargets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/schematicTargets.cmake")
 
 set_and_check(schematic_INCLUDE_DIR ${PACKAGE_PREFIX_DIR}/include)
 set(schematic_LIBRARIES schematic::schematic)
