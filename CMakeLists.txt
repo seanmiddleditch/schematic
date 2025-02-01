@@ -45,6 +45,7 @@ if(SCHEMATIC_INSTALL)
     install(EXPORT SchematicTargets
         DESTINATION lib/cmake/schematic
         NAMESPACE schematic::
+        FILE schematicTargets.cmake
     )
 
     export(EXPORT SchematicTargets
