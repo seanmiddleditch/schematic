@@ -1,0 +1,3 @@
+struct inner {
+    int32 value;
+}

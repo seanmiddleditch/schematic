@@ -1,0 +1,15 @@
+import "include/inner.sat";
+
+struct outer {
+    int32 first;
+    inner second;
+    int32 third;
+}
+
+// CHECK: inner.@fields == 1
+// CHECK: inner.value.@index == 0
+
+// CHECK: outer.@fields == 3
+// CHECK: outer.first.@index == 1
+// CHECK: outer.second.@index == 2
+// CHECK: outer.third.@index == 3

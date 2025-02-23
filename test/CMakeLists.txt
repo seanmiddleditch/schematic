@@ -28,6 +28,7 @@ schematic_embed_schemas(TARGET schematic_test SCHEMAS
     "schemas/array.sat"
     "schemas/builtin.sat"
     "schemas/enum.sat"
+    "schemas/fields.sat"
     "schemas/initializers.sat"
     "schemas/message.sat"
     "schemas/modifiers.sat"
@@ -37,6 +38,7 @@ schematic_embed_schemas(TARGET schematic_test SCHEMAS
     "schemas/versions.sat"
 
     "schemas/include/imported.sat"
+    "schemas/include/inner.sat"
     "schemas/include/preamble_impl.sat"
 
     "schemas/fail/circular_import.sat"
