@@ -7,9 +7,9 @@ struct outer {
 }
 
 // CHECK: inner.@fields == 1
-// CHECK: inner.value.@index == 0
+// CHECK: inner.value.@index == 3
 
 // CHECK: outer.@fields == 3
-// CHECK: outer.first.@index == 1
-// CHECK: outer.second.@index == 2
-// CHECK: outer.third.@index == 3
+// CHECK: outer.first.@index == 0
+// CHECK: outer.second.@index == 1
+// CHECK: outer.third.@index == 2
