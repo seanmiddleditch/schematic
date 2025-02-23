@@ -1064,10 +1064,12 @@ void IRGenerator::AssignIndices(IRType* type, IRSchema* schema)
 
     if (IRTypeAttribute* const attributeType = CastTo<IRTypeAttribute>(type); attributeType != nullptr)
     {
+        // assign indices sequentially before recursing, so indices are contiguous
         for (IRField* const field : attributeType->fields)
-        {
             field->index = schema->maxFieldIndex++;
 
+        for (IRField* const field : attributeType->fields)
+        {
             AssignIndices(field->type, schema);
             if (field->value != nullptr)
                 AssignIndices(field->value, schema);
@@ -1089,10 +1091,12 @@ void IRGenerator::AssignIndices(IRType* type, IRSchema* schema)
     }
     else if (IRTypeMessage* const messageType = CastTo<IRTypeMessage>(type); messageType != nullptr)
     {
+        // assign indices sequentially before recursing, so indices are contiguous
         for (IRField* const field : messageType->fields)
-        {
             field->index = schema->maxFieldIndex++;
 
+        for (IRField* const field : messageType->fields)
+        {
             AssignIndices(field->type, schema);
             if (field->value != nullptr)
                 AssignIndices(field->value, schema);
@@ -1105,10 +1109,12 @@ void IRGenerator::AssignIndices(IRType* type, IRSchema* schema)
         if (structType->base != nullptr)
             AssignIndices(structType->base, schema);
 
+        // assign indices sequentially before recursing, so indices are contiguous
         for (IRField* const field : structType->fields)
-        {
             field->index = schema->maxFieldIndex++;
 
+        for (IRField* const field : structType->fields)
+        {
             AssignIndices(field->type, schema);
             if (field->value != nullptr)
                 AssignIndices(field->value, schema);
@@ -1121,10 +1127,12 @@ void IRGenerator::AssignIndices(IRType* type, IRSchema* schema)
         if (structVersionedType->base != nullptr)
             AssignIndices(structVersionedType->base, schema);
 
+        // assign indices sequentially before recursing, so indices are contiguous
         for (IRField* const field : structVersionedType->fields)
-        {
             field->index = schema->maxFieldIndex++;
 
+        for (IRField* const field : structVersionedType->fields)
+        {
             AssignIndices(field->type, schema);
             if (field->value != nullptr)
                 AssignIndices(field->value, schema);

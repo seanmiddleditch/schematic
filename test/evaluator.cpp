@@ -282,6 +282,8 @@ namespace schematic::test
 
         if (Match("@type"))
             return Evaluate(field->type);
+        if (Match("@index"))
+            return Evaluate(field->index.index);
         if (Match("@default"))
             return Evaluate(field->value);
         if (Match("@proto"))
