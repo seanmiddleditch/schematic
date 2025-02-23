@@ -21,4 +21,11 @@
       </ArrayItems>
     </Expand>
   </Type>
+  <Type Name="schematic::IndexRange&lt;*&gt;">
+    <DisplayString>{{ {start},{count} }}</DisplayString>
+    <Expand>
+      <Item Name="[start]" ExcludeView="simple">start</Item>
+      <Item Name="[count]" ExcludeView="simple">count</Item>
+    </Expand>
+  </Type>
 </AutoVisualizer>
