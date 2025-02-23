@@ -1,5 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="schematic::Type" Inheritable="false">
+    <DisplayString>{{ {kind,en} {name,s} }}</DisplayString>
+    <Expand HideRawView="false">
+      <Item Name="kind">kind</Item>
+      <Item Name="name">name</Item>
+
+      <Item Name="type" Condition="kind==schematic::TypeKind::Alias">((schematic::TypeAlias*)this)->type</Item>
+
+      <Item Name="elements" Condition="kind==schematic::TypeKind::Array">((schematic::TypeArray*)this)->elements</Item>
+      <Item Name="size" Condition="kind==schematic::TypeKind::Array">((schematic::TypeArray*)this)->size</Item>
+
+      <Item Name="fields" Condition="kind==schematic::TypeKind::Attribute">((schematic::TypeAttribute*)this)->fields</Item>
+
+      <Item Name="base" Condition="kind==schematic::TypeKind::Enum">((schematic::TypeEnum*)this)->base</Item>
+      <Item Name="items" Condition="kind==schematic::TypeKind::Enum">((schematic::TypeEnum*)this)->items</Item>
+
+      <Item Name="width" Condition="kind==schematic::TypeKind::Float">((schematic::TypeFloat*)this)->width</Item>
+
+      <Item Name="isSigned" Condition="kind==schematic::TypeKind::Int">((schematic::TypeInt*)this)->isSigned</Item>
+      <Item Name="fields" Condition="kind==schematic::TypeKind::Int">((schematic::TypeInt*)this)->width</Item>
+
+      <Item Name="fields" Condition="kind==schematic::TypeKind::Message">((schematic::TypeMessage*)this)->fields</Item>
+
+      <Item Name="target" Condition="kind==schematic::TypeKind::Nullable">((schematic::TypeNullable*)this)->target</Item>
+
+      <Item Name="target" Condition="kind==schematic::TypeKind::Pointer">((schematic::TypePointer*)this)->target</Item>
+
+      <Item Name="version" Condition="kind==schematic::TypeKind::Schema">((schematic::TypeSchema*)this)->version</Item>
+      <Item Name="base" Condition="kind==schematic::TypeKind::Schema">((schematic::TypeSchema*)this)->base</Item>
+      <Item Name="fields" Condition="kind==schematic::TypeKind::Schema">((schematic::TypeSchema*)this)->fields</Item>
+
+      <Item Name="base" Condition="kind==schematic::TypeKind::Struct">((schematic::TypeStruct*)this)->base</Item>
+      <Item Name="fields" Condition="kind==schematic::TypeKind::Struct">((schematic::TypeStruct*)this)->fields</Item>
+      
+      <Item Name="index">index</Item>
+      <Item Name="parent">parent</Item>
+      <Item Name="annotations">annotations</Item>
+      <Item Name="location">location</Item>
+    </Expand>
+  </Type>
+  <Type Name="schematic::Value" Inheritable="false">
+    <DisplayString Condition="kind==schematic::ValueKind::Array">{{ {kind,en} {((schematic::ValueArray*)this)->type} }}</DisplayString>
+    <DisplayString Condition="kind==schematic::ValueKind::Bool">{{ {kind,en} {((schematic::ValueBool*)this)->value} }}</DisplayString>
+    <DisplayString Condition="kind==schematic::ValueKind::Enum">{{ {kind,en} {((schematic::ValueEnum*)this)->item} }}</DisplayString>
+    <DisplayString Condition="kind==schematic::ValueKind::Float">{{ {kind,en} {((schematic::ValueFloat*)this)->value} }}</DisplayString>
+    <DisplayString Condition="kind==schematic::ValueKind::Int">{{ {kind,en} {((schematic::ValueInt*)this)->value} }}</DisplayString>
+    <DisplayString Condition="kind==schematic::ValueKind::Object">{{ {kind,en} {((schematic::ValueObject*)this)->type} }}</DisplayString>
+    <DisplayString Condition="kind==schematic::ValueKind::String">{{ {kind,en} {((schematic::ValueString*)this)->value} }}</DisplayString>
+    <DisplayString Condition="kind==schematic::ValueKind::Type">{{ {kind,en} {((schematic::ValueType*)this)->type} }}</DisplayString>
+    <DisplayString>{{ {kind,en} }}</DisplayString>
+    
+    <Expand HideRawView="false">
+      <Item Name="kind">kind</Item>
+
+      <Item Name="type" Condition="kind==schematic::ValueKind::Array">((schematic::ValueArray*)this)->type</Item>
+      <Item Name="elements" Condition="kind==schematic::ValueKind::Array">((schematic::ValueArray*)this)->elements</Item>
+
+      <Item Name="value" Condition="kind==schematic::ValueKind::Bool">((schematic::ValueBool*)this)->value</Item>
+
+      <Item Name="item" Condition="kind==schematic::ValueKind::Enum">((schematic::ValueEnum*)this)->item</Item>
+
+      <Item Name="value" Condition="kind==schematic::ValueKind::Float">((schematic::ValueFloat*)this)->value</Item>
+      
+      <Item Name="value" Condition="kind==schematic::ValueKind::Int">((schematic::ValueInt*)this)->value</Item>
+
+      <Item Name="value" Condition="kind==schematic::ValueKind::Object">((schematic::ValueObject*)this)->type</Item>
+      <Item Name="fields" Condition="kind==schematic::ValueKind::Object">((schematic::ValueObject*)this)->fields</Item>
+      
+      <Item Name="value" Condition="kind==schematic::ValueKind::String">((schematic::ValueString*)this)->value</Item>
+
+      <Item Name="type" Condition="kind==schematic::ValueKind::Type">((schematic::ValueType*)this)->type</Item>
+      
+      <Item Name="location">location</Item>
+    </Expand>
+  </Type>
   <Type Name="schematic::Array&lt;*,*&gt;">
     <DisplayString>{{ size={last_ - first_} }}</DisplayString>
     <Expand>
@@ -21,10 +96,18 @@
       </ArrayItems>
     </Expand>
   </Type>
-  <Type Name="schematic::IndexRange&lt;*&gt;">
-    <DisplayString>{{ {start},{count} }}</DisplayString>
+  <Type Name="schematic::Index&lt;*&gt;">
+    <DisplayString Condition="index==4294967295">{{ invalid }}</DisplayString>
+    <DisplayString>{"$T1",sb}( {index} )</DisplayString>
     <Expand>
-      <Item Name="[start]" ExcludeView="simple">start</Item>
+      <Item Name="[index]" ExcludeView="simple">index</Item>
+    </Expand>
+  </Type>
+  <Type Name="schematic::IndexRange&lt;*&gt;">
+    <DisplayString Condition="start.index==4294967295">{{ empty }}</DisplayString>
+    <DisplayString>{{ start={start} count={count} }}</DisplayString>
+    <Expand>
+      <Item Name="[start]" ExcludeView="simple">start.index</Item>
       <Item Name="[count]" ExcludeView="simple">count</Item>
     </Expand>
   </Type>
