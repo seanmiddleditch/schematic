@@ -35,12 +35,14 @@ target_sources(schematic PRIVATE
 )
 
 if(SCHEMATIC_INSTALL)
-    include(GNUInstallDirs)
-    install(
-        FILES "schematic.natvis"
-        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}"
-    )
-    target_link_options(schematic INTERFACE "$<INSTALL_INTERFACE:/NATVIS:$<INSTALL_PREFIX>/${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/schematic.natvis>")
+    if(WIN32)
+        include(GNUInstallDirs)
+        install(
+            FILES "schematic.natvis"
+            DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}"
+        )
+        target_link_options(schematic INTERFACE "$<INSTALL_INTERFACE:/NATVIS:$<INSTALL_PREFIX>/${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/schematic.natvis>")
+    endif()
     install(
         TARGETS schematic
         EXPORT SchematicTargets
